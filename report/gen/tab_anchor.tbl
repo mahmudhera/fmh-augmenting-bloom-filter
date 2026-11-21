@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+c c c c s s s s c
+c c c c c c c c c
+n n n n n n n n n.
+anchor@@anchor@min. contig length (kb) at ANI =@global spurious
+rate $s sub a$@$k sub a$@bits/base@99%@95%@90%@85%@80%@anchor rate
+_
+1/1000@21@0.044@7.8@18.5@57.5@191.1@682.6@1.1\(mu10\u\s-2-6\s+2\d
+1/200@21@0.208@1.6@3.7@11.5@38.2@136.5@1.1\(mu10\u\s-2-6\s+2\d
+1/200@15@0.208@1.5@2.7@6.1@14.4@35.8@4.7\(mu10\u\s-2-3\s+2\d
+1/50@15@0.793@0.4@0.7@1.5@3.6@8.9@4.7\(mu10\u\s-2-3\s+2\d
+1/50@12@0.793@0.4@0.6@1.1@2.2@4.6@3.0\(mu10\u\s-2-1\s+2\d
+.TE

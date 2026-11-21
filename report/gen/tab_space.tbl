@@ -1,0 +1,17 @@
+.TS
+center box tab(@);
+l c c c
+l n n n.
+design@bits / base@5 Mbp genome@\(mu D0
+_
+2-bit packed genome (exact; alignment possible)@2.000@1.25 MB@31.2
+D0: FMH, $s$=1/1000, 64-bit hashes@0.064@40 KB@1.0
+D3: D0 + Elias\(enFano positions@0.076@47 KB@1.2
+D1: global BF of all $k$-mers, $epsilon$=0.01@9.593@6.00 MB@149.9
+D1: global BF of all $k$-mers, $epsilon$=0.25@2.885@1.80 MB@45.1
+D4: anchors 1/1000 + island BF of ALL island $k$-mers, $epsilon$=0.01@9.627@6.02 MB@150.4
+D2: BF tier $s sub 2$=1/50, $epsilon$=0.25 (no anchors)@0.058@36 KB@0.9
+D5: anchors 1/1000 (32-bit fp + pos.) + island BF $s sub 2$=1/50, $epsilon$=0.25@0.102@64 KB@1.6
+D5-lite: anchors 1/2000 + island BF $s sub 2$=1/69, $epsilon$=0.25 (= D0 budget)@0.064@40 KB@1.0
+D6: island fingerprints, anchors 1/800 + 8-bit island hash@0.065@40 KB@1.0
+.TE

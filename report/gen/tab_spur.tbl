@@ -1,0 +1,18 @@
+.TS
+center box tab(@);
+c c c c c
+c c c c c
+n n n n n.
+@island, $l$ = 200@island, $l$ = 1000@genome 5 Mbp@genome 3 Gbp
+$k$@(local probe)@(local probe)@(global probe)@(global probe)
+_
+9@7.6\(mu10\u\s-2-4\s+2\d@3.8\(mu10\u\s-2-3\s+2\d@1.0\(mu10\u\s-20\s+2\d@1.0\(mu10\u\s-20\s+2\d
+11@4.8\(mu10\u\s-2-5\s+2\d@2.4\(mu10\u\s-2-4\s+2\d@7.0\(mu10\u\s-2-1\s+2\d@1.0\(mu10\u\s-20\s+2\d
+13@3.0\(mu10\u\s-2-6\s+2\d@1.5\(mu10\u\s-2-5\s+2\d@7.2\(mu10\u\s-2-2\s+2\d@1.0\(mu10\u\s-20\s+2\d
+15@1.9\(mu10\u\s-2-7\s+2\d@9.3\(mu10\u\s-2-7\s+2\d@4.6\(mu10\u\s-2-3\s+2\d@9.4\(mu10\u\s-2-1\s+2\d
+17@1.2\(mu10\u\s-2-8\s+2\d@5.8\(mu10\u\s-2-8\s+2\d@2.9\(mu10\u\s-2-4\s+2\d@1.6\(mu10\u\s-2-1\s+2\d
+19@7.3\(mu10\u\s-2-10\s+2\d@3.6\(mu10\u\s-2-9\s+2\d@1.8\(mu10\u\s-2-5\s+2\d@1.1\(mu10\u\s-2-2\s+2\d
+21@4.5\(mu10\u\s-2-11\s+2\d@2.3\(mu10\u\s-2-10\s+2\d@1.1\(mu10\u\s-2-6\s+2\d@6.8\(mu10\u\s-2-4\s+2\d
+25@1.8\(mu10\u\s-2-13\s+2\d@8.9\(mu10\u\s-2-13\s+2\d@4.4\(mu10\u\s-2-9\s+2\d@2.7\(mu10\u\s-2-6\s+2\d
+31@4.3\(mu10\u\s-2-17\s+2\d@2.2\(mu10\u\s-2-16\s+2\d@1.1\(mu10\u\s-2-12\s+2\d@6.5\(mu10\u\s-2-10\s+2\d
+.TE

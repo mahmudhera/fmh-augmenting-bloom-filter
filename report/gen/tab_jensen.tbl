@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c c s c s
+l c c c c c
+l n n n n n.
+rate profile (aligned regions)@mean ANI@$k$ = 21@$k$ = 31
+@(%)@est. (%)@bias (pp)@est. (%)@bias (pp)
+_
+two blocks: 50% at $p$=0, 50% at $p$=0.10 (recent HGT)@95.00@97.23@+2.23@97.91@+2.91
+two blocks: 50% at $p$=0.02, 50% at $p$=0.08@95.00@95.89@+0.89@96.24@+1.24
+90% at $p$=0.03, 10% hypervariable at $p$=0.23@95.00@96.52@+1.52@96.67@+1.67
+region rates ~ Gamma(mean 0.05, CV 0.5)@95.00@95.56@+0.56@95.78@+0.78
+region rates ~ Gamma(mean 0.05, CV 1)@95.00@96.58@+1.58@96.99@+1.99
+.TE

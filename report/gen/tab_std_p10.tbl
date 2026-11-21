@@ -1,0 +1,18 @@
+.TS
+center box tab(@);
+c c c c c c c
+c c c c c c c
+c c c c c c c
+n n n n n n n.
+contig@alignment@floor@D0: FMH@D2: BF tier@D2: BF tier@D2: BF tier
+(kb)@oracle@($s$=1)@$s$=1/1000@$epsilon$=0.01@$epsilon$=0.044 (robust)@$epsilon sup *$=0.052
+@@@@$s sub 2$=1/150@$s sub 2$=1/102@$s sub 2$=1/96
+_
+1@0.95@1.45@12.43\(dg@5.19\(dg@4.90\(dg@4.90\(dg
+2@0.67@1.02@8.74\(dg@3.65\(dg@3.45\(dg@3.45\(dg
+5@0.42@0.64@5.51\(dg@2.30@2.18@2.17
+10@0.30@0.46@3.90\(dg@1.63@1.54@1.54
+20@0.21@0.32@2.75\(dg@1.15@1.09@1.09
+50@0.13@0.20@1.74@0.73@0.69@0.69
+100@0.09@0.14@1.23@0.51@0.49@0.49
+.TE

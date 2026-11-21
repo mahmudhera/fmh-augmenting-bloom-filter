@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+c c c c c c
+c c c c c c
+n n n n n n.
+contig@signal@SNR: contig probes@SNR: BF\(ca BF@SNR: genome probes@SNR: genome probes
+(kb)@$s sub 2 n theta$@genome BF@(symmetric)@contig BF (global)@contig BF (localized)
+_
+2@14@4.5@0.17@0.43@4.4
+5@34@7.2@0.42@1.07@7.0
+20@136@14.3@1.65@4.15@13.9
+100@681@32.0@8.01@18.01@31.1
+.TE

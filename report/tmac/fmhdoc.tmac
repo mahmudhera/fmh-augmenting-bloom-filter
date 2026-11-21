@@ -1,0 +1,299 @@
+.\" fmhdoc.tmac -- small article macro set for groff (used because the
+.\" ms/me packages are not installed on the build host).  Requires -Tps.
+.\"
+.\" Page geometry -------------------------------------------------------
+.pl 11i
+.po 1i
+.ll 6.5i
+.lt 6.5i
+.nr PS 11
+.nr VS 13.6
+.ps \n(PS
+.vs \n(VSp
+.ft R
+.hy 4
+.hla en
+.nr PI 0.25i
+.nr BODY 0
+.nr H1 0
+.nr H2 0
+.nr FG 0
+.nr TB 0
+.nr APP 0
+.ds HT FracMinHash + Bloom filters for ANI/AF on short contigs: theory
+.\" Headers / footers ----------------------------------------------------
+.de hd
+'sp 0.45i
+.if \\n[BODY] .tl '\s8\f[I]\\*[HT]\f[]\s0''\s8\\n%\s0'
+'sp |0.95i
+..
+.de fo
+'bp
+..
+.wh 0 hd
+.wh -0.85i fo
+.\" No-op hooks emitted by eqn/tbl ----------------------------------------
+.de EQ
+..
+.de EN
+..
+.\" Paragraphs -------------------------------------------------------------
+.de PP
+.sp 0.38v
+.ne 2v
+.fi
+.ad b
+.in 0
+.ll 6.5i
+.ti \\n(PIu
+..
+.de LP
+.sp 0.38v
+.ne 2v
+.fi
+.ad b
+.in 0
+.ll 6.5i
+..
+.\" Headings -----------------------------------------------------------------
+.de H1
+.sp 0.9v
+.ne 5v
+.nr H1 +1
+.nr H2 0
+.in 0
+.ll 6.5i
+.ad l
+.ft B
+.ps 13
+.vs 16p
+\\n[H1].\ \ \\$1
+.br
+.ps \\n(PS
+.vs \\n(VSp
+.ft R
+.ad b
+.tm TOC|1|\\n[H1].|\\$1|\\n%
+.sp 0.25v
+..
+.de HU
+.sp 0.9v
+.ne 5v
+.in 0
+.ll 6.5i
+.ad l
+.ft B
+.ps 13
+.vs 16p
+\\$1
+.br
+.ps \\n(PS
+.vs \\n(VSp
+.ft R
+.ad b
+.tm TOC|1||\\$1|\\n%
+.sp 0.25v
+..
+.de HA
+.sp 0.9v
+.ne 5v
+.nr H2 0
+.in 0
+.ll 6.5i
+.ad l
+.ft B
+.ps 13
+.vs 16p
+Appendix \\$1.\ \ \\$2
+.br
+.ps \\n(PS
+.vs \\n(VSp
+.ft R
+.ad b
+.tm TOC|1|\\$1.|\\$2|\\n%
+.sp 0.25v
+..
+.de H2
+.sp 0.65v
+.ne 4v
+.nr H2 +1
+.in 0
+.ll 6.5i
+.ad l
+.ft B
+.ps 11.5
+\\n[H1].\\n[H2]\ \ \\$1
+.br
+.ps \\n(PS
+.ft R
+.ad b
+.tm TOC|2|\\n[H1].\\n[H2]|\\$1|\\n%
+.sp 0.15v
+..
+.\" run-in heading: .H3 "Label." then text on following lines
+.de H3
+.sp 0.45v
+.ne 3v
+.fi
+.ad b
+.in 0
+.ll 6.5i
+\\f[B]\\$1\\f[]\ \ \c
+..
+.\" Theorem-like block: .TH "Theorem 1" "(optional title)"  ...  .TQ
+.de TH
+.sp 0.5v
+.ne 4v
+.fi
+.ad b
+.in 0.2i
+.ll 6.3i
+\\f[B]\\$1\\f[]\c
+.if \\n(.$>1 \ \\f[B](\\$2)\\f[]\c
+\\f[B].\\f[]\ \ \c
+..
+.de TQ
+.br
+.in 0
+.ll 6.5i
+.sp 0.35v
+..
+.\" Indented paragraph / list item: .IP marker [indent]
+.de IP
+.sp 0.2v
+.ne 2v
+.fi
+.ad b
+.ll 6.5i
+.nr ip*i 0.3i
+.if \\n(.$>1 .nr ip*i \\$2
+.in \\n[ip*i]u
+.ti -\\n[ip*i]u
+\&\\$1\h'|\\n[ip*i]u'\c
+..
+.\" Display equation block: lines are  \t$...$\t(n)
+.de DS
+.sp 0.35v
+.ne 3v
+.nf
+.in 0
+.ll 6.5i
+.ta 3.25iC 6.5iR
+..
+.de DE
+.sp 0.35v
+.fi
+.ad b
+..
+.\" Left-aligned display (multi-line derivations): lines are \t$...$
+.de DL
+.sp 0.3v
+.ne 3v
+.nf
+.in 0
+.ll 6.5i
+.ta 0.5i 6.5iR
+..
+.\" Code / pseudo-code block
+.de CS
+.sp 0.3v
+.ne 4v
+.nf
+.ft CR
+.ps 8.5
+.vs 10.5p
+.in 0.25i
+..
+.de CE
+.in 0
+.ps \\n(PS
+.vs \\n(VSp
+.ft R
+.fi
+.ad b
+.sp 0.3v
+..
+.\" Figure caption: .FC n   <caption lines>   .FE
+.de FC
+.sp 0.25v
+.ps 9.5
+.vs 11.6p
+.in 0.3i
+.ll 6.2i
+.fi
+.ad b
+\\f[B]Figure \\$1.\\f[]\ \c
+..
+.de FE
+.br
+.ll 6.5i
+.in 0
+.ps \\n(PS
+.vs \\n(VSp
+.sp 0.5v
+..
+.\" Table caption (above the table): .TC n   <caption lines>   .TCE
+.de TC
+.sp 0.5v
+.ne 8v
+.ps 9.5
+.vs 11.6p
+.in 0.3i
+.ll 6.2i
+.fi
+.ad b
+\\f[B]Table \\$1.\\f[]\ \c
+..
+.de TCE
+.br
+.ll 6.5i
+.in 0
+.ps \\n(PS
+.vs \\n(VSp
+.sp 0.2v
+..
+.de TS
+.sp 0.2v
+.ps 8.5
+.vs 10.4p
+..
+.de TE
+.ps \\n(PS
+.vs \\n(VSp
+.sp 0.5v
+..
+.\" Boxed key-finding paragraph: .KB ... .KE
+.de KB
+.sp 0.5v
+.ne 4v
+.in 0.2i
+.ll 6.3i
+.fi
+.ad b
+\\f[B]\\$1\\f[]\ \ \c
+..
+.de KE
+.br
+.in 0
+.ll 6.5i
+.sp 0.3v
+..
+.\" Reference list item: .RF n
+.de RF
+.sp 0.15v
+.ne 2v
+.fi
+.ad l
+.ps 9.5
+.vs 11.4p
+.in 0.35i
+.ti -0.35i
+[\\$1]\h'|0.35i'\c
+..
+.de RE
+.br
+.in 0
+.ad b
+.ps \\n(PS
+.vs \\n(VSp
+..
