@@ -1,0 +1,10 @@
+.TS
+center box tab(@);
+l l c c c c c
+l l n n n n n.
+tool@phase@contigs@Mbp@median s@peak MB@Mbp/s
+_
+skani@sketch+query@2800@20.3@0.18@17.0@113
+aif@sketch@2800@20.3@0.10@12.0@\(em
+aif@query@2800@20.3@0.59@6.0@34
+.TE

@@ -1,0 +1,17 @@
+.TS
+center box tab(@);
+l c c c
+l n n c.
+metric@skani 0.4.0 (default)@aif (this work)@fresh set: skani / aif
+_
+sketch size (bits / reference base)@0.900@0.880@\(em
+coverage (contigs reported)@0.868@0.955@0.869 / 0.958
+ANI MAE, all contigs (pp)@1.117@0.367@1.206 / 0.355
+ANI MAE, mean over conditions (pp)@1.448@0.549@1.541 / 0.499
+ANI MAE, paired contigs (pp)@1.239@0.365@1.330 / 0.348
+AF MAE, all contigs (pp)@7.43@0.51@7.46 / 0.53
+AF MAE, mean over conditions (pp)@9.98@1.19@10.48 / 0.53
+AF MAE, paired contigs (pp)@8.87@0.56@9.21 / 0.57
+wall time, 4 references x 700 contigs (s)@0.28@1.03@\(em
+peak memory (MB)@19.0@15.2@\(em
+.TE

@@ -1,0 +1,4 @@
+tool	phase	contigs	bases	median_s	max_rss_kb
+skani	sketch+query	2800	20300197	0.18	17408
+aif	sketch	2800	20300197	0.10	12308
+aif	query	2800	20300197	0.59	6144

@@ -1,35 +1,61 @@
 # FracMinHash + Bloom filters for ANI / AF on short contigs
 
-**Status:** theoretical analysis only. No sketching method has been implemented yet.
+Two deliverables:
 
-**Deliverable:** [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages)
+1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
+2. **Implementation + benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (13 pages). The `aif` tool compared with skani 0.4.0 at equal sketch budget.
 
-## Question
+## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
-Does augmenting a FracMinHash (FMH) sketch with Bloom filters improve containment-based ANI estimation
-(ANI = C^(1/k)) on short contigs, and can it estimate alignment fraction (AF)?
-The specific proposal: keep FMH k-mers with their positions ("anchors") and store the k-mers of the
-"islands" between anchors in a Bloom filter. The island k-mers can be subsampled with a second FMH threshold.
+| | skani 0.4.0 (default) | **aif** |
+|---|---|---|
+| sketch size (bits / reference base) | 0.900 | 0.880 |
+| contigs reported | 86.8% | **95.5%** |
+| ANI MAE, all contigs / mean over conditions (pp) | 1.117 / 1.448 | **0.367 / 0.549** |
+| AF MAE, all contigs / mean over conditions (pp) | 7.43 / 9.98 | **0.51 / 1.19** |
+| conditions where aif has lower ANI and AF error | | **28 / 28** |
+| wall time, 4 refs x 700 contigs (single thread) | **0.28 s** | 1.03 s |
+| peak memory | 19.0 MB | **15.2 MB** |
 
-## Headline results
+A freshly generated confirmation benchmark reproduces this: ANI 0.355 vs 1.206 pp, AF 0.53 vs 7.46 pp, 28/28 conditions.
+aif at half the budget (0.44 bits/base) still beats skani's densest preset (`--slow`, 3.33 bits/base).
+skani is about 3.7x faster.
 
-| Question | Answer |
-|---|---|
-| Space-efficient? | Not with **all** island k-mers. Any AMQ with FPR < 1/4 costs more than the 2-bit genome (Theorem 2). With a second FMH threshold it can match the plain-FMH budget. For short contigs the dense anchors dominate the cost. |
-| Linear? | Yes. Single streaming pass; linear time; linear space with a tunable constant. |
-| Better ANI? | Yes, in the asymmetric setting (the query enumerates its k-mers). At equal bits, sampling variance falls by 4x (80% ANI) to 23x (99.9%), with an unexpectedly high optimal FPR (Theorem 3). For a 5 kb contig at 95% ANI the s.d. goes from 2.84 to 0.91 pp. |
-| AF? | Containment cannot separate AF from ANI (Prop. 3). Positions fix this, and query-side positions suffice (Prop. 5). Tier-2 hits locate boundaries to about 1/(s2*theta) bp. |
-| Close ideas | Island-keyed localisation (allows small k at low ANI; fixes contigs-in-database), island fingerprints (best per bit at >= 99.9% ANI), hedged multi-FPR tiers, b-bit FMH for symmetric use. |
+## The `aif` tool
 
-The report gives a unified variance framework (Theorem 1, checked by Monte Carlo), 14 designs, 16 scenarios,
-a concrete estimator (AIF-ANI) and an experimental plan.
+`src/aif.cpp` is a single dependency-free C++17 file.
+
+* **Sketch.** Canonical k-mers are FracMinHash-selected into two hash-range tiers, each stored as a blocked Bloom filter (FPR 0.005 and 0.1; 0.88 bits/base by default). The exact FPR comes from the fill ratio. The spurious-match rate is calibrated empirically, and k is chosen per reference (17-21) to keep it at or below 0.003.
+* **Query** (raw contigs). Every selected k-mer is probed. A multi-level HMM (one unaligned state plus aligned identity levels) gives the aligned fraction and the FP-corrected aligned containment, so ANI = C^(1/k) with bias correction. Heterogeneous contigs use posterior-mean ANI instead.
+
+```
+make aif
+bin/aif sketch ref.fa -o ref.aif          # -k auto --budget 0.88 --tiers 0.005:0.6,0.1:0.4
+bin/aif query ref.aif contigs.fa > out.tsv  # contig ani af theta probes hits aligned_probes status lr het low_frac
+```
 
 ## Layout
 
 ```
-fmh_bloom_filter_theory.pdf   the report
-report/                       groff sources (main.ms, sec/*.ms, tmac/fmhdoc.tmac), generated tables (gen/), figures (figs/)
-scripts/compute_tables.py     evaluates the closed-form results -> tables + EPS figures
-scripts/mc_check_theorem1.py  small Monte Carlo of the idealised model, used to check Theorem 1 (not an implementation)
-Makefile                      `make pdf` (groff + ghostscript only) or `make` (also regenerates tables; needs numpy + matplotlib)
+fmh_bloom_filter_theory.pdf, aif_benchmark_report.pdf
+src/aif.cpp                    the tool
+bench/                         download_genomes.sh, make_scenarios.py, run_skani.sh, run_aif.sh, run_all.sh,
+                               evaluate.py, tune.py, time_tools.sh, throughput.sh
+results/                       committed summaries: evaluations (JSON), predictions, timings, tuning tables
+scripts/                       theory tables/figures, Monte Carlo check, benchmark-report tables/figures
+report/, report_bench/         groff sources of the two PDFs (custom macros; built with groff + ghostscript)
+data/  (git-ignored)           genomes, generated contigs, raw run outputs; regenerate with bench/ scripts
 ```
+
+## Reproduce
+
+```
+make aif && bench/download_genomes.sh
+python3 bench/make_scenarios.py data/genomes data/bench 25            # main benchmark
+python3 bench/make_scenarios.py data/genomes data/tune 10 777         # tuning set
+python3 bench/make_scenarios.py data/genomes data/bench2 25 99991     # fresh confirmation set
+bench/run_all.sh && bench/time_tools.sh 5 && bench/throughput.sh
+python3 scripts/benchmark_report.py && report_bench/build.sh
+```
+
+The scripts expect skani at the path in `bench/run_skani.sh` (override with `SKANI=...`), plus numpy and matplotlib for the Python parts.

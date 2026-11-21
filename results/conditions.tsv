@@ -1,0 +1,29 @@
+condition	scenario	length	target_ani	af	indel_frac	hetero	chimera
+len01k_ani95	S1/S5 length	1000	0.95	1.0	0.0	None	False
+len02k_ani95	S1/S5 length	2000	0.95	1.0	0.0	None	False
+len03k_ani95	S1/S5 length	3000	0.95	1.0	0.0	None	False
+len05k_ani95	S1 length	5000	0.95	1.0	0.0	None	False
+len10k_ani95	S1 length	10000	0.95	1.0	0.0	None	False
+len20k_ani95	S1 length	20000	0.95	1.0	0.0	None	False
+ani800_5k	S3 distant	5000	0.8	1.0	0.0	None	False
+ani850_5k	S3 distant	5000	0.85	1.0	0.0	None	False
+ani900_5k	S3 distant	5000	0.9	1.0	0.0	None	False
+ani930_5k	ANI sweep	5000	0.93	1.0	0.0	None	False
+ani970_5k	ANI sweep	5000	0.97	1.0	0.0	None	False
+ani990_5k	S2 strain	5000	0.99	1.0	0.0	None	False
+ani995_5k	S2 strain	5000	0.995	1.0	0.0	None	False
+ani999_5k	S2 strain	5000	0.999	1.0	0.0	None	False
+af20_10k_ani95	S4 partial AF	10000	0.95	0.2	0.0	None	False
+af40_10k_ani95	S4 partial AF	10000	0.95	0.4	0.0	None	False
+af60_10k_ani95	S4 partial AF	10000	0.95	0.6	0.0	None	False
+af80_10k_ani95	S4 partial AF	10000	0.95	0.8	0.0	None	False
+af30_10k_ani99	S4 partial AF	10000	0.99	0.3	0.0	None	False
+af60_10k_ani99	S4 partial AF	10000	0.99	0.6	0.0	None	False
+indel10_5k_ani95	S8 indels	5000	0.95	1.0	0.1	None	False
+indel20_5k_ani95	S8 indels	5000	0.95	1.0	0.2	None	False
+indel10_5k_ani99	S8 indels	5000	0.99	1.0	0.1	None	False
+hetblock_10k_ani95	S9 heterogeneity	10000	0.95	1.0	0.0	blocks	False
+hetgamma_10k_ani95	S9 heterogeneity	10000	0.95	1.0	0.0	gamma	False
+chimera_5k_ani95	S11 chimera	5000	0.95	1.0	0.0	None	True
+len02k_ani90	S3/S5 short+distant	2000	0.9	1.0	0.0	None	False
+len20k_ani85	S3 long+distant	20000	0.85	1.0	0.0	None	False

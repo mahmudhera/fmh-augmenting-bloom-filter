@@ -1,0 +1,3 @@
+skani_default bits/base=0.8993
+skani--medium bits/base=1.5047
+skani--slow bits/base=3.3304

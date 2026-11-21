@@ -4,3 +4,8 @@ report/build1.log
 __pycache__/
 *.pyc
 report/main.pdf
+data/
+bin/
+report_bench/main.ps
+report_bench/build.log
+report_bench/build1.log

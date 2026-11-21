@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+l c c c c s c s c s c s
+l c c c c c c c c c c c
+l n n n n n n n n n n n.
+reference@Mbp@aif@aif@sketch (KB)@skani total@aif sketch@aif query
+@@$k$@$sigma$@skani@aif@s@MB@s@MB@s@MB
+_
+E. coli K-12@4.64@17@0.0029@521@511@0.07@17.0@0.10@12.0@0.16@6.0
+B. subtilis 168@4.22@17@0.0020@475@464@0.07@16.5@0.09@11.0@0.16@6.0
+P. aeruginosa PAO1@6.26@19@0.0024@703@689@0.08@19.0@0.13@15.2@0.16@6.0
+S. aureus NCTC 8325@2.82@18@0.0013@318@310@0.06@11.0@0.07@8.5@0.16@6.0
+.TE

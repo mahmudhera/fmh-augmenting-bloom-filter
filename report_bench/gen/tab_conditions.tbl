@@ -1,0 +1,35 @@
+.TS
+center box tab(@);
+l l c c c l
+l l n n n l.
+condition@scenario (theory report)@kb@ANI %@AF@other
+_
+len01k\(ulani95@S1/S5 length@1@95@1@\(em
+len02k\(ulani95@S1/S5 length@2@95@1@\(em
+len03k\(ulani95@S1/S5 length@3@95@1@\(em
+len05k\(ulani95@S1 length@5@95@1@\(em
+len10k\(ulani95@S1 length@10@95@1@\(em
+len20k\(ulani95@S1 length@20@95@1@\(em
+ani800\(ul5k@S3 distant@5@80@1@\(em
+ani850\(ul5k@S3 distant@5@85@1@\(em
+ani900\(ul5k@S3 distant@5@90@1@\(em
+ani930\(ul5k@ANI sweep@5@93@1@\(em
+ani970\(ul5k@ANI sweep@5@97@1@\(em
+ani990\(ul5k@S2 strain@5@99@1@\(em
+ani995\(ul5k@S2 strain@5@99.5@1@\(em
+ani999\(ul5k@S2 strain@5@99.9@1@\(em
+af20\(ul10k\(ulani95@S4 partial AF@10@95@0.2@\(em
+af40\(ul10k\(ulani95@S4 partial AF@10@95@0.4@\(em
+af60\(ul10k\(ulani95@S4 partial AF@10@95@0.6@\(em
+af80\(ul10k\(ulani95@S4 partial AF@10@95@0.8@\(em
+af30\(ul10k\(ulani99@S4 partial AF@10@99@0.3@\(em
+af60\(ul10k\(ulani99@S4 partial AF@10@99@0.6@\(em
+indel10\(ul5k\(ulani95@S8 indels@5@95@1@indels 10% of subs
+indel20\(ul5k\(ulani95@S8 indels@5@95@1@indels 20% of subs
+indel10\(ul5k\(ulani99@S8 indels@5@99@1@indels 10% of subs
+hetblock\(ul10k\(ulani95@S9 heterogeneity@10@95@1@1 kb blocks at p=0 / 2p
+hetgamma\(ul10k\(ulani95@S9 heterogeneity@10@95@1@500 bp blocks, rate ~ Gamma(CV 1)
+chimera\(ul5k\(ulani95@S11 chimera@5@95@1@two loci $>=$ 1 Mbp apart
+len02k\(ulani90@S3/S5 short+distant@2@90@1@\(em
+len20k\(ulani85@S3 long+distant@20@85@1@\(em
+.TE
