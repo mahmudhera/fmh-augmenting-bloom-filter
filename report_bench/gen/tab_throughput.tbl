@@ -1,10 +1,16 @@
 .TS
 center box tab(@);
-l l c c c c c
-l l n n n n n.
-tool@phase@contigs@Mbp@median s@peak MB@Mbp/s
+l l c c c c c c
+l l n n n n n n.
+tool@phase@threads@contigs@Mbp@median s@peak MB@Mbp/s
 _
-skani@sketch+query@2800@20.3@0.18@17.0@113
-aif@sketch@2800@20.3@0.10@12.0@\(em
-aif@query@2800@20.3@0.59@6.0@34
+skani@sketch+query@1@2800@20.3@0.095@17.0@214
+aif@sketch@1@2800@20.3@0.023@12.0@\(em
+aif@query@1@2800@20.3@0.061@9.8@332
+skani@sketch+query@8@2800@20.3@0.144@16.5@141
+aif@query@8@2800@20.3@0.049@30.1@413
+skani@sketch+query@1@11200@81.2@0.300@22.4@270
+aif@query@1@11200@81.2@0.237@10.2@343
+skani@sketch+query@8@11200@81.2@0.452@23.9@180
+aif@query@8@11200@81.2@0.122@37.0@667
 .TE

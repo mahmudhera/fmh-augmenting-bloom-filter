@@ -4,7 +4,7 @@
 #   make        -> regenerate theory tables/figures (numpy + matplotlib) and the PDF
 PYTHON ?= python3
 CXX ?= g++
-CXXFLAGS ?= -O3 -march=native -std=c++17 -fno-math-errno -fassociative-math -fno-signed-zeros -fno-trapping-math -freciprocal-math
+CXXFLAGS ?= -O3 -march=native -mprefer-vector-width=512 -std=c++17 -pthread -fno-math-errno -fassociative-math -fno-signed-zeros -fno-trapping-math -freciprocal-math
 
 all: tables pdf
 

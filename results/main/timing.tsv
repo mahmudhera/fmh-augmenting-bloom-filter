@@ -1,13 +1,13 @@
-tool	genome	phase	median_s	max_rss_kb
-skani	NC_000913.3	total	0.07	17408
-aif	NC_000913.3	sketch	0.10	12312
-aif	NC_000913.3	query	0.16	6144
-skani	NC_000964.3	total	0.07	16896
-aif	NC_000964.3	sketch	0.09	11288
-aif	NC_000964.3	query	0.16	6144
-skani	NC_002516.2	total	0.08	19456
-aif	NC_002516.2	sketch	0.13	15576
-aif	NC_002516.2	query	0.16	6144
-skani	NC_007795.1	total	0.06	11264
-aif	NC_007795.1	sketch	0.07	8728
-aif	NC_007795.1	query	0.16	6144
+tool	genome	phase	median_s	min_s	max_rss_kb
+skani	NC_000913.3	total	0.0348	0.0345	17408
+aif	NC_000913.3	sketch	0.0222	0.0219	12288
+aif	NC_000913.3	query	0.0177	0.0173	9728
+skani	NC_000964.3	total	0.0333	0.0331	16896
+aif	NC_000964.3	sketch	0.0210	0.0208	11264
+aif	NC_000964.3	query	0.0176	0.0172	9728
+skani	NC_002516.2	total	0.0402	0.0401	19456
+aif	NC_002516.2	sketch	0.0438	0.0436	15872
+aif	NC_002516.2	query	0.0186	0.0185	9728
+skani	NC_007795.1	total	0.0273	0.0272	11264
+aif	NC_007795.1	sketch	0.0195	0.0186	12288
+aif	NC_007795.1	query	0.0172	0.0171	9728

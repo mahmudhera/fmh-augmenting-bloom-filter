@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+l c c c c
+l n n n n.
+workload (seconds; single thread unless noted)@skani@aif v1.0@aif v1.1@v1.1 speed-up
+_
+4 references x 700 contigs: sketch@\(em@0.207@0.106@1.9\(mu
+4 references x 700 contigs: query@\(em@0.338@0.071@4.7\(mu
+4 references x 700 contigs: total@0.136@0.545@0.178@3.1\(mu
+2,800 contigs (20 Mbp): query@\(em@0.319@0.061@5.2\(mu
+2,800 contigs (20 Mbp): sketch + query@0.095@0.373@0.084@4.4\(mu
+2,800 contigs (20 Mbp): 8 threads (aif query only)@0.144@\(em@0.049@\(em
+11,200 contigs (81 Mbp): query@\(em@1.265@0.237@5.3\(mu
+11,200 contigs (81 Mbp): sketch + query@0.300@1.319@0.259@5.1\(mu
+11,200 contigs (81 Mbp): 8 threads (aif query only)@0.452@\(em@0.122@\(em
+.TE

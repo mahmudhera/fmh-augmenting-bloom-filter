@@ -8,7 +8,7 @@
 .sp 0.25v
 \f[B]2.	Benchmark design\f[]1
 \h'0.45i'2.1\h'|1.05i'Genomes and ground truth1
-\h'0.45i'2.2\h'|1.05i'Conditions1
+\h'0.45i'2.2\h'|1.05i'Conditions2
 \h'0.45i'2.3\h'|1.05i'Tools, metrics and protocol2
 .sp 0.25v
 \f[B]3.	The implemented strategy\f[]3
@@ -26,13 +26,15 @@
 \h'0.45i'5.5\h'|1.05i'Accuracy versus budget9
 \h'0.45i'5.6\h'|1.05i'Time and memory9
 .sp 0.25v
-\f[B]6.	Discussion\f[]10
-\h'0.45i'6.1\h'|1.05i'Why aif wins10
-\h'0.45i'6.2\h'|1.05i'Limitations and threats to validity10
+\f[B]6.	Speed optimisation (v1.1)\f[]10
 .sp 0.25v
-\f[B]7.	Next steps\f[]11
+\f[B]7.	Discussion\f[]11
+\h'0.45i'7.1\h'|1.05i'Why aif wins11
+\h'0.45i'7.2\h'|1.05i'Limitations and threats to validity12
 .sp 0.25v
-\f[B]8.	Reproducibility\f[]11
+\f[B]8.	Next steps\f[]12
+.sp 0.25v
+\f[B]9.	Reproducibility\f[]12
 .lc
 .ps \n(PS
 .vs \n(VSp

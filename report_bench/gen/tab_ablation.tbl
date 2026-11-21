@@ -6,11 +6,11 @@ l n n n n n.
 variant (all at 0.88 bits/base)@coverage@ANI MAE (pp)@AF MAE (pp)
 @@all@cond. mean@all@cond. mean
 _
-final: adaptive k, tiers 0.005:0.6 + 0.1:0.4, auto heterogeneity@0.955@0.367@0.549@0.51@1.19
-fixed k = 17@0.942@0.371@0.557@0.68@1.44
-fixed k = 21@0.929@0.371@0.420@1.11@1.42
-pooled ANI only (no heterogeneity mode)@0.955@0.460@0.637@0.51@1.19
-single tier, FPR 0.01 (no hedging)@0.951@0.386@0.581@1.03@3.00
-k = 21, tiers 0.003:0.55 + 0.58:0.45 (first design)@0.937@0.505@0.871@1.57@4.27
-no delta-method bias correction@0.955@0.370@0.543@0.51@1.19
+final: adaptive k, tiers 0.005:0.6 + 0.1:0.4, auto heterogeneity@0.951@0.357@0.502@0.39@0.51
+fixed k = 17@0.941@0.360@0.475@0.50@0.53
+fixed k = 21@0.934@0.370@0.624@0.87@0.96
+pooled ANI only (no heterogeneity mode)@0.951@0.451@0.591@0.39@0.51
+single tier, FPR 0.01 (no hedging)@0.948@0.381@0.396@1.13@1.31
+k = 21, tiers 0.003:0.55 + 0.58:0.45 (first design)@0.936@0.424@0.460@1.18@1.21
+no delta-method bias correction@0.951@0.361@0.497@0.39@0.51
 .TE

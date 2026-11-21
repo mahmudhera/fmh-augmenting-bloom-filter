@@ -4,12 +4,12 @@ l c c c c c
 l n l n n n.
 reference@$k$@tier@sampling $s$@exact FPR $epsilon$@hashes $h$
 _
-E. coli K-12@17@tier 1@0.0478@0.0058@8
-@@tier 2@0.0732@0.0964@3
-B. subtilis 168@17@tier 1@0.0478@0.0059@8
-@@tier 2@0.0732@0.0975@3
-P. aeruginosa PAO1@19@tier 1@0.0478@0.0058@8
-@@tier 2@0.0732@0.0979@3
-S. aureus NCTC 8325@18@tier 1@0.0478@0.0058@8
-@@tier 2@0.0732@0.0966@3
+E. coli K-12@17@tier 1@0.0478@0.0057@6
+@@tier 2@0.0732@0.0963@3
+B. subtilis 168@17@tier 1@0.0478@0.0059@6
+@@tier 2@0.0732@0.0985@3
+P. aeruginosa PAO1@20@tier 1@0.0478@0.0060@6
+@@tier 2@0.0732@0.0987@3
+S. aureus NCTC 8325@18@tier 1@0.0478@0.0060@6
+@@tier 2@0.0732@0.0967@3
 .TE

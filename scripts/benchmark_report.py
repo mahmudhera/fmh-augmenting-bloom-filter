@@ -251,10 +251,38 @@ def main():
     rows = []
     for r in thr:
         mbps = int(r["bases"]) / 1e6 / float(r["median_s"])
-        rows.append([r["tool"], r["phase"], r["contigs"], f"{int(r['bases'])/1e6:.1f}", f(float(r["median_s"])), f"{int(r['max_rss_kb'])/1024:.1f}",
-                     f"{mbps:.0f}" if r["phase"] != "sketch" else "\\(em"])
-    tbl(f"{GEN}/tab_throughput.tbl", ["l l c c c c c"], "l l n n n n n",
-        [["tool", "phase", "contigs", "Mbp", "median s", "peak MB", "Mbp/s"]], rows)
+        rows.append([r["tool"], r["phase"], r["threads"], r["contigs"], f"{int(r['bases'])/1e6:.1f}", f(float(r["median_s"]), 3),
+                     f"{int(r['max_rss_kb'])/1024:.1f}", f"{mbps:.0f}" if r["phase"] != "sketch" else "\\(em"])
+    tbl(f"{GEN}/tab_throughput.tbl", ["l l c c c c c c"], "l l n n n n n n",
+        [["tool", "phase", "threads", "contigs", "Mbp", "median s", "peak MB", "Mbp/s"]], rows)
+    # speed: v1.0 vs v1.1 vs skani (single thread)
+    t10 = list(csv.DictReader(open(os.path.join(ROOT, "data", "results", "timing_v10", "throughput.tsv")), delimiter="\t"))
+    tim10 = defaultdict(dict)
+    for r in csv.DictReader(open(os.path.join(ROOT, "data", "results", "timing_v10", "timing.tsv")), delimiter="\t"):
+        tim10[r["genome"]][(r["tool"], r["phase"])] = float(r["median_s"])
+    def getthr(rows_, st, tool, phase, threads="1"):
+        for r in rows_:
+            if r.get("set", "x1") == st and r["tool"] == tool and r["phase"] == phase and r["threads"] == threads:
+                return float(r["median_s"])
+        return float("nan")
+    srows = []
+    sk_ref = sum(tim[g][("skani", "total")][0] for g in GENOMES)
+    a10_s = sum(tim10[g][("aif", "sketch")] for g in GENOMES); a10_q = sum(tim10[g][("aif", "query")] for g in GENOMES)
+    a11_s = sum(tim[g][("aif", "sketch")][0] for g in GENOMES); a11_q = sum(tim[g][("aif", "query")][0] for g in GENOMES)
+    srows.append(["4 references x 700 contigs: sketch", "\\(em", f(a10_s, 3), f(a11_s, 3), f(a10_s / a11_s, 1) + "\\(mu"])
+    srows.append(["4 references x 700 contigs: query", "\\(em", f(a10_q, 3), f(a11_q, 3), f(a10_q / a11_q, 1) + "\\(mu"])
+    srows.append(["4 references x 700 contigs: total", f(sk_ref, 3), f(a10_s + a10_q, 3), f(a11_s + a11_q, 3), f((a10_s + a10_q) / (a11_s + a11_q), 1) + "\\(mu"])
+    for st, lab in (("x1", "2,800 contigs (20 Mbp)"), ("x4", "11,200 contigs (81 Mbp)")):
+        sk1 = getthr(thr, st, "skani", "sketch+query")
+        q10 = getthr(t10, st, "aif", "query"); q11 = getthr(thr, st, "aif", "query")
+        s10 = getthr(t10, "x1", "aif", "sketch"); s11 = getthr(thr, "x1", "aif", "sketch")
+        srows.append([lab + ": query", "\\(em", f(q10, 3), f(q11, 3), f(q10 / q11, 1) + "\\(mu"])
+        srows.append([lab + ": sketch + query", f(sk1, 3), f(s10 + q10, 3), f(s11 + q11, 3), f((s10 + q10) / (s11 + q11), 1) + "\\(mu"])
+        sk8 = getthr(thr, st, "skani", "sketch+query", "8"); q8 = getthr(thr, st, "aif", "query", "8")
+        srows.append([lab + ": 8 threads (aif query only)", f(sk8, 3), "\\(em", f(q8, 3), "\\(em"])
+    tbl(f"{GEN}/tab_speed.tbl", ["l c c c c"], "l n n n n",
+        [["workload (seconds; single thread unless noted)", "skani", "aif v1.0", "aif v1.1", "v1.1 speed-up"]], srows)
+    nums.update(a10_q=a10_q, a11_q=a11_q, a10_s=a10_s, a11_s=a11_s, sk_ref=sk_ref)
 
     # ---------- tier parameters
     rows = []
@@ -371,14 +399,15 @@ def main():
         ("v2", "k=17, one tier (0.02), 15-level HMM, calibrated sigma"),
         ("v3", "two tiers, identifiable fine grid, posterior-mean ANI"),
         ("tuned_k17", "parameters from the tuning set, fixed k=17"),
-        ("final", "+ adaptive k per reference (final)"),
+        ("final", "+ adaptive k per reference (v1.0)"),
+        ("v11", "v1.1: speed rewrite (binned HMM + refinement)"),
     ])
     rows = []
     for key, d in desc.items():
         o = hist["overall"][key]
         rows.append([key.replace("_", "\\(ul"), d, f(o["coverage"], 3), f(o["ani_mae_micro"], 3), f(o["ani_mae_macro"], 3),
                      f(o["af_mae_micro"]), f(o["af_mae_macro"])])
-    tbl(f"{GEN}/tab_history.tbl", ["l l c c s c s", "l l c c c c c"], "l lw(1.8i) n n n n n",
+    tbl(f"{GEN}/tab_history.tbl", ["l l c c s c s", "l l c c c c c"], "l lw(1.45i) n n n n n",
         [["version", "change", "coverage", "ANI MAE (pp)", "", "AF MAE (pp)", ""],
          ["", "", "", "all", "cond. mean", "all", "cond. mean"]], rows)
 

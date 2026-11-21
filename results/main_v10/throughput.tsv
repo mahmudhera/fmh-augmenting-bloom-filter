@@ -1,0 +1,8 @@
+set	tool	phase	threads	contigs	bases	median_s	min_s	max_rss_kb
+x1	skani	sketch+query	1	2800	20300197	0.0938	0.0934	17408
+x1	aif	sketch	1	2800	20300197	0.0539	0.0538	12308
+x1	aif	query	1	2800	20300197	0.3191	0.3188	6144
+x1	skani	sketch+query	8	2800	20300197	0.1443	0.1424	16896
+x4	skani	sketch+query	1	11200	81200788	0.3013	0.3006	22920
+x4	aif	query	1	11200	81200788	1.2646	1.2632	6144
+x4	skani	sketch+query	8	11200	81200788	0.4496	0.4431	23948
