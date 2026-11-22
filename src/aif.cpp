@@ -568,6 +568,8 @@ struct Tier {
   uint64_t n_ins = 0;       // insertions (with multiplicity)
   double eps = 0;           // exact FPR of a random non-member
   std::vector<uint64_t> bits;
+  const uint64_t* bp = nullptr;  // filter words in a memory-mapped database (else bits)
+  inline const uint64_t* data() const { return bp ? bp : bits.data(); }
 
   double s() const { return (double)(hi - lo) / 18446744073709551616.0; }
   inline uint64_t block_index(uint64_t h) const { return ((h >> 32) * nblocks) >> 32; }
@@ -577,7 +579,7 @@ struct Tier {
   }
   inline const uint64_t* block_of(uint64_t x, uint64_t& h) const {
     h = fmix64(x ^ SEED_BF);
-    return &bits[block_index(h) * 8];
+    return data() + block_index(h) * 8;
   }
   inline void set_at(uint64_t* blk, uint64_t h) const {
     uint64_t h2 = fmix64(h ^ SEED_BIT);
@@ -588,8 +590,8 @@ struct Tier {
     }
   }
   // branch-free membership test (same bit positions as set_at)
-  inline bool contains_at(const uint64_t* blk, uint64_t h) const {
-    uint64_t h2 = fmix64(h ^ SEED_BIT);
+  inline bool contains_at(const uint64_t* blk, uint64_t h) const { return contains_h2(blk, fmix64(h ^ SEED_BIT)); }
+  inline bool contains_h2(const uint64_t* blk, uint64_t h2) const {
     uint64_t acc = 1;
     const uint32_t n1 = nh < 7 ? nh : 7;
     for (uint32_t j = 0; j < n1; ++j) {
@@ -638,7 +640,7 @@ struct Sketch {
   double sigma_used() const { return sigma_emp >= 0 ? sigma_emp : sigma(); }
   size_t filter_bytes() const {
     size_t b = 0;
-    for (auto& t : tiers) b += t.bits.size() * 8;
+    for (auto& t : tiers) b += t.nblocks * 64;
     return b;
   }
   inline int tier_of(uint64_t hs) const {
@@ -1096,6 +1098,13 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   std::vector<uint8_t> bcnt;  // per bin: hits and misses per tier
   std::vector<int32_t> bslot; // per bin: emission-cache slot (fine bins only)
   std::vector<double> E, F, a, b, w, conf;
+  // database search (db_prepare / db_hits): reference-independent per-probe hashes
+  std::vector<uint32_t> pbh;        // Bloom block hash (high 32 bits) per probe
+  std::vector<uint64_t> ph2;        // bit-position hash per probe
+  std::vector<uint64_t> skey;       // screening keys of the contig (block hashes)
+  std::vector<uint16_t> scnt16;     // screening counts (per group, short-term)
+  std::vector<uint32_t> scnt;       // screening counts per reference
+  std::vector<std::pair<float, uint32_t>> cand;  // (screening z, reference)
 };
 
 #ifdef AIF_PROF  // per-stage cycle counters (make prof): probe, bins, hmm, refine, integrate, het-test, het-rerun
@@ -1157,6 +1166,8 @@ struct Estimator {
   double logU[2 * MAXT];
   static const size_t QMAX = 1 << 14;
   std::vector<double> tab_su, tab_h;
+  const double* tsu = nullptr;     // transition tables (own, or shared with a prototype Estimator)
+  const double* thh = nullptr;
   // emission cache for fine (bin_het) bins: one vector per hit/miss count combination
   // (computed exactly as in hmm()); ecix maps the mixed-radix counts to a slot
   size_t EB = 0;                   // counts per tier and outcome are < EB + 1
@@ -1171,7 +1182,10 @@ struct Estimator {
     return key;
   }
 
-  Estimator(const Sketch& s, const Params& p) : sk(s), P(p), T((int)s.tiers.size()) {
+  Estimator(const Estimator&) = delete;
+  Estimator& operator=(const Estimator&) = delete;
+  // proto: an Estimator with the same Params whose distance tables are shared (database mode)
+  Estimator(const Sketch& s, const Params& p, const Estimator* proto = nullptr) : sk(s), P(p), T((int)s.tiers.size()) {
     double sg = sk.sigma_used();
     for (auto& t : sk.tiers) {
       epsp.push_back(t.eps + sg - t.eps * sg);
@@ -1281,15 +1295,22 @@ struct Estimator {
     }
     if (P.bin_het > 0 && P.bin_het < P.bin && T <= 2) build_emission_cache((size_t)P.bin_het, B);
     load_ci_table();
-    tab_su.resize(QMAX);
-    tab_h.resize(QMAX);
-    for (size_t d = 0; d < QMAX; ++d) {
-      tab_su[d] = std::exp(-P.rho_u * (double)d);
-      tab_h[d] = -std::expm1(-P.rho_h * (double)d);
+    if (proto) {
+      tsu = proto->tsu;
+      thh = proto->thh;
+    } else {
+      tab_su.resize(QMAX);
+      tab_h.resize(QMAX);
+      for (size_t d = 0; d < QMAX; ++d) {
+        tab_su[d] = std::exp(-P.rho_u * (double)d);
+        tab_h[d] = -std::expm1(-P.rho_h * (double)d);
+      }
+      tsu = tab_su.data();
+      thh = tab_h.data();
     }
   }
-  inline double su(uint32_t d) const { return d < QMAX ? tab_su[d] : std::exp(-P.rho_u * d); }
-  inline double hh(uint32_t d) const { return d < QMAX ? tab_h[d] : -std::expm1(-P.rho_h * d); }
+  inline double su(uint32_t d) const { return d < QMAX ? tsu[d] : std::exp(-P.rho_u * d); }
+  inline double hh(uint32_t d) const { return d < QMAX ? thh[d] : -std::expm1(-P.rho_h * d); }
 
   double combine(const double* N, const double* Y, double theta_ref, double* var_out = nullptr) const {
     double wsum = 0, acc = 0;
@@ -1383,8 +1404,8 @@ struct Estimator {
       const __m128i rcs = _mm_cvtsi32_si128(64 - 2 * k);
       const Tier& t0 = sk.tiers[0];
       const Tier& t1 = sk.tiers[T - 1];
-      const long long* base0 = (const long long*)t0.bits.data();
-      const long long delta1 = (long long)((const long long*)t1.bits.data() - base0);
+      const long long* base0 = (const long long*)t0.data();
+      const long long delta1 = (long long)((const long long*)t1.data() - base0);
       const __m512i vhi0 = _mm512_set1_epi64((long long)t0.hi);
       const __m512i vnb0 = _mm512_set1_epi64((long long)t0.nblocks), vnb1 = _mm512_set1_epi64((long long)t1.nblocks);
       const __m512i voff1 = _mm512_set1_epi64(delta1), zero = _mm512_setzero_si512();
@@ -2206,12 +2227,22 @@ struct Estimator {
   }
 
   Result estimate(std::string_view seq, Work& W) const {
+#ifdef AIF_PROF
+    const uint64_t _p0 = __rdtsc();
+#endif
+    probe(seq, W);
+#ifdef AIF_PROF
+    g_prof[0] += __rdtsc() - _p0;
+#endif
+    return estimate_probed(seq.size(), W);
+  }
+
+  // everything after probing: W.pr holds the contig's probes with this reference's hits
+  Result estimate_probed(size_t L, Work& W) const {
     Result R;
     const int k = sk.k;
     W.afvar = 0;
     PSTART;
-    probe(seq, W);
-    PSTAMP(0);
     const std::vector<Probe>& pr = W.pr;
     R.probes = pr.size();
     if (pr.size() < 3) {
@@ -2248,7 +2279,6 @@ struct Estimator {
     const double* ab = W.ab.data();
     // pass 1 over bins: posterior-weighted tier counts, aligned-start integral, segments
     double N[MAXT] = {0}, Y[MAXT] = {0}, neff = 0;
-    const size_t L = seq.size();
     const size_t nstarts = L - k + 1;
     // per-bin posterior at its first/last probe and integral over its span (exact per-probe
     // trapezoids in refined bins, constant otherwise)
@@ -2299,11 +2329,11 @@ struct Estimator {
 
     PSTAMP(4);
     if (P.het_mode == 0 || P.window <= 0) {
-      finish_ci(R, seq.size());
+      finish_ci(R, L);
       return R;
     }
     ani_ci_pooled(R, W, th, var, nk_aligned);
-    af_ci(R, W, seq.size());
+    af_ci(R, W, L);
     W.hw.clear();
     // pass 2: heterogeneity test over windows (whole bins) of confidently aligned bins
     const double bproc = std::max(th, 1e-6) * Bcoef(1 - ani_pooled, k);
@@ -2361,7 +2391,7 @@ struct Estimator {
       ani_ci_het(R, W);
     }
     if (R.low_frac > P.floor_frac) R.status = "below_floor";
-    finish_ci(R, seq.size());
+    finish_ci(R, L);
     PSTAMP(6);
     return R;
   }
@@ -2397,67 +2427,77 @@ void usage() {
           "          AF model options: [--ident-window D (0: off) --ident-radius 3] (local identity prior)\n"
           "                            [--overdisp L (0: off)] (overdispersed bin emissions, experimental)\n"
           "output: contig ani af theta probes hits aligned_probes status lr het low_frac ani_lo ani_hi af_lo af_hi ani_se af_se\n"
-          "aif info <ref.aif>\n");
+          "aif info <ref.aif>\n"
+          "database mode (one k and tier layout for all references; results equal pairwise query with -k K sketches):\n"
+          "aif db build -o <db.aifd> [refs.fa ...] [--list refs.txt (path [name] per line)] [-k 20] [-t threads]\n"
+          "             [--budget 0.88] [--tiers 0.005:0.6,0.1:0.4] [--max-hashes 6]\n"
+          "             [--screen-frac 0.03125] [--screen-bits 8] [--screen-hashes 3] (screening index)\n"
+          "aif db search <db.aifd> <contigs.fa> [-t threads] [-n 1 (hits per contig; 0: every candidate, any status)]\n"
+          "             [--max-cand 16] [--screen-z 2] [--screen-min 2] [--no-screen (every reference)] [--sort aniaf|ani|af]\n"
+          "             [query options]\n"
+          "output: contig reference rank <query columns> screen_count screen_keys screen_z candidates\n"
+          "aif db info <db.aifd> [--refs]\n");
   exit(1);
 }
 
-void format_result(std::string& out, const std::string& name, const Result& r) {
+void format_result(std::string& out, const std::string& name, const Result& r, const char* extra = nullptr) {
   char buf[512];
   int n = snprintf(buf, sizeof buf, "\t%.6f\t%.6f\t%.6f\t%zu\t%zu\t%.1f\t%s\t%.1f\t%d\t%.3f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n",
                    r.ani, r.af, r.theta, r.probes, r.hits, r.aligned_probes, r.status, r.lr, (int)r.het, r.low_frac,
                    r.ani_lo, r.ani_hi, r.af_lo, r.af_hi, r.ani_se, r.af_se);
   out.append(name);
-  out.append(buf, (size_t)n);
+  if (extra) {
+    out.append(buf, (size_t)n - 1);
+    out.append(extra);
+    out.push_back('\n');
+  } else {
+    out.append(buf, (size_t)n);
+  }
 }
 
-int cmd_query(int argc, char** argv) {
-  if (argc < 4) usage();
-  Sketch sk;
-  sk.load(argv[2]);
-  Params P;
-  int threads = 1;
-  for (int i = 4; i < argc; ++i) {
-    std::string a = argv[i];
-    if (a == "-t") threads = std::max(1, atoi(argv[++i]));
-    else if (a == "--bin") P.bin = std::max(1, std::min(64, atoi(argv[++i])));
-    else if (a == "--bin-het") P.bin_het = std::max(1, std::min(64, atoi(argv[++i])));
-    else if (a == "--het-fine-max") P.het_fine_max = (size_t)std::max(0.0, atof(argv[++i]));
-    else if (a == "--fast-win") P.fast_win = std::max(0, atoi(argv[++i]));
-    else if (a == "--no-refine") P.refine = false;
-    else if (a == "--refine-lo") P.refine_lo = atof(argv[++i]);
-    else if (a == "--fast-llr") P.fast_llr = atof(argv[++i]);
-    else if (a == "--rho-u") P.rho_u = atof(argv[++i]);
-    else if (a == "--rho-h") P.rho_h = atof(argv[++i]);
-    else if (a == "--window") P.window = atoi(argv[++i]);
-    else if (a == "--het") P.het_mode = atoi(argv[++i]);
-    else if (a == "--het-z") P.het_z = atof(argv[++i]);
-    else if (a == "--lr-min") P.lr_min = atof(argv[++i]);
-    else if (a == "--ident-c") P.ident_c = atof(argv[++i]);
-    else if (a == "--ident-window") P.ident_window = atof(argv[++i]);
-    else if (a == "--ident-win-probes") P.ident_win_probes = std::max(8, atoi(argv[++i]));
-    else if (a == "--ident-radius") P.ident_radius = std::max(0, atoi(argv[++i]));
-    else if (a == "--overdisp") P.overdisp = std::max(0.0, atof(argv[++i]));
-    else if (a == "--ci-level") P.ci_level = std::min(0.9999, std::max(0.5, atof(argv[++i])));
-    else if (a == "--ci-stat") P.ci_stat = true;
-    else if (a == "--ci-table") P.ci_table = argv[++i];
-    else if (a == "--grid-step") P.grid_step = atof(argv[++i]);
-    else if (a == "--floor-frac") P.floor_frac = atof(argv[++i]);
-    else if (a == "--no-bias-correct") P.bias_correct = false;
-    else usage();
-  }
-  Estimator est(sk, P);
-#if defined(__x86_64__)
-  _mm_setcsr(_mm_getcsr() | 0x8040);  // flush-to-zero / denormals-are-zero
-#endif
-  Fasta fa(argv[3]);
-  fputs("contig\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\tani_lo\tani_hi\taf_lo\taf_hi\tani_se\taf_se\n",
-        stdout);
+// query options shared by "query" and "db search"; returns false if argv[i] is not one
+bool parse_query_opt(int& i, int argc, char** argv, Params& P, int& threads) {
+  (void)argc;
+  std::string a = argv[i];
+  if (a == "-t") threads = std::max(1, atoi(argv[++i]));
+  else if (a == "--bin") P.bin = std::max(1, std::min(64, atoi(argv[++i])));
+  else if (a == "--bin-het") P.bin_het = std::max(1, std::min(64, atoi(argv[++i])));
+  else if (a == "--het-fine-max") P.het_fine_max = (size_t)std::max(0.0, atof(argv[++i]));
+  else if (a == "--fast-win") P.fast_win = std::max(0, atoi(argv[++i]));
+  else if (a == "--no-refine") P.refine = false;
+  else if (a == "--refine-lo") P.refine_lo = atof(argv[++i]);
+  else if (a == "--fast-llr") P.fast_llr = atof(argv[++i]);
+  else if (a == "--rho-u") P.rho_u = atof(argv[++i]);
+  else if (a == "--rho-h") P.rho_h = atof(argv[++i]);
+  else if (a == "--window") P.window = atoi(argv[++i]);
+  else if (a == "--het") P.het_mode = atoi(argv[++i]);
+  else if (a == "--het-z") P.het_z = atof(argv[++i]);
+  else if (a == "--lr-min") P.lr_min = atof(argv[++i]);
+  else if (a == "--ident-c") P.ident_c = atof(argv[++i]);
+  else if (a == "--ident-window") P.ident_window = atof(argv[++i]);
+  else if (a == "--ident-win-probes") P.ident_win_probes = std::max(8, atoi(argv[++i]));
+  else if (a == "--ident-radius") P.ident_radius = std::max(0, atoi(argv[++i]));
+  else if (a == "--overdisp") P.overdisp = std::max(0.0, atof(argv[++i]));
+  else if (a == "--ci-level") P.ci_level = std::min(0.9999, std::max(0.5, atof(argv[++i])));
+  else if (a == "--ci-stat") P.ci_stat = true;
+  else if (a == "--ci-table") P.ci_table = argv[++i];
+  else if (a == "--grid-step") P.grid_step = atof(argv[++i]);
+  else if (a == "--floor-frac") P.floor_frac = atof(argv[++i]);
+  else if (a == "--no-bias-correct") P.bias_correct = false;
+  else return false;
+  return true;
+}
+
+// Runs proc(name, seq, Work&, out) over every record of fa and prints the outputs in input
+// order: single-threaded, or the multi-threaded streaming pipeline described below.
+template <class Proc>
+void run_pipeline(Fasta& fa, int threads, Proc proc) {
   std::string out;
   if (threads == 1) {
     Work W;
     std::string name, seq;
     while (fa.next(name, seq)) {
-      format_result(out, name, est.estimate(seq, W));
+      proc(name, std::string_view(seq), W, out);
       if (out.size() > (1 << 20)) {
         fwrite(out.data(), 1, out.size(), stdout);
         out.clear();
@@ -2465,7 +2505,7 @@ int cmd_query(int argc, char** argv) {
     }
     fwrite(out.data(), 1, out.size(), stdout);
     prof_report();
-    return 0;
+    return;
   }
   // multi-threaded streaming pipeline. The main thread reads contigs into chunks (one long
   // contig, or a group of short ones) and queues them; workers estimate whole chunks and
@@ -2512,12 +2552,11 @@ int cmd_query(int argc, char** argv) {
           for (size_t i = 0; i < c->spans.size(); ++i) {
             sbuf[t].clear();
             append_stripped(sbuf[t], c->spans[i].first, c->spans[i].second);
-            format_result(c->out, c->names[i], est.estimate(sbuf[t], works[t]));
+            proc(c->names[i], std::string_view(sbuf[t]), works[t], c->out);
           }
         } else {
           for (size_t i = 0; i + 1 < c->off.size(); ++i)
-            format_result(c->out, c->names[i],
-                          est.estimate(std::string_view(c->data.data() + c->off[i], c->off[i + 1] - c->off[i]), works[t]));
+            proc(c->names[i], std::string_view(c->data.data() + c->off[i], c->off[i + 1] - c->off[i]), works[t], c->out);
         }
         {
           std::lock_guard<std::mutex> lk(mu);
@@ -2615,6 +2654,811 @@ int cmd_query(int argc, char** argv) {
   cv_done.notify_all();
   writer.join();
   prof_report();
+}
+
+// ---------------------------------------------------------------- database mode
+// A database holds the sketches of many references built with ONE k and ONE tier layout
+// (budget and tier spec). The tier hash ranges depend only on the layout, so the selected
+// k-mers of a contig, their tiers and their filter hashes are the same for every reference:
+// a contig is prepared once (packing, selection, block and bit-position hashes; db_prepare),
+// and each candidate reference then costs only its filter tests (db_hits) and the HMM.
+// Results equal pairwise "aif query" against "aif sketch -k K" sketches of the references.
+//
+// Candidates come from a screening index, a bit-sliced Bloom filter (as in COBS): k-mers with
+// selection hash below h_scr (a fixed fraction of all k-mers, a subset of the probes) are
+// inserted with scr_h hash functions into per-reference Bloom columns of a common length.
+// References are interleaved in groups of 512 (sorted by size, so a group's columns fill
+// alike); one 64-byte row answers a hash function for 512 references. A contig's screening
+// count per reference is compared with its null expectation (from the column's fill ratio)
+// and the references with the largest z are evaluated with the full model.
+//
+// File ("AIFD"): 64-byte header, 64-byte aligned blobs (filters, screening rows), metadata,
+// trailer (metadata offset and length, magic). The file is memory-mapped; a reference's
+// filters are paged in on first use.
+const uint32_t DB_MAGIC = 0x44464941;  // "AIFD"
+const uint32_t DB_VERSION = 1;
+const uint32_t DB_GROUP = 512;
+const uint64_t SEED_SCR = 0x94D049BB133111EBULL;
+static_assert(sizeof(Probe) == 8 && offsetof(Probe, tier) == 4 && offsetof(Probe, hit) == 5, "Probe layout");
+
+struct DbGroup {
+  uint32_t d0 = 0, nd = 0;  // references [d0, d0 + nd)
+  uint64_t rows = 0, off = 0;
+  size_t words() const { return (nd + 63) / 64; }  // 64-bit words per row
+};
+
+// row of screening hash function i for a key (Kirsch-Mitzenmacher double hashing)
+inline uint64_t scr_row(uint64_t g, uint32_t i, uint64_t rows) {
+  const uint32_t a = (uint32_t)g, b = (uint32_t)(g >> 32) | 1u;
+  return ((uint64_t)(uint32_t)(a + i * b) * rows) >> 32;
+}
+
+struct Db {
+  int k = 20;
+  double budget = 0;
+  std::vector<std::pair<uint64_t, uint64_t>> tier_rng;
+  double scr_frac = 0, scr_bits = 0;
+  uint64_t h_scr = 0;
+  uint32_t scr_h = 1;
+  std::vector<std::string> names;
+  std::vector<Sketch> refs;
+  std::vector<double> scr_f;     // per reference: screening false-positive rate (fill^scr_h)
+  std::vector<uint64_t> scr_n;   // per reference: screening k-mers inserted
+  std::vector<DbGroup> groups;
+  const uint8_t* map = nullptr;
+  size_t map_len = 0;
+
+  Db() = default;
+  Db(const Db&) = delete;
+  Db& operator=(const Db&) = delete;
+  ~Db() {
+    if (map) munmap((void*)map, map_len);
+  }
+  size_t filter_bytes() const {
+    size_t b = 0;
+    for (auto& r : refs) b += r.filter_bytes();
+    return b;
+  }
+  size_t screen_bytes() const {
+    size_t b = 0;
+    for (auto& g : groups) b += g.rows * g.words() * 8;
+    return b;
+  }
+  uint64_t total_bases() const {
+    uint64_t b = 0;
+    for (auto& r : refs) b += r.total_bases;
+    return b;
+  }
+  const uint64_t* rows_of(const DbGroup& g) const { return (const uint64_t*)(map + g.off); }
+
+  void load(const char* path) {
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) throw std::runtime_error(std::string("cannot open database ") + path);
+    struct stat st;
+    if (fstat(fd, &st) != 0 || st.st_size < 64 + 24) {
+      close(fd);
+      throw std::runtime_error("not an aif database (too short)");
+    }
+    map_len = (size_t)st.st_size;
+    void* m = mmap(nullptr, map_len, PROT_READ, MAP_SHARED, fd, 0);
+    close(fd);
+    if (m == MAP_FAILED) throw std::runtime_error("cannot map database");
+    map = (const uint8_t*)m;
+    uint32_t magic, ver;
+    std::memcpy(&magic, map, 4);
+    std::memcpy(&ver, map + 4, 4);
+    if (magic != DB_MAGIC) throw std::runtime_error("not an aif database");
+    if (ver != DB_VERSION) throw std::runtime_error("unsupported database version");
+    uint64_t moff, mlen;
+    uint32_t tmagic;
+    std::memcpy(&moff, map + map_len - 24, 8);
+    std::memcpy(&mlen, map + map_len - 16, 8);
+    std::memcpy(&tmagic, map + map_len - 8, 4);
+    if (tmagic != DB_MAGIC || moff < 64 || mlen > map_len || moff > map_len - 24 - mlen)
+      throw std::runtime_error("truncated or corrupt database (trailer)");
+    const uint8_t* p = map + moff;
+    const uint8_t* const e = p + mlen;
+    auto rd = [&](void* dst, size_t n) {
+      if ((size_t)(e - p) < n) throw std::runtime_error("corrupt database (metadata)");
+      std::memcpy(dst, p, n);
+      p += n;
+    };
+    auto blob_ok = [&](uint64_t off, uint64_t len) { return off >= 64 && off % 64 == 0 && off <= moff && len <= moff - off; };
+    uint32_t nt, nr, ng;
+    rd(&k, 4);
+    rd(&budget, 8);
+    rd(&nt, 4);
+    if (k < 5 || k > 31 || nt == 0 || nt > (uint32_t)MAXT) throw std::runtime_error("corrupt database (k or tiers)");
+    tier_rng.resize(nt);
+    for (auto& r : tier_rng) {
+      rd(&r.first, 8);
+      rd(&r.second, 8);
+    }
+    rd(&scr_frac, 8);
+    rd(&scr_bits, 8);
+    rd(&h_scr, 8);
+    rd(&scr_h, 4);
+    if (scr_h == 0 || scr_h > 8) throw std::runtime_error("corrupt database (screening)");
+    rd(&nr, 4);
+    names.resize(nr);
+    refs.resize(nr);
+    scr_f.resize(nr);
+    scr_n.resize(nr);
+    for (uint32_t d = 0; d < nr; ++d) {
+      uint32_t len;
+      rd(&len, 4);
+      if (len > (1u << 20)) throw std::runtime_error("corrupt database (name)");
+      names[d].resize(len);
+      rd(&names[d][0], len);
+      Sketch& sk = refs[d];
+      sk.k = k;
+      sk.budget = budget;
+      rd(&sk.total_bases, 8);
+      rd(&sk.n_kmers, 8);
+      rd(&sk.sigma_emp, 8);
+      rd(&scr_f[d], 8);
+      rd(&scr_n[d], 8);
+      sk.tiers.resize(nt);
+      for (uint32_t t = 0; t < nt; ++t) {
+        Tier& T = sk.tiers[t];
+        T.lo = tier_rng[t].first;
+        T.hi = tier_rng[t].second;
+        uint64_t off;
+        rd(&T.nh, 4);
+        rd(&T.nblocks, 8);
+        rd(&T.n_ins, 8);
+        rd(&T.eps, 8);
+        rd(&off, 8);
+        if (T.nh == 0 || T.nh > 30 || T.nblocks == 0 || T.nblocks >= (1ULL << 32) || !blob_ok(off, T.nblocks * 64))
+          throw std::runtime_error("corrupt database (filter of " + names[d] + ")");
+        T.bp = (const uint64_t*)(map + off);
+      }
+    }
+    rd(&ng, 4);
+    groups.resize(ng);
+    uint32_t next = 0;
+    for (auto& g : groups) {
+      rd(&g.d0, 4);
+      rd(&g.nd, 4);
+      rd(&g.rows, 8);
+      rd(&g.off, 8);
+      if (g.d0 != next || g.nd == 0 || g.nd > DB_GROUP || g.rows == 0 || g.rows >= (1ULL << 32) || !blob_ok(g.off, g.rows * g.words() * 8))
+        throw std::runtime_error("corrupt database (screening group)");
+      next += g.nd;
+    }
+    if (next != nr) throw std::runtime_error("corrupt database (groups do not cover the references)");
+    // the screening rows are read for every contig: ask for them up front
+    for (auto& g : groups) madvise((void*)(map + g.off), g.rows * g.words() * 8, MADV_WILLNEED);
+  }
+};
+
+int cmd_db_build(int argc, char** argv) {
+  std::string out, list;
+  int k = 20, threads = 1;
+  double budget = 0.88, scr_frac = 1.0 / 32, scr_bits = 8;
+  uint32_t max_hashes = 6, scr_h = 3;
+  std::string tiers = "0.005:0.6,0.1:0.4";
+  struct RefIn {
+    std::string path, name;
+    uint64_t fsize = 0;
+  };
+  std::vector<RefIn> in;
+  for (int i = 3; i < argc; ++i) {
+    std::string a = argv[i];
+    auto val = [&]() -> const char* {
+      if (i + 1 >= argc) usage();
+      return argv[++i];
+    };
+    if (a == "-o") out = val();
+    else if (a == "-k") k = atoi(val());
+    else if (a == "-t") threads = std::max(1, atoi(val()));
+    else if (a == "--list") list = val();
+    else if (a == "--budget") budget = atof(val());
+    else if (a == "--tiers") tiers = val();
+    else if (a == "--max-hashes") max_hashes = (uint32_t)std::max(1, atoi(val()));
+    else if (a == "--screen-frac") scr_frac = atof(val());
+    else if (a == "--screen-bits") scr_bits = atof(val());
+    else if (a == "--screen-hashes") scr_h = (uint32_t)std::max(1, std::min(8, atoi(val())));
+    else if (!a.empty() && a[0] == '-') usage();
+    else in.push_back({a, "", 0});
+  }
+  if (!list.empty()) {
+    FILE* f = fopen(list.c_str(), "r");
+    if (!f) throw std::runtime_error("cannot read " + list);
+    char line[8192];
+    while (fgets(line, sizeof line, f)) {
+      std::string l(line);
+      while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
+      if (l.empty() || l[0] == '#') continue;
+      size_t tab = l.find_first_of("\t ");
+      if (tab == std::string::npos) in.push_back({l, "", 0});
+      else in.push_back({l.substr(0, tab), l.substr(l.find_first_not_of("\t ", tab)), 0});
+    }
+    fclose(f);
+  }
+  if (out.empty() || in.empty() || k < 5 || k > 31) usage();
+  auto spec = parse_tiers(tiers);
+  for (auto& r : in) {
+    struct stat st;
+    if (stat(r.path.c_str(), &st) != 0) throw std::runtime_error("cannot stat " + r.path);
+    r.fsize = (uint64_t)st.st_size;
+    if (r.name.empty()) {
+      std::string b = r.path.substr(r.path.find_last_of('/') + 1);
+      for (const char* ext : {".gz", ".fasta", ".fna", ".fa", ".fas", ".ffn"})
+        if (b.size() > strlen(ext) && b.compare(b.size() - strlen(ext), strlen(ext), ext) == 0) b.resize(b.size() - strlen(ext));
+      r.name = b;
+    }
+  }
+  // references sorted by size: a screening group's columns then have similar fill
+  std::stable_sort(in.begin(), in.end(), [](const RefIn& a, const RefIn& b) { return a.fsize < b.fsize; });
+  const double t0 = now();
+  // the tier layout (hash ranges) is the same for every reference: take it from a tiny sketch
+  std::vector<std::pair<uint64_t, uint64_t>> rng;
+  {
+    std::vector<Packed> none;
+    Sketch probe = build_sketch(none, k, budget, spec, 0, max_hashes);
+    for (auto& t : probe.tiers) rng.emplace_back(t.lo, t.hi);
+  }
+  const long double TWO64 = 18446744073709551616.0L;
+  const uint64_t hmax = rng.back().second;
+  uint64_t h_scr = (uint64_t)std::min<long double>((long double)scr_frac * TWO64, (long double)hmax);
+  if (scr_frac <= 0 || scr_bits <= 0) throw std::runtime_error("--screen-frac and --screen-bits must be positive");
+  FILE* f = fopen(out.c_str(), "wb");
+  if (!f) throw std::runtime_error("cannot write " + out);
+  uint64_t pos = 0;
+  auto put = [&](const void* p, size_t n) {
+    if (n && fwrite(p, 1, n, f) != n) throw std::runtime_error("write failed (disk full?)");
+    pos += n;
+  };
+  auto align64 = [&]() {
+    static const char z[64] = {0};
+    if (pos % 64) put(z, 64 - pos % 64);
+  };
+  {
+    char hdr[64] = {0};
+    std::memcpy(hdr, &DB_MAGIC, 4);
+    std::memcpy(hdr + 4, &DB_VERSION, 4);
+    put(hdr, 64);
+  }
+  struct RefMeta {
+    uint64_t total_bases, n_kmers;
+    double sigma_emp, scr_f;
+    uint64_t scr_n;
+    std::vector<uint32_t> nh;
+    std::vector<uint64_t> nblocks, n_ins, off;
+    std::vector<double> eps;
+  };
+  std::vector<RefMeta> meta(in.size());
+  std::vector<DbGroup> groups;
+  uint64_t fbytes = 0, sbytes = 0;
+  for (size_t g0 = 0; g0 < in.size(); g0 += DB_GROUP) {
+    const size_t nd = std::min<size_t>(DB_GROUP, in.size() - g0);
+    uint64_t maxsize = 0;
+    for (size_t d = 0; d < nd; ++d) maxsize = std::max(maxsize, in[g0 + d].fsize);
+    // rows from the largest file of the group (file bytes >= bases: a slight overestimate)
+    const uint64_t rows = std::max<uint64_t>(64, (uint64_t)std::ceil(scr_bits * scr_frac * (double)maxsize));
+    if (rows >= (1ULL << 32)) throw std::runtime_error("reference too large for the screening index");
+    const size_t words = (nd + 63) / 64;
+    std::vector<uint64_t> mat(rows * words, 0);
+    std::vector<Sketch> gs(nd);
+    std::vector<uint64_t> gn(nd, 0);
+    std::atomic<size_t> next{0};
+    std::vector<std::string> errs(nd);
+    auto work = [&]() {
+      const size_t CH = 1 << 16;
+      std::vector<uint64_t> sx(CH + 8), shv(CH + 8);
+      std::vector<uint32_t> spos(CH + 40);
+      for (;;) {
+        const size_t d = next.fetch_add(1);
+        if (d >= nd) return;
+        try {
+          std::vector<Packed> packs;
+          {
+            Fasta fa(in[g0 + d].path.c_str());
+            std::string name, seq;
+            while (fa.next(name, seq)) {
+              packs.emplace_back();
+              pack_seq((const uint8_t*)seq.data(), seq.size(), k, packs.back());
+            }
+          }
+          gs[d] = build_sketch(packs, k, budget, spec, 1000000, max_hashes);  // also sets badk for k
+          uint64_t n = 0;
+          for (auto& pk : packs) {
+            if (pk.L < (size_t)k) continue;
+            const size_t nst = pk.L - k + 1;
+            for (size_t c0 = 0; c0 < nst; c0 += CH) {
+              const size_t m = select_kmers(pk, k, h_scr, c0, c0 + CH, sx.data(), shv.data(), spos.data());
+              for (size_t j = 0; j < m; ++j) {
+                const uint64_t g = fmix64(fmix64(sx[j] ^ SEED_BF) ^ SEED_SCR);
+                for (uint32_t i = 0; i < scr_h; ++i)
+                  __atomic_fetch_or(&mat[scr_row(g, i, rows) * words + (d >> 6)], 1ULL << (d & 63), __ATOMIC_RELAXED);
+              }
+              n += m;
+            }
+          }
+          gn[d] = n;
+        } catch (std::exception& e) {
+          errs[d] = e.what();
+        }
+      }
+    };
+    std::vector<std::thread> pool;
+    for (int t = 1; t < threads; ++t) pool.emplace_back(work);
+    work();
+    for (auto& th : pool) th.join();
+    for (size_t d = 0; d < nd; ++d)
+      if (!errs[d].empty()) throw std::runtime_error(in[g0 + d].path + ": " + errs[d]);
+    // column fill -> screening false-positive rate of each reference
+    std::vector<uint64_t> ones(DB_GROUP, 0);
+    for (uint64_t r = 0; r < rows; ++r)
+      for (size_t w = 0; w < words; ++w)
+        for (uint64_t b = mat[r * words + w]; b; b &= b - 1) ++ones[w * 64 + __builtin_ctzll(b)];
+    for (size_t d = 0; d < nd; ++d) {
+      const Sketch& sk = gs[d];
+      RefMeta& M = meta[g0 + d];
+      M.total_bases = sk.total_bases;
+      M.n_kmers = sk.n_kmers;
+      M.sigma_emp = sk.sigma_emp;
+      M.scr_n = gn[d];
+      M.scr_f = std::pow((double)ones[d] / (double)rows, (double)scr_h);
+      for (auto& t : sk.tiers) {
+        if (t.lo != rng[&t - &sk.tiers[0]].first || t.hi != rng[&t - &sk.tiers[0]].second)
+          throw std::runtime_error("internal: tier layout differs between references");
+        align64();
+        M.nh.push_back(t.nh);
+        M.nblocks.push_back(t.nblocks);
+        M.n_ins.push_back(t.n_ins);
+        M.eps.push_back(t.eps);
+        M.off.push_back(pos);
+        put(t.bits.data(), t.bits.size() * 8);
+        fbytes += t.bits.size() * 8;
+      }
+      gs[d] = Sketch();
+    }
+    align64();
+    groups.push_back({(uint32_t)g0, (uint32_t)nd, rows, pos});
+    put(mat.data(), mat.size() * 8);
+    sbytes += mat.size() * 8;
+    fprintf(stderr, "\r%zu / %zu references", g0 + nd, in.size());
+  }
+  fprintf(stderr, "\n");
+  std::string md;
+  auto w = [&](const void* p, size_t n) { md.append((const char*)p, n); };
+  const uint32_t nt = (uint32_t)rng.size(), nr = (uint32_t)in.size(), ng = (uint32_t)groups.size();
+  w(&k, 4);
+  w(&budget, 8);
+  w(&nt, 4);
+  for (auto& r : rng) {
+    w(&r.first, 8);
+    w(&r.second, 8);
+  }
+  w(&scr_frac, 8);
+  w(&scr_bits, 8);
+  w(&h_scr, 8);
+  w(&scr_h, 4);
+  w(&nr, 4);
+  uint64_t tb = 0;
+  for (size_t d = 0; d < in.size(); ++d) {
+    const RefMeta& M = meta[d];
+    const uint32_t len = (uint32_t)in[d].name.size();
+    w(&len, 4);
+    w(in[d].name.data(), len);
+    w(&M.total_bases, 8);
+    w(&M.n_kmers, 8);
+    w(&M.sigma_emp, 8);
+    w(&M.scr_f, 8);
+    w(&M.scr_n, 8);
+    for (uint32_t t = 0; t < nt; ++t) {
+      w(&M.nh[t], 4);
+      w(&M.nblocks[t], 8);
+      w(&M.n_ins[t], 8);
+      w(&M.eps[t], 8);
+      w(&M.off[t], 8);
+    }
+    tb += M.total_bases;
+  }
+  w(&ng, 4);
+  for (auto& g : groups) {
+    w(&g.d0, 4);
+    w(&g.nd, 4);
+    w(&g.rows, 8);
+    w(&g.off, 8);
+  }
+  const uint64_t moff = pos, mlen = md.size();
+  put(md.data(), md.size());
+  char tr[24] = {0};
+  std::memcpy(tr, &moff, 8);
+  std::memcpy(tr + 8, &mlen, 8);
+  std::memcpy(tr + 16, &DB_MAGIC, 4);
+  put(tr, 24);
+  if (fclose(f) != 0) throw std::runtime_error("write failed");
+  fprintf(stderr, "references=%u bases=%lu k=%d filters=%.1f MB (%.4f bits/base) screening=%.1f MB (%.4f bits/base) time=%.1f s\n",
+          nr, (unsigned long)tb, k, fbytes / 1e6, 8.0 * fbytes / std::max<double>(1, tb), sbytes / 1e6,
+          8.0 * sbytes / std::max<double>(1, tb), now() - t0);
+  return 0;
+}
+
+// Reference-independent probe preparation for a database search: positions and tiers into
+// W.pr (hits cleared), the block hash (high 32 bits) and bit-position hash of every probe into
+// W.pbh / W.ph2, and the screening keys (probes with selection hash < h_scr) into W.skey.
+void db_prepare_window(const Db& D, const uint8_t* s, size_t L, uint32_t off, Work& W) {
+  const int k = D.k;
+  const size_t nst = L - k + 1, base = W.pr.size();
+  const int T = (int)D.tier_rng.size();
+  const uint64_t hmax = D.tier_rng.back().second;
+  pack_seq(s, L, k, W.pk);
+#ifdef AIF_AVX512
+  if (T <= 2) {
+    if (W.kpos.size() < nst + 32) W.kpos.resize(nst + 32);
+    const size_t m = select_positions(W.pk, k, hmax, W.kpos.data());
+    W.pr.resize(base + m);
+    W.pbh.resize(base + m);
+    W.ph2.resize(base + m);
+    size_t ns = W.skey.size();
+    W.skey.resize(ns + m);
+    const long long* wbase64 = (const long long*)W.pk.w.data();
+    const uint64_t kmask = (k == 32) ? ~0ULL : ((1ULL << (2 * k)) - 1);
+    alignas(64) static const uint8_t BSW[64] = {7,  6,  5,  4,  3,  2,  1,  0,  15, 14, 13, 12, 11, 10, 9,  8,
+                                                23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28, 27, 26, 25, 24,
+                                                39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40,
+                                                55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56};
+    const __m512i bsw = _mm512_load_si512((const void*)BSW);
+    const __m512i vmask = _mm512_set1_epi64((long long)kmask);
+    const __m512i v63 = _mm512_set1_epi64(63), v31 = _mm512_set1_epi64(31), vsel = _mm512_set1_epi64((long long)SEED_SEL);
+    const __m128i rcs = _mm_cvtsi32_si128(64 - 2 * k);
+    const __m512i vhi0 = _mm512_set1_epi64((long long)D.tier_rng[0].second), vscr = _mm512_set1_epi64((long long)D.h_scr);
+    const __m512i sbf = _mm512_set1_epi64((long long)SEED_BF), sbit = _mm512_set1_epi64((long long)SEED_BIT);
+    const __m512i zero = _mm512_setzero_si512(), one = _mm512_set1_epi64(1), lane = _mm512_set_epi64(7, 6, 5, 4, 3, 2, 1, 0);
+    const __m512i tierb = _mm512_set1_epi64(1LL << 32), voff = _mm512_set1_epi64((long long)off);
+    for (size_t j = 0; j < m; j += 8) {
+      const __mmask8 tail = (m - j >= 8) ? (__mmask8)0xFF : (__mmask8)((1u << (m - j)) - 1);
+      const __m512i pos = _mm512_cvtepu32_epi64(_mm256_maskz_loadu_epi32(tail, W.kpos.data() + j));
+      const __m512i wi = _mm512_srli_epi64(pos, 5);
+      const __m512i A = _mm512_mask_i64gather_epi64(zero, tail, wi, wbase64, 8);
+      const __m512i Bw = _mm512_slli_epi64(_mm512_mask_i64gather_epi64(zero, tail, _mm512_add_epi64(wi, one), wbase64, 8), 1);
+      const __m512i sh = _mm512_slli_epi64(_mm512_and_si512(pos, v31), 1);
+      __m512i f = _mm512_or_si512(_mm512_srlv_epi64(A, sh), _mm512_sllv_epi64(Bw, _mm512_sub_epi64(v63, sh)));
+      f = _mm512_and_si512(f, vmask);
+      __m512i r = comp_rev_bytes(f);
+      r = _mm512_srl_epi64(_mm512_shuffle_epi8(r, bsw), rcs);
+      const __m512i x = _mm512_min_epu64(f, r);
+      const __m512i hs = fmix64_v(_mm512_xor_si512(x, vsel));
+      const __mmask8 m1 = (T == 2) ? (__mmask8)(_mm512_cmpge_epu64_mask(hs, vhi0) & tail) : (__mmask8)0;
+      const __m512i bh = fmix64_v(_mm512_xor_si512(x, sbf));
+      const __m512i h2 = fmix64_v(_mm512_xor_si512(bh, sbit));
+      _mm256_mask_storeu_epi32(W.pbh.data() + base + j, tail, _mm512_cvtepi64_epi32(_mm512_srli_epi64(bh, 32)));
+      _mm512_mask_storeu_epi64(W.ph2.data() + base + j, tail, h2);
+      const __mmask8 ms = _mm512_cmplt_epu64_mask(hs, vscr) & tail;
+      _mm512_mask_compressstoreu_epi64(W.skey.data() + ns, ms, bh);
+      ns += (size_t)__builtin_popcount((unsigned)ms);
+      // Probe {pos + off, tier, hit = 0} as one 64-bit lane
+      const __m512i pv = _mm512_mask_or_epi64(_mm512_add_epi64(pos, voff), m1, _mm512_add_epi64(pos, voff), tierb);
+      _mm512_mask_storeu_epi64((void*)(W.pr.data() + base + j), tail, pv);
+      (void)lane;
+    }
+    W.skey.resize(ns);
+    return;
+  }
+#endif
+  if (W.canon.size() < nst + 8) {
+    W.canon.resize(nst + 8);
+    W.kpos.resize(nst + 8);
+    W.hs.resize(nst + 8);
+  }
+  const size_t m = select_kmers(W.pk, k, hmax, 0, nst, W.canon.data(), W.hs.data(), W.kpos.data());
+  W.pr.resize(base + m);
+  W.pbh.resize(base + m);
+  W.ph2.resize(base + m);
+  for (size_t j = 0; j < m; ++j) {
+    const uint64_t hs = W.hs[j];
+    int t = 0;
+    while (t + 1 < T && hs >= D.tier_rng[t].second) ++t;
+    const uint64_t bh = fmix64(W.canon[j] ^ SEED_BF);
+    W.pbh[base + j] = (uint32_t)(bh >> 32);
+    W.ph2[base + j] = fmix64(bh ^ SEED_BIT);
+    W.pr[base + j] = {W.kpos[j] + off, (uint8_t)t, 0};
+    if (hs < D.h_scr) W.skey.push_back(bh);
+  }
+}
+
+void db_prepare(const Db& D, std::string_view seq, Work& W) {
+  W.pr.clear();
+  W.pbh.clear();
+  W.ph2.clear();
+  W.skey.clear();
+  const size_t L = seq.size();
+  if (L < (size_t)D.k) return;
+  const size_t nst = L - D.k + 1;
+  for (size_t off = 0; off < nst; off += Estimator::PROBE_WIN) {
+    const size_t n = std::min(Estimator::PROBE_WIN, nst - off);
+    db_prepare_window(D, (const uint8_t*)seq.data() + off, n + D.k - 1, (uint32_t)off, W);
+  }
+}
+
+// filter tests of the prepared probes against one reference: sets W.pr[i].hit
+void db_hits(const Sketch& R, Work& W) {
+  const size_t m = W.pr.size();
+  const int T = (int)R.tiers.size();
+#ifdef AIF_AVX512
+  if (T <= 2) {
+    const Tier& t0 = R.tiers[0];
+    const Tier& t1 = R.tiers[T - 1];
+    const long long* base0 = (const long long*)t0.data();
+    const long long delta1 = (long long)((const long long*)t1.data() - base0);
+    const __m512i vnb0 = _mm512_set1_epi64((long long)t0.nblocks), vnb1 = _mm512_set1_epi64((long long)t1.nblocks);
+    const __m512i voff1 = _mm512_set1_epi64(delta1), zero = _mm512_setzero_si512();
+    const __m512i m511 = _mm512_set1_epi64(511), m63 = _mm512_set1_epi64(63), one = _mm512_set1_epi64(1);
+    const __m512i tierm = _mm512_set1_epi64(0xFFLL << 32), hitclr = _mm512_set1_epi64(~(0xFFLL << 40)), hitb = _mm512_set1_epi64(1LL << 40);
+    const uint32_t nh0 = t0.nh, nh1 = t1.nh, nhmax = std::max(nh0, nh1);
+    long long* prw = (long long*)W.pr.data();
+    for (size_t j = 0; j < m; j += 8) {
+      const __mmask8 tail = (m - j >= 8) ? (__mmask8)0xFF : (__mmask8)((1u << (m - j)) - 1);
+      __m512i pv = _mm512_maskz_loadu_epi64(tail, prw + j);
+      const __mmask8 m1 = (T == 2) ? (__mmask8)(_mm512_test_epi64_mask(pv, tierm) & tail) : (__mmask8)0;
+      const __m512i bh32 = _mm512_cvtepu32_epi64(_mm256_maskz_loadu_epi32(tail, W.pbh.data() + j));
+      const __m512i nb = _mm512_mask_blend_epi64(m1, vnb0, vnb1);
+      const __m512i blk = _mm512_srli_epi64(_mm512_mul_epu32(bh32, nb), 32);
+      const __m512i wb = _mm512_add_epi64(_mm512_slli_epi64(blk, 3), _mm512_mask_blend_epi64(m1, zero, voff1));
+      __m512i h2 = _mm512_maskz_loadu_epi64(tail, W.ph2.data() + j);
+      __m512i acc = one;
+      for (uint32_t q = 0; q < nhmax; ++q) {
+        if (q && q % 7 == 0) h2 = fmix64_v(_mm512_add_epi64(h2, _mm512_set1_epi64(q)));
+        const __m512i bp = _mm512_and_si512(_mm512_srl_epi64(h2, _mm_cvtsi32_si128(9 * (q % 7))), m511);
+        const __m512i idx = _mm512_add_epi64(wb, _mm512_srli_epi64(bp, 6));
+        const __mmask8 am = (__mmask8)(((q < nh0) ? (__mmask8)(~m1) : 0) | ((q < nh1) ? m1 : 0)) & tail;
+        const __m512i g = _mm512_mask_i64gather_epi64(zero, am, idx, base0, 8);
+        acc = _mm512_mask_and_epi64(acc, am, acc, _mm512_srlv_epi64(g, _mm512_and_si512(bp, m63)));
+      }
+      const __mmask8 hit = _mm512_test_epi64_mask(acc, one) & tail;
+      pv = _mm512_or_si512(_mm512_and_si512(pv, hitclr), _mm512_maskz_mov_epi64(hit, hitb));
+      _mm512_mask_storeu_epi64(prw + j, tail, pv);
+    }
+    return;
+  }
+#endif
+  for (size_t j = 0; j < m; ++j) {
+    const Tier& t = R.tiers[W.pr[j].tier];
+    const uint64_t* blk = t.data() + (((uint64_t)W.pbh[j] * t.nblocks) >> 32) * 8;
+    W.pr[j].hit = t.contains_h2(blk, W.ph2[j]);
+  }
+}
+
+// screening counts of the contig's keys for every reference into W.scnt
+void db_screen(const Db& D, Work& W) {
+  const size_t nr = D.refs.size(), ns = W.skey.size();
+  W.scnt.assign(nr, 0);
+  if (!ns) return;
+  W.scnt16.resize(DB_GROUP);
+  const uint32_t H = D.scr_h;
+  for (const DbGroup& g : D.groups) {
+    const uint64_t* rows = D.rows_of(g);
+    const size_t words = g.words();
+    uint16_t* c16 = W.scnt16.data();
+    std::fill(c16, c16 + DB_GROUP, 0);
+    auto flush = [&]() {
+      for (uint32_t d = 0; d < g.nd; ++d) W.scnt[g.d0 + d] += c16[d];
+      std::fill(c16, c16 + DB_GROUP, 0);
+    };
+    size_t pend = 0;
+    const size_t PF = 8;
+    for (size_t i = 0; i < std::min(ns, PF); ++i) {
+      const uint64_t gk = fmix64(W.skey[i] ^ SEED_SCR);
+      for (uint32_t h = 0; h < H; ++h) __builtin_prefetch(rows + scr_row(gk, h, g.rows) * words);
+    }
+    for (size_t i = 0; i < ns; ++i) {
+      if (i + PF < ns) {
+        const uint64_t gk = fmix64(W.skey[i + PF] ^ SEED_SCR);
+        for (uint32_t h = 0; h < H; ++h) __builtin_prefetch(rows + scr_row(gk, h, g.rows) * words);
+      }
+      const uint64_t gk = fmix64(W.skey[i] ^ SEED_SCR);
+      uint64_t b[8];
+      const uint64_t* r0 = rows + scr_row(gk, 0, g.rows) * words;
+      for (size_t q = 0; q < words; ++q) b[q] = r0[q];
+      for (uint32_t h = 1; h < H; ++h) {
+        const uint64_t* rh = rows + scr_row(gk, h, g.rows) * words;
+        for (size_t q = 0; q < words; ++q) b[q] &= rh[q];
+      }
+#ifdef AIF_AVX512
+      const __m512i one16 = _mm512_set1_epi16(1);
+      for (size_t q = 0; q < words; ++q) {
+        if (!b[q]) continue;
+        __m512i lo = _mm512_loadu_si512((const void*)(c16 + q * 64));
+        __m512i hi = _mm512_loadu_si512((const void*)(c16 + q * 64 + 32));
+        lo = _mm512_mask_add_epi16(lo, (__mmask32)(uint32_t)b[q], lo, one16);
+        hi = _mm512_mask_add_epi16(hi, (__mmask32)(uint32_t)(b[q] >> 32), hi, one16);
+        _mm512_storeu_si512((void*)(c16 + q * 64), lo);
+        _mm512_storeu_si512((void*)(c16 + q * 64 + 32), hi);
+      }
+#else
+      for (size_t q = 0; q < words; ++q)
+        for (uint64_t x = b[q]; x; x &= x - 1) ++c16[q * 64 + __builtin_ctzll(x)];
+#endif
+      if (++pend == 65535) {
+        flush();
+        pend = 0;
+      }
+    }
+    flush();
+  }
+}
+
+// Lazily constructed estimators, one per reference (shared by all threads; construction is
+// race-free: a losing thread discards its copy).
+struct DbEstimators {
+  const Db& D;
+  Params P;
+  std::unique_ptr<std::atomic<Estimator*>[]> slot;
+  std::atomic<size_t> built{0};
+  DbEstimators(const Db& d, const Params& p) : D(d), P(p), slot(new std::atomic<Estimator*>[d.refs.size()]) {
+    for (size_t i = 0; i < D.refs.size(); ++i) slot[i].store(nullptr);
+    if (!D.refs.empty()) get(0);  // prototype for the shared distance tables
+  }
+  ~DbEstimators() {
+    for (size_t i = 0; i < D.refs.size(); ++i) delete slot[i].load();
+  }
+  const Estimator& get(uint32_t d) {
+    Estimator* e = slot[d].load(std::memory_order_acquire);
+    if (e) return *e;
+    Estimator* fresh = new Estimator(D.refs[d], P, d ? slot[0].load(std::memory_order_acquire) : nullptr);
+    Estimator* expected = nullptr;
+    if (slot[d].compare_exchange_strong(expected, fresh, std::memory_order_acq_rel)) {
+      built.fetch_add(1);
+      return *fresh;
+    }
+    delete fresh;
+    return *expected;
+  }
+};
+
+int cmd_db_search(int argc, char** argv) {
+  if (argc < 5) usage();
+  Db D;
+  D.load(argv[3]);
+  Params P;
+  int threads = 1, nout = 1, sort_by = 0;  // 0: ani*af, 1: ani, 2: af
+  size_t max_cand = 16;
+  double zmin = 2.0;
+  uint32_t cmin = 2;
+  bool screen = true;
+  for (int i = 5; i < argc; ++i) {
+    std::string a = argv[i];
+    auto val = [&]() -> const char* {
+      if (i + 1 >= argc) usage();
+      return argv[++i];
+    };
+    if (a == "-n") nout = std::max(0, atoi(val()));
+    else if (a == "--max-cand") max_cand = (size_t)std::max(1, atoi(val()));
+    else if (a == "--screen-z") zmin = atof(val());
+    else if (a == "--screen-min") cmin = (uint32_t)std::max(0, atoi(val()));
+    else if (a == "--no-screen") screen = false;
+    else if (a == "--sort") {
+      std::string v = val();
+      sort_by = v == "ani" ? 1 : v == "af" ? 2 : v == "aniaf" ? 0 : -1;
+      if (sort_by < 0) usage();
+    } else if (!parse_query_opt(i, argc, argv, P, threads)) usage();
+  }
+#if defined(__x86_64__)
+  _mm_setcsr(_mm_getcsr() | 0x8040);
+#endif
+  DbEstimators ests(D, P);
+  Fasta fa(argv[4]);
+  fputs("contig\treference\trank\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\tani_lo\tani_hi"
+        "\taf_lo\taf_hi\tani_se\taf_se\tscreen_count\tscreen_keys\tscreen_z\tcandidates\n",
+        stdout);
+  const uint32_t nr = (uint32_t)D.refs.size();
+  struct Hit {
+    Result R;
+    uint32_t d;
+    float z;
+    double score;
+  };
+  run_pipeline(fa, threads, [&](const std::string& name, std::string_view seq, Work& W, std::string& out) {
+    thread_local std::vector<Hit> hits;
+    hits.clear();
+    db_prepare(D, seq, W);
+    const size_t ns = W.skey.size();
+    W.cand.clear();
+    if (screen) {
+      db_screen(D, W);
+      for (uint32_t d = 0; d < nr; ++d) {
+        const uint32_t c = W.scnt[d];
+        if (c < cmin || c == 0) continue;
+        const double f = D.scr_f[d], mu = (double)ns * f, sd = std::sqrt(std::max((double)ns * f * (1 - f), 1e-12));
+        const double z = ((double)c - mu) / sd;
+        if (z >= zmin) W.cand.emplace_back((float)z, d);
+      }
+      auto better = [](const std::pair<float, uint32_t>& a, const std::pair<float, uint32_t>& b) {
+        return a.first != b.first ? a.first > b.first : a.second < b.second;
+      };
+      if (W.cand.size() > max_cand) {
+        std::partial_sort(W.cand.begin(), W.cand.begin() + max_cand, W.cand.end(), better);
+        W.cand.resize(max_cand);
+      } else {
+        std::sort(W.cand.begin(), W.cand.end(), better);
+      }
+    } else {
+      W.scnt.assign(nr, 0);
+      for (uint32_t d = 0; d < nr; ++d) W.cand.emplace_back(0.0f, d);
+    }
+    for (auto& cd : W.cand) {
+      const uint32_t d = cd.second;
+      const Estimator& E = ests.get(d);
+      db_hits(D.refs[d], W);
+      Result R = E.estimate_probed(seq.size(), W);
+      const bool ok = std::strcmp(R.status, "ok") == 0;
+      if (!ok && nout > 0) continue;
+      const double sc = !ok ? -1 : sort_by == 1 ? R.ani : sort_by == 2 ? R.af : R.ani * R.af;
+      hits.push_back({R, d, cd.first, sc});
+    }
+    if (nout > 0) {
+      std::stable_sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) {
+        return a.score != b.score ? a.score > b.score : a.d < b.d;
+      });
+      if (hits.size() > (size_t)nout) hits.resize(nout);
+    }
+    char extra[128];
+    if (hits.empty()) {
+      Result R;
+      R.probes = W.pr.size();
+      R.status = W.cand.empty() ? "no_candidate" : "no_homology";
+      snprintf(extra, sizeof extra, "\t0\t%zu\tnan\t%zu", ns, W.cand.size());
+      format_result(out, name + "\t*\t0", R, extra);
+      return;
+    }
+    for (size_t r = 0; r < hits.size(); ++r) {
+      const Hit& h = hits[r];
+      snprintf(extra, sizeof extra, "\t%u\t%zu\t%.2f\t%zu", W.scnt[h.d], ns, screen ? h.z : NAN, W.cand.size());
+      format_result(out, name + "\t" + D.names[h.d] + "\t" + std::to_string(r + 1), h.R, extra);
+    }
+  });
+  fprintf(stderr, "estimators built: %zu of %u references\n", ests.built.load(), nr);
+  return 0;
+}
+
+int cmd_db_info(int argc, char** argv) {
+  if (argc < 4) usage();
+  Db D;
+  D.load(argv[3]);
+  const bool refs = argc > 4 && std::string(argv[4]) == "--refs";
+  const uint64_t tb = D.total_bases();
+  printf("references=%zu bases=%lu k=%d budget=%.4f tiers=%zu filter_bytes=%zu (%.4f bits/base) screen_bytes=%zu (%.4f bits/base)"
+         " screen_frac=%.5f screen_bits=%.2f screen_hashes=%u groups=%zu file_bytes=%zu\n",
+         D.refs.size(), (unsigned long)tb, D.k, D.budget, D.tier_rng.size(), D.filter_bytes(),
+         8.0 * D.filter_bytes() / std::max<double>(1, tb), D.screen_bytes(), 8.0 * D.screen_bytes() / std::max<double>(1, tb),
+         D.scr_frac, D.scr_bits, D.scr_h, D.groups.size(), D.map_len);
+  if (refs) {
+    printf("reference\tbases\tsigma_emp\tscreen_kmers\tscreen_fpr");
+    for (size_t t = 0; t < D.tier_rng.size(); ++t) printf("\tnh%zu\teps%zu", t, t);
+    printf("\n");
+    for (size_t d = 0; d < D.refs.size(); ++d) {
+      const Sketch& sk = D.refs[d];
+      printf("%s\t%lu\t%.3g\t%lu\t%.4f", D.names[d].c_str(), (unsigned long)sk.total_bases, sk.sigma_emp,
+             (unsigned long)D.scr_n[d], D.scr_f[d]);
+      for (auto& t : sk.tiers) printf("\t%u\t%.5f", t.nh, t.eps);
+      printf("\n");
+    }
+  }
+  return 0;
+}
+
+int cmd_query(int argc, char** argv) {
+  if (argc < 4) usage();
+  Sketch sk;
+  sk.load(argv[2]);
+  Params P;
+  int threads = 1;
+  for (int i = 4; i < argc; ++i)
+    if (!parse_query_opt(i, argc, argv, P, threads)) usage();
+  Estimator est(sk, P);
+#if defined(__x86_64__)
+  _mm_setcsr(_mm_getcsr() | 0x8040);  // flush-to-zero / denormals-are-zero
+#endif
+  Fasta fa(argv[3]);
+  fputs("contig\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\tani_lo\tani_hi\taf_lo\taf_hi\tani_se\taf_se\n",
+        stdout);
+  run_pipeline(fa, threads, [&](const std::string& name, std::string_view seq, Work& W, std::string& out) {
+    format_result(out, name, est.estimate(seq, W));
+  });
   return 0;
 }
 
@@ -2683,6 +3527,12 @@ int main(int argc, char** argv) {
                 (unsigned long)t.nblocks, t.eps);
     } else if (cmd == "query") {
       return cmd_query(argc, argv);
+    } else if (cmd == "db") {
+      std::string sub = argv[2];
+      if (sub == "build") return cmd_db_build(argc, argv);
+      if (sub == "search") return cmd_db_search(argc, argv);
+      if (sub == "info") return cmd_db_info(argc, argv);
+      usage();
     } else if (cmd == "info") {
       Sketch sk;
       sk.load(argv[2]);

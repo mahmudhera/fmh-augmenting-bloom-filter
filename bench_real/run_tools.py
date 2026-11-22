@@ -31,6 +31,9 @@ CONFIGS = {
     "aif_fast": ("aif", [], ["--het-fine-max", "16384"]),
     # AF-oriented local identity prior (v1.4 option; tuned on data/real_tune)
     "aif_lp": ("aif", [], ["--ident-window", "0.08", "--ident-radius", "3"]),
+    # fixed k = 20 (the database-mode default: one k shared by all references)
+    "aif_k20": ("aif", ["-k", "20"], []),
+    "aif_k19": ("aif", ["-k", "19"], []),
     "skani": ("skani", [], None),
     "skani_relaxed": ("skani", ["-s", "70", "--min-af", "5"], None),
     "skani_slow": ("skani", ["--slow"], None),
