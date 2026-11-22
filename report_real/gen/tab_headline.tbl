@@ -1,0 +1,17 @@
+.TS
+center box tab(@);
+l c c c c
+l n n n n.
+contig level (33,464 contigs, 5 within-species sets)@skani@skani --slow@aif@aif-RT
+_
+sketch size (bits / reference base)@0.903@3.33@0.880@0.880
+homologous contigs reported (coverage)@0.901@0.956@0.992@0.993
+ANI MAE, reported homologous contigs (pp)@0.677@0.611@0.502@0.496
+ANI MAE, contigs reported by all (23,488) (pp)@0.675@0.532@0.392@0.387
+ANI MAE, mean over the 5 sets (pp)@0.622@0.581@0.483@0.470
+AF MAE, all contigs (pp)@9.35@4.29@2.63@1.85
+AF MAE, mean over the 5 sets (pp)@9.86@4.51@2.45@1.71
+false homology calls (% of non-homologous)@0.03@0.17@0.22@0.19
+genome ANI MAE vs ANIm, 224 genomes (pp)@0.237@0.259@0.190@0.263
+wall time, 5 sets, 1 / 8 threads (s)@3.27 / 2.68@\(em@3.88 / 1.05@\(em
+.TE

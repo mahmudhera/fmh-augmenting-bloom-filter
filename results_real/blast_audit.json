@@ -1,0 +1,24 @@
+{
+ "n_disputed_total": 887,
+ "n_contigs": 33464,
+ "disputed": {
+  "n": 150,
+  "nucmer_af": 0.4780819333333333,
+  "blastn_af": 0.6066492361793786,
+  "aif_af": 0.8713950199999999,
+  "aif_vs_nucmer_mae": 39.33130866666667,
+  "aif_vs_blastn_mae": 27.506553492902768,
+  "blastn_minus_nucmer": 12.856730284604529,
+  "within_10pp_of_blastn": 28
+ },
+ "control": {
+  "n": 150,
+  "nucmer_af": 0.6835882,
+  "blastn_af": 0.7155006901620796,
+  "aif_af": 0.68787794,
+  "aif_vs_nucmer_mae": 1.3900113333333328,
+  "aif_vs_blastn_mae": 3.766328720762318,
+  "blastn_minus_nucmer": 3.1912490162079643,
+  "within_10pp_of_blastn": 138
+ }
+}

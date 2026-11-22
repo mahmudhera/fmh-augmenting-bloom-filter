@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+l c c s s c s s c c
+^ ^ c c c c c c c c
+l n n n n n n n c c.
+set@Mbp@1 thread (s)@8 threads (s)@peak RSS (MB)@
+@@skani@aif@aif fast@skani@aif@aif fast@skani 1t / 8t@aif 1t / 8t
+_
+B. cereus@449@1.34@1.76@1.38@1.13@0.48@0.35@74 / 88@69 / 534
+E. coli@243@0.75@0.90@0.76@0.61@0.21@0.18@41 / 46@46 / 201
+MAGs 2328@116@0.39@0.39@0.35@0.31@0.10@0.12@25 / 28@19 / 126
+P. aerug.@165@0.56@0.60@0.51@0.44@0.16@0.14@28 / 33@21 / 184
+S. aureus@68@0.23@0.24@0.20@0.19@0.10@0.08@17 / 22@20 / 115
+_
+total@@3.27@3.88@3.20@2.68@1.05@0.86@@
+.TE

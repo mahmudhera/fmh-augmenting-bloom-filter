@@ -1,0 +1,11 @@
+set	genome	source	accession	stratum	reference
+paer	GCA_001181565.1	ncbi	GCA_001181565.1	contigs=249	PAO1
+paer	GCA_001181065.1	ncbi	GCA_001181065.1	contigs=191	PAO1
+paer	GCA_001451895.1	ncbi	GCA_001451895.1	contigs=74	PAO1
+paer	GCA_001450325.1	ncbi	GCA_001450325.1	contigs=66	PAO1
+paer	GCA_001374435.1	ncbi	GCA_001374435.1	contigs=84	PAO1
+paer	GCA_000824665.1	ncbi	GCA_000824665.1	contigs=59	PAO1
+paer	GCA_001374355.1	ncbi	GCA_001374355.1	contigs=89	PAO1
+paer	GCA_001180605.1	ncbi	GCA_001180605.1	contigs=167	PAO1
+paer	GCA_001375475.1	ncbi	GCA_001375475.1	contigs=76	PAO1
+paer	GCA_000824405.1	ncbi	GCA_000824405.1	contigs=60	PAO1

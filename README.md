@@ -1,9 +1,31 @@
 # FracMinHash + Bloom filters for ANI / AF on short contigs
 
-Two deliverables:
+Three reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
-2. **Implementation + benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
+2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
+3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf) (11 pages). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth, plus the v1.2 speed fixes for real assemblies.
+
+## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
+
+Sets: B. cereus group drafts (D2) vs B. anthracis 52-G; E. coli drafts (D3) vs K-12; 48 MAGs of Pasolli bin 2328 vs
+the bin's best MAG; P. aeruginosa and S. aureus drafts; cross-genus negative controls. Pooled over the 33,464
+within-species contigs:
+
+| | skani 0.4.0 | skani `--slow` | **aif** | aif-RT (`--rho-u 2e-5`) |
+|---|---|---|---|---|
+| sketch size (bits / reference base) | 0.903 | 3.33 | 0.880 | 0.880 |
+| homologous contigs reported | 90.1% | 95.6% | **99.2%** | 99.3% |
+| ANI MAE, reported homologous contigs (pp) | 0.677 | 0.611 | **0.502** | 0.496 |
+| ANI MAE, contigs reported by all (pp) | 0.675 | 0.532 | **0.392** | 0.387 |
+| AF MAE, all contigs (pp) | 9.35 | 4.29 | **2.63** | 1.85 |
+| AF MAE on 0.5-1 kb contigs (pp) | 39.2 | 21.3 | **4.3** | 3.9 |
+| genome ANI MAE vs ANIm, 224 genomes (pp) | 0.237 | 0.259 | **0.190** | 0.263 |
+| wall time, 5 sets, 1 / 8 threads (s) | 3.27 / 2.68 | | 3.88 / **1.05** | |
+
+aif beats both skani presets on ANI and AF on every set. aif-RT is one setting chosen on a disjoint real tuning set
+(it helps contig AF, costs genome-level ANI on divergent genomes and simulated AF; the default is unchanged).
+fastANI's genome ANI MAE on the same genomes is 0.247 pp.
 
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
@@ -19,7 +41,7 @@ Two deliverables:
 A freshly generated confirmation benchmark reproduces this: ANI 0.366 vs 1.206 pp, AF 0.55 vs 7.46 pp, 28/28 conditions.
 aif at half the budget (0.44 bits/base) still beats skani's densest preset (`--slow`, 3.33 bits/base).
 
-## Speed (single thread unless noted; medians of interleaved, core-pinned runs)
+## Speed on simulated contigs (single thread unless noted; medians of interleaved, core-pinned runs)
 
 | workload | skani (sketch + query) | aif v1.0 | **aif v1.1** |
 |---|---|---|---|
@@ -32,6 +54,13 @@ v1.1 queries are 5.2x faster than v1.0 and sketching is 1.9x faster, at equal ac
 few hundred contigs meet a newly sketched reference (aif's sketch build costs more); aif is faster on larger
 query sets and scales with threads. The fast paths need AVX-512; a scalar fallback gives byte-identical sketches.
 
+**v1.2 (real assemblies).** Draft assemblies have Mbp-scale contigs, on which v1.1's batch-and-barrier thread
+pipeline did not scale (449 Mbp B. cereus set: 3.6 s at both 1 and 8 threads, 1.95 GB). v1.2 probes long contigs
+in cache-sized windows and uses a streaming pipeline (chunked work queue, ordered writer, workers strip FASTA line
+breaks from the memory map). Output is byte-identical to v1.1. The same set now takes 1.66 s at 1 thread,
+0.50 s at 8 and 0.42 s at 16. `--het-fine-max 16384` is an optional switch, 22% faster on Mbp-scale contigs, with
+slightly less accurate genome-level ANI. Simulated-set timings with v1.2 are in `results/main/*_v12.tsv`.
+
 ## The `aif` tool
 
 `src/aif.cpp` is a single dependency-free C++17 file.
@@ -39,6 +68,7 @@ query sets and scales with threads. The fast paths need AVX-512; a scalar fallba
 * **Sketch.** Canonical k-mers are FracMinHash-selected into two hash-range tiers, each stored as a blocked Bloom filter (FPR 0.005 and 0.1; 0.88 bits/base by default). The exact FPR comes from the fill ratio. The spurious-match rate is calibrated empirically, and k is chosen per reference (17-21) to keep it at or below 0.003.
 * **Query** (raw contigs). Every selected k-mer is probed. A multi-level HMM (one unaligned state plus aligned identity levels) gives the aligned fraction and the FP-corrected aligned containment, so ANI = C^(1/k) with bias correction. Heterogeneous contigs use posterior-mean ANI instead.
 * **v1.1 speed**: 2-bit packing and AVX-512 k-mer selection, gather-based Bloom tests, a binned single-precision HMM with exact per-probe refinement around alignment boundaries, mmap input, vectorised sketch insertion, and `-t N` threads with ordered output.
+* **v1.2**: windowed probing of long contigs and a streaming multithreaded pipeline (see above); `make prof` builds a per-stage cycle-counter binary.
 
 ```
 make aif
@@ -49,14 +79,18 @@ bin/aif query ref.aif contigs.fa -t 8 > out.tsv  # contig ani af theta probes hi
 ## Layout
 
 ```
-fmh_bloom_filter_theory.pdf, aif_benchmark_report.pdf
+fmh_bloom_filter_theory.pdf, aif_benchmark_report.pdf, aif_real_genomes_report.pdf
 src/aif.cpp                    the tool
-bench/                         download_genomes.sh, make_scenarios.py, run_skani.sh, run_aif.sh, run_all.sh,
-                               evaluate.py, tune.py, time_all.py (interleaved timing), time_compare.sh, medtime.sh
-results/                       committed summaries: evaluations (JSON), predictions, timings, tuning tables
-scripts/                       theory tables/figures, Monte Carlo check, benchmark-report tables/figures
-report/, report_bench/         groff sources of the two PDFs (custom macros; built with groff + ghostscript)
-data/  (git-ignored)           genomes, generated contigs, raw run outputs; regenerate with bench/ scripts
+bench/                         simulated benchmark: download_genomes.sh, make_scenarios.py, run_skani.sh, run_aif.sh,
+                               run_all.sh, evaluate.py, tune.py, time_all.py (interleaved timing), time_compare.sh, medtime.sh
+bench_real/                    real genomes: select_datasets.py, select_tune.py, download.sh, prepare.py, truth.py (MUMmer),
+                               run_tools.py, evaluate_real.py, genome_level.py, blast_audit.py, tune_real.py,
+                               time_real.py, scaling.py
+results/, results_real/        committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
+scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
+report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
+report_real/
+data/  (git-ignored)           genomes, assemblies, generated contigs, raw run outputs; regenerate with the scripts
 ```
 
 ## Reproduce
@@ -68,6 +102,17 @@ python3 bench/make_scenarios.py data/genomes data/tune 10 777         # tuning s
 python3 bench/make_scenarios.py data/genomes data/bench2 25 99991     # fresh confirmation set
 bench/run_all.sh && python3 bench/time_all.py 11
 python3 scripts/benchmark_report.py && report_bench/build.sh
+```
+
+Real genomes (needs the NCBI `datasets` CLI, MUMmer 4, blastn, fastANI and skani; paths are overridable with
+`DATASETS=`, `MUMMER=`, `SKANI=`, `FASTANI=`):
+
+```
+python3 -I bench_real/select_datasets.py && bench_real/download.sh && python3 -I bench_real/prepare.py
+python3 -I bench_real/truth.py && python3 -I bench_real/run_tools.py
+python3 -I bench_real/evaluate_real.py --json data/real/results/eval_main.json
+python3 -I bench_real/genome_level.py && python3 -I bench_real/blast_audit.py && python3 -I bench_real/time_real.py 7
+python3 scripts/real_report.py && report_real/build.sh
 ```
 
 The scripts expect skani at the path in `bench/run_skani.sh` (override with `SKANI=...`), plus numpy and matplotlib for the Python parts.

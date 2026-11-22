@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c s s s c s s s
+^ c c c c c c c c
+l n n n n n n n n.
+set@coverage of homologous contigs@paired ANI MAE (pp)
+@skani@--slow@aif@aif-RT@skani@--slow@aif@aif-RT
+_
+B. cereus group (D2)@0.851@0.938@0.986@0.986@1.012@0.759@0.550@0.591
+E. coli (D3)@0.828@0.910@0.983@0.983@0.619@0.616@0.375@0.329
+MAG bin 2328@0.996@0.999@1.000@1.000@0.584@0.438@0.354@0.337
+P. aeruginosa@0.906@0.956@0.999@0.999@0.338@0.275@0.205@0.181
+S. aureus@0.859@0.945@0.997@0.997@0.550@0.429@0.345@0.339
+.TE

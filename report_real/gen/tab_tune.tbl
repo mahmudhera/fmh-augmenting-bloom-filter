@@ -1,0 +1,15 @@
+.TS
+center box tab(@);
+l c s c s
+^ c c c c
+l n n n n.
+rho_u@real tuning set (5 sets)@simulated tuning set
+@ANI MAE@AF MAE@ANI MAE@AF MAE
+_
+1e-6@0.511@3.12@0.372@0.49
+3e-6 (default)@0.486@2.62@0.362@0.45
+1e-5@0.471@2.06@0.364@0.57
+2e-5 (aif-RT)@0.480@1.78@0.366@0.72
+3e-5@0.491@1.66@0.368@0.88
+1e-4@0.538@1.48@0.399@1.75
+.TE

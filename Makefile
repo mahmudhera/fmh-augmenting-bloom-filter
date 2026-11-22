@@ -23,3 +23,9 @@ pdf:
 	report/build.sh
 
 .PHONY: all tables pdf aif
+
+# per-stage cycle counters (stderr) for profiling
+prof: bin/aif_prof
+bin/aif_prof: src/aif.cpp
+	mkdir -p bin
+	$(CXX) $(CXXFLAGS) -DAIF_PROF -Wall -Wextra -o $@ $<

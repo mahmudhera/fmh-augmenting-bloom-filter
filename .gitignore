@@ -9,3 +9,6 @@ bin/
 report_bench/main.ps
 report_bench/build.log
 report_bench/build1.log
+report_real/main.ps
+report_real/build.log
+report_real/build1.log

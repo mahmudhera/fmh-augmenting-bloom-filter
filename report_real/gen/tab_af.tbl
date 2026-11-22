@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+l c c s s c s s c s s c s s
+^ ^ c c c c c c c c c c c c
+l n n n n n n n n n n n n n.
+stratum@contigs@skani@skani --slow@aif@aif-RT
+@@cov@ANI@AF@cov@ANI@AF@cov@ANI@AF@cov@ANI@AF
+_
+< 0.05@6,404@\(em@\(em@0.2@\(em@\(em@0.3@\(em@\(em@0.3@\(em@\(em@0.3
+0.05\(en0.5@2,271@0.47@1.91@15.9@0.68@2.84@12.2@0.90@1.86@14.4@0.90@1.66@9.5
+0.5\(en0.9@3,998@0.90@1.00@13.9@0.96@0.91@6.2@0.99@0.76@8.7@0.99@0.73@5.5
+\(>= 0.9@20,791@0.93@0.58@10.6@0.97@0.46@4.3@1.00@0.38@0.9@1.00@0.39@0.8
+.TE

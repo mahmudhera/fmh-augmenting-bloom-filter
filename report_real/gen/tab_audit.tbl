@@ -1,0 +1,9 @@
+.TS
+center box tab(@);
+l c c c c c
+l n n n n n.
+sample@nucmer AF@blastn AF@aif AF@|aif\(minnucmer| (pp)@|aif\(minblastn| (pp)
+_
+disputed (150)@0.478@0.607@0.871@39.3@27.5
+control (150)@0.684@0.716@0.688@1.4@3.8
+.TE

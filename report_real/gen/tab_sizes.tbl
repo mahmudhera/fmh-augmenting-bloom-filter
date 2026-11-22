@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c c c c c
+l n n n n n.
+reference@Mbp@skani KiB@aif KiB@skani bits/base@aif bits/base
+_
+B. anthracis 52-G chr.@5.23@577@562@0.904@0.880
+E. coli K-12 MG1655@4.64@511@499@0.901@0.880
+best MAG of bin 2328@2.65@295@285@0.910@0.880
+P. aeruginosa PAO1@6.26@688@673@0.900@0.880
+S. aureus NCTC 8325@2.82@312@303@0.907@0.880
+.TE

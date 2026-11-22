@@ -1,0 +1,17 @@
+.TS
+center box tab(@);
+l l c c c c c c
+l l c c c c c c
+l l n n n n c n.
+set@reference@genomes@contigs@Mbp@median@genome ANIm@homol.
+@@@\(>= 500 bp@@len. (kb)@range (%)@(%)
+_
+B. cereus group (D2)@B. anthracis 52-G chr.@80@10,355@449@5.0@86.0\(en100.0@77
+E. coli (D3)@E. coli K-12 MG1655@48@7,528@243@4.5@97.1\(en99.7@54
+MAG bin 2328@best MAG of bin 2328@48@8,710@116@4.3@98.5\(en99.9@93
+P. aeruginosa@P. aeruginosa PAO1@24@4,405@165@7.1@93.6\(en99.5@85
+S. aureus@S. aureus NCTC 8325@24@2,466@68@4.0@97.3\(en99.9@90
+negative controls@BA52G / MG1655 (crossed)@16@1,898@86@9.8@82.6\(en83.3@1
+_
+total@@240@35,362@1128@@@
+.TE
