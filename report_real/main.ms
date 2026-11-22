@@ -18,7 +18,7 @@ from the skani Benchmark Data
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Real-genome report, aif v1.2 \(em November 22, 2026
+Real-genome report, aif v1.3 \(em November 22, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -37,8 +37,8 @@ The data are 240 real assemblies with 35,362 contigs of at least 500 bp (1.13 Gb
 skani paper. They are the B. cereus group (D2) and E. coli (D3) draft assemblies, metagenome-assembled genomes of
 species bin 2328, GC-extreme P. aeruginosa and S. aureus drafts, and cross-genus negative controls.
 The ground truth is MUMmer alignment of every contig to its reference.
-No aif parameter was tuned on these data. At equal sketch size (0.88 vs 0.90 bits per reference base) aif v1.1/v1.2
-is better than skani 0.4.0 on every set, for both ANI and AF.
+No aif parameter was tuned on these data. At equal sketch size (0.88 vs 0.90 bits per reference base) aif is better
+than skani 0.4.0 on every set, for both ANI and AF.
 Pooled over the 33,464 within-species contigs, aif reports 99.2% of homologous contigs (skani 90.1%).
 Its ANI mean absolute error is 0.50 pp (skani 0.68 pp), or 0.39 vs 0.68 pp on the 23,488 contigs that every
 configuration reports. Its AF error is 2.63 pp (skani 9.35 pp).
@@ -48,10 +48,13 @@ On 500\(en1000 bp contigs aif reports 95% of homologous contigs, against 23% for
 Aggregating aif's contig estimates also gives the most accurate genome-level ANI against ANIm (0.19 pp vs 0.24 pp for
 skani and 0.25 pp for fastANI).
 One setting change, chosen on a disjoint real tuning set (aif-RT), lowers the held-out AF error to 1.85 pp.
-Real assemblies exposed a speed problem: v1.1's multithreaded pipeline did not scale on Mbp-scale contigs.
-Version 1.2 fixes this with cache-sized probe windows and a streaming thread pipeline. It is 7\(mu faster than v1.1
-at 8 threads, gives byte-identical output, and is 2.6\(mu faster than skani at 8 threads over the five sets.
-Single-threaded, it is within 20% of skani over the five sets, and an optional switch closes that gap.
+Real assemblies also exposed speed problems. Version 1.2 made the thread pipeline scale on Mbp-scale contigs.
+Version 1.3 then closed the single-thread gap with:
+GFNI reverse complements; vectorised 2-bit packing and bin counting; and HMM recursions restructured so that their
+reductions leave the dependency chain.
+Single-threaded, v1.3 processes the five sets in 2.81 s against skani's 3.28 s and is faster on every set
+(0.73\(en0.95\(mu skani's time). At 8 threads it takes 0.89 s against 2.66 s.
+Accuracy is unchanged: estimates move by at most 10\u\s-2\(mi6\s0\d.
 We also report where aif errs and how the truth was audited.
 .ps \n(PS
 .vs \n(VSp
@@ -98,9 +101,9 @@ is 39 vs 4.3 pp, and paired ANI error 0.92 vs 0.49 pp.
 \f[B]Genome level.\f[R] Aggregated per-contig aif output matches ANIm best (0.190 pp MAE over 224 genomes).
 skani genome mode gives 0.237 pp and fastANI 0.247 pp. skani \f[CR]--slow\f[R] has the best genome AF (Section 4).
 .IP (5) 0.3i
-\f[B]Speed.\f[R] At 8 threads, aif v1.2 processes the five sets in 1.05 s against skani's 2.68 s.
-Single-threaded it takes 3.88 vs 3.27 s, or 3.20 s with \f[CR]--het-fine-max 16384\f[R].
-Version 1.1 did not scale with threads on these inputs (Section 7).
+\f[B]Speed.\f[R] Single-threaded, aif v1.3 (sketch + query) processes the five sets in 2.81 s against skani's
+3.28 s, and is faster on every set. At 8 threads it takes 0.89 s against 2.66 s.
+Version 1.1 was 20\(en55% slower than skani single-threaded and did not scale with threads on these inputs (Section 7).
 .\" =====================================================================
 .H1 "Data and ground truth"
 .H2 "Genome sets"
@@ -157,8 +160,8 @@ new version.
 skani 0.4.0 runs as \f[CR]skani dist --qi\f[R] (per-contig mode) with default parameters (c = 125), with
 \f[CR]--slow\f[R] (c = 30), and with relaxed reporting thresholds (\f[CR]-s 70 --min-af 5\f[R]; nearly identical to
 default, so omitted from most tables).
-aif runs with its v1.1 defaults. The same aif output is produced by v1.2 (Section 7); all accuracy numbers are
-v1.2 runs.
+aif runs with its v1.1 defaults. All accuracy numbers are v1.3 runs. v1.3 estimates differ from v1.1 and v1.2 by at
+most 10\u\s-2\(mi6\s0\d (Section 7.3).
 Sketch sizes are those of the earlier report (Table 3). aif uses 0.880 bits per reference base and skani 0.903.
 .TC 3
 Sketch size per reference (skani: all files of \f[CR]skani sketch\f[R]; aif: the \f[CR].aif\f[R] file).
@@ -356,7 +359,7 @@ all reported contigs).
 .TCE
 .so gen/tab_tune.tbl
 .\" =====================================================================
-.H1 "Speed and memory on real data (v1.2)"
+.H1 "Speed and memory on real data (v1.2, v1.3)"
 .H2 "What real assemblies exposed"
 .LP
 The simulated contigs were at most 20 kb. Draft assemblies contain contigs up to 5 Mbp, and that broke two
@@ -364,13 +367,13 @@ assumptions of v1.1.
 .IP (1) 0.3i
 \f[B]Thread pipeline.\f[R] v1.1 read 4 Mbp batches, handed out 16 contigs per grab, and waited at a barrier after
 each batch. A batch with a few Mbp-scale contigs kept one thread busy while the others idled. Every thread also
-grew its scratch buffers to the largest contig. On the 449 Mbp B. cereus set, v1.1 took 3.6 s at 1 thread and
-3.6 s at 8 threads, using 1.95 GB at 8 threads (Table 15).
+grew its scratch buffers to the largest contig. On the 449 Mbp B. cereus set, v1.1 took 1.9 s at 1 thread and
+3.5 s at 8 threads, using 1.6 GB at 8 threads (Table 15).
 .IP (2) 0.3i
 \f[B]Cache behaviour.\f[R] Probing a 5 Mbp contig in one pass streams megabytes of packed sequence and positions
 through L2. Per-stage cycle counters (\f[CR]make prof\f[R]) showed probing at 6.9 cycles per base on \(>= 500 kb
 contigs, against 4.2 on 20\(en500 kb contigs.
-.H2 "Changes"
+.H2 "Changes in v1.2"
 .IP \(bu 0.2i
 \f[B]Windowed probing.\f[R] Contigs are probed in windows of 65,536 k-mer starts. Output is unchanged, and the
 per-thread scratch no longer depends on contig length.
@@ -392,31 +395,74 @@ switch is not the default.
 v1.2 output is byte-identical to v1.1 at any thread count. This was checked on all real sets, the simulated
 benchmark, and piped input. On the simulated throughput sets v1.2 is as fast as or faster than v1.1 (20 Mbp at
 8 threads: 33 vs 49 ms).
+.H2 "Matching skani single-threaded (v1.3)"
+.LP
+After v1.2, aif was still 31% slower than skani at 1 thread on the B. cereus set and 20% slower on E. coli.
+Per-stage counters on B. cereus showed probing at 50% of the time, the fine-binned heterogeneity re-run at 29%,
+and refinement at 10%. v1.3 changes:
+.IP \(bu 0.2i
+\f[B]HMM recursions.\f[R] Each forward/backward step was latency-bound by about 70 cycles: a horizontal dot
+product over the identity states, then a division, both feeding the next step. Two changes break this chain.
+The forward and backward recursions are now interleaved in one loop. Each step's normaliser is also computed
+ahead of time from the previous step's two scalars and sums over older messages, for example
+<F[b\(mi1], e[b]> = bz <e[b\(mi1], e[b]> + cz <F[b\(mi2] e[b\(mi1], e[b]>. This removes the reductions from
+the chain. The same applies to per-probe refinement, where <e[r\(mi1], e[r]> is a table lookup.
+Only floating-point rounding changes. 0.3% of output rows differ, all in the sixth decimal (10\u\s-2\(mi6\s0\d).
+.IP \(bu 0.2i
+\f[B]Emission cache.\f[R] An 8-probe bin's emission vector depends only on its four hit/miss counts (495
+combinations), so these vectors are precomputed per sketch (exact).
+.IP \(bu 0.2i
+\f[B]GFNI reverse complement.\f[R] Complementing the bases and reversing them within each byte is one
+\f[CR]vgf2p8affineqb\f[R] with a constant bit matrix, replacing 13 vector operations, in selection, probing and
+sketching (bit-identical).
+.IP \(bu 0.2i
+\f[B]Vectorised packing and bin counting.\f[R] ASCII-to-2-bit packing does 64 bases per step with two
+multiply-adds and \f[CR]vpmovdb\f[R]. Bin counts come from tier/hit bit masks and popcounts (both exact).
+Calibration membership tests are batched and prefetched, and calibration samples are written branch-free.
+Sketches are byte-identical.
+.IP \(bu 0.2i
+\f[B]Tried and dropped.\f[R] We tried passing canonical k-mers or tier bits from selection to probing; the
+compressed 64-bit stores cost more than the recomputation they saved (net +3%). A 0.01 ANI grid (16 states) was 9%
+faster but raised simulated AF error from 0.79 to 0.90 pp. Refining only at posterior crossings raised AF error.
+.LP
+Accuracy is unchanged. Every per-set metric of Tables 4\(en9 moved by less than 3\(mu10\u\s-2\(mi7\s0\d, and the
+simulated main and fresh benchmarks reproduce v1.1 to the printed digit. Step by step, aif's single-thread time on
+the B. cereus set, relative to skani, went from 1.55\(mu (v1.1) through 1.16\(mu (HMM changes), 1.09\(mu
+(refinement, GFNI) and 1.01\(mu (packing) to 0.95\(mu (bin counting).
 .H2 "Timing"
 .LP
 Table 14 gives medians of 7 interleaved, core-pinned rounds per command.
-At 8 threads aif is 1.9\(en3.1\(mu faster than skani on every set; over the five sets it takes 1.05 s against 2.68 s.
-Single-threaded, aif is within 7% of skani on the three sets with shorter contigs. It is 20\(en31% slower on the
-B. cereus and E. coli sets, where Mbp-scale contigs trigger the costly fine-binned heterogeneity pass.
-With \f[CR]--het-fine-max 16384\f[R], aif is faster than skani on three sets and within 3% on the other two.
-aif's sketch takes 17\(en45 ms per reference.
+Single-threaded, aif v1.3 (sketch + query) is faster than skani on every set, at 0.73\(en0.95\(mu skani's time.
+The closest set is B. cereus, with its Mbp-scale contigs.
+With \f[CR]--het-fine-max 16384\f[R] the ratio is 0.67\(en0.79\(mu.
+At 8 threads aif is 2.4\(en3.5\(mu faster than skani on every set.
+aif's sketch takes 16\(en41 ms per reference.
 .TC 14
-Wall time (s) per set: skani \f[CR]dist --qi\f[R] (sketch + query) against aif sketch + query, at 1 and 8 threads.
-"aif fast" adds \f[CR]--het-fine-max 16384\f[R]. Peak RSS is for the query step.
+Wall time (s) per set: skani \f[CR]dist --qi\f[R] (sketch + query) against aif v1.3 sketch + query, at 1 and 8
+threads. "aif fast" adds \f[CR]--het-fine-max 16384\f[R]. Peak RSS is for the query step.
 .TCE
 .so gen/tab_speed.tbl
 .TC 15
-Thread scaling of aif query on the B. cereus set (449 Mbp, 10,355 contigs): median seconds (peak RSS, MB).
+Thread scaling of aif query on the B. cereus set (449 Mbp, 10,355 contigs): median seconds (peak RSS, MB), all
+three versions interleaved in one run.
 .TCE
 .so gen/tab_scaling.tbl
 .ne 2.6i
 .PSPIC -C figs/fig_scaling.eps 3.6i
 .FC 5
-Thread scaling on the B. cereus set: aif v1.1, v1.2, and skani at 1 and 8 threads.
+Thread scaling on the B. cereus set: aif v1.1, v1.2 and v1.3, and skani at 1 and 8 threads.
 .FE
 .LP
-\f[B]Memory.\f[R] Single-threaded, aif uses as much memory as skani or less (19\(en69 MB against 17\(en74 MB).
-At 8 threads its peak RSS is higher (115\(en534 MB against 22\(en88 MB). That figure includes up to 128 MB of
+\f[B]Small single-reference workloads.\f[R] On the simulated sets of the earlier report (a few hundred contigs
+per newly sketched reference), v1.3 is faster than skani on 20 Mbp of contigs (0.067 vs 0.094 s) and 81 Mbp
+(0.19 vs 0.30 s).
+For 700 contigs per reference, skani is still slightly faster over four references (0.138 vs 0.155 s), because
+building aif's sketch (18\(en40 ms) dominates. aif ties on E. coli and B. subtilis and loses on S. aureus and
+P. aeruginosa. For high-GC P. aeruginosa, the adaptive-k search builds the sketch twice (k = 19 just misses the
+spurious-rate target). Sketches are built once per reference when they are reused.
+.LP
+\f[B]Memory.\f[R] Single-threaded, aif uses about as much memory as skani or less (19\(en64 MB against 17\(en74 MB).
+At 8 threads its peak RSS is higher (106\(en473 MB against 21\(en89 MB). That figure includes up to 128 MB of
 memory-mapped input pages, which are shared page cache. The rest is per-thread HMM state for Mbp-scale contigs,
 which holds forward, backward and emission values per 8-probe bin. Recomputing emissions in the backward pass,
 or checkpointing, would reduce it.
@@ -452,21 +498,25 @@ genome-to-genome screening use cases, are not tested.
 \f[B]Genome level.\f[R] skani \f[CR]--slow\f[R] gives better genome-level AF; aif's per-contig AF over-estimate
 carries into the aggregate.
 .IP \(bu 0.2i
-\f[B]Hardware.\f[R] aif's speed relies on AVX-512. Timings come from one Xeon Gold 5416S host, interleaved to
-control frequency drift.
+\f[B]Hardware.\f[R] aif's speed relies on AVX-512 (with VBMI2 and GFNI used where present); the scalar build is
+correct but slower. Timings come from one Xeon Gold 5416S host, interleaved to control frequency drift.
+.IP \(bu 0.2i
+\f[B]Fresh sketches for few contigs.\f[R] When a few hundred contigs meet a newly sketched reference, building
+the sketch dominates, and skani remains about 10% faster end to end.
 .H2 "Next steps"
 .IP 1. 0.3i
 Positional anchors for colinearity, then a dispersion test on low-identity calls to cut AF over-calls.
 .IP 2. 0.3i
 An identity-aware switching prior, so that aif-RT's AF gain comes without its cost on divergent genomes.
 .IP 3. 0.3i
-Lower per-thread HMM memory, and pruning of identity levels for the heterogeneity re-run.
+Lower per-thread HMM memory, a cheaper adaptive-k search (one build per reference), and pruning of identity
+levels for the heterogeneity re-run.
 .IP 4. 0.3i
 A database mode (many references per query) evaluated on GTDB-scale data, as in the skani paper.
 .\" =====================================================================
 .H1 "Reproducibility"
 .CS
-make aif                                     # aif v1.2 (bin/aif); make prof: stage counters
+make aif                                     # aif v1.3 (bin/aif); make prof: stage counters
 python3 -I bench_real/select_datasets.py     # genome lists (skani-test metadata)
 bench_real/download.sh                       # NCBI datasets + skani-test MAGs
 python3 -I bench_real/prepare.py             # contigs >= 500 bp, per-set query files
@@ -475,7 +525,7 @@ python3 -I bench_real/run_tools.py           # skani presets and aif configurati
 python3 -I bench_real/evaluate_real.py --json data/real/results/eval_main.json
 python3 -I bench_real/genome_level.py        # skani / fastANI genome mode vs ANIm
 python3 -I bench_real/blast_audit.py         # blastn audit
-python3 -I bench_real/time_real.py 7         # timing; scaling.py <aif_v1.1> bin/aif
+python3 -I bench_real/time_real.py 7         # timing; scaling.py v1.1=<bin> v1.3=bin/aif
 python3 -I bench_real/select_tune.py         # disjoint real tuning set, then with
   REAL_DIR=data/real_tune REAL_SETS=bcereus,ecoli,mag2328,paer,saur: download, prepare,
   truth, run_tools.py aif, tune_real.py "--rho-u=1e-5,2e-5,3e-5 ..."

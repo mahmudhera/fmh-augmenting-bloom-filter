@@ -152,14 +152,16 @@ def main():
     sc = tsv(os.path.join(R, "results", "scaling.tsv"))
     scd = {(r["version"], int(r["threads"])): (float(r["median_s"]), int(r["max_rss_kb"]) / 1024) for r in sc}
     thr = sorted(set(int(r["threads"]) for r in sc))
+    vers = sorted(set(r["version"] for r in sc))
     rows = []
-    for v in ("v1.1", "v1.2"):
+    for v in vers:
         rows.append([v] + [f"{scd[(v, t)][0]:.2f} ({scd[(v, t)][1]:.0f})" for t in thr])
     tbl("tab_scaling.tbl", ["l " + " ".join("c" for _ in thr)], "l " + " ".join("c" for _ in thr),
         [["aif query"] + [f"{t} thread{'s' if t > 1 else ''}" for t in thr]], rows)
-    nums.update(sc_v11_1=scd[("v1.1", 1)][0], sc_v11_8=scd[("v1.1", 8)][0], sc_v12_1=scd[("v1.2", 1)][0],
-                sc_v12_8=scd[("v1.2", 8)][0], sc_v12_16=scd[("v1.2", 16)][0], sc_v11_8m=scd[("v1.1", 8)][1],
-                sc_v12_8m=scd[("v1.2", 8)][1])
+    for v in vers:
+        for t in thr:
+            nums[f"sc_{v}_{t}"] = scd[(v, t)][0]
+            nums[f"sc_{v}_{t}_rss"] = scd[(v, t)][1]
 
     # ---------------- genome level
     G = json.load(open(os.path.join(R, "results", "genome_level.json")))
@@ -441,8 +443,10 @@ def main():
 
     # (5) thread scaling
     fig, ax = plt.subplots(figsize=(3.4, 2.2))
-    for v, col, mk in (("v1.1", INK2, "o"), ("v1.2", COL["aif"], "s")):
-        ax.plot(thr, [scd[(v, t)][0] for t in thr], "-" + mk, color=col, lw=1.6, ms=4, label=f"aif {v}")
+    vstyle = {"v1.1": (INK2, "o", ":"), "v1.2": ("#8fb8ea", "^", "-"), "v1.3": (COL["aif"], "s", "-")}
+    for v in vers:
+        col, mk, ls = vstyle.get(v, (INK2, "o", "-"))
+        ax.plot(thr, [scd[(v, t)][0] for t in thr], ls + mk, color=col, lw=1.6, ms=4, label=f"aif {v}")
     sk1 = tim[("bcereus", "skani", "sketch+query", 1)][0]
     sk8 = tim[("bcereus", "skani", "sketch+query", 8)][0]
     ax.plot([1, 8], [sk1, sk8], "--o", color=COL["skani"], lw=1.4, ms=4, label="skani (sketch+query)")
@@ -450,7 +454,7 @@ def main():
     ax.set_yscale("log")
     ax.set_xticks(thr)
     ax.set_xticklabels([str(t) for t in thr])
-    yt = [0.4, 0.6, 1, 2, 4]
+    yt = [0.3, 0.5, 1, 2, 4]
     ax.set_yticks(yt)
     ax.set_yticklabels([f"{y:g}" for y in yt])
     ax.minorticks_off()

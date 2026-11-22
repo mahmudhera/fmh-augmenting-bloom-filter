@@ -26,14 +26,15 @@
 .sp 0.25v
 \f[B]6.	Real-data tuning (aif-RT)\f[]8
 .sp 0.25v
-\f[B]7.	Speed and memory on real data (v1.2)\f[]8
+\f[B]7.	Speed and memory on real data (v1.2, v1.3)\f[]8
 \h'0.45i'7.1\h'|1.05i'What real assemblies exposed8
-\h'0.45i'7.2\h'|1.05i'Changes8
-\h'0.45i'7.3\h'|1.05i'Timing9
+\h'0.45i'7.2\h'|1.05i'Changes in v1.28
+\h'0.45i'7.3\h'|1.05i'Matching skani single-threaded (v1.3)9
+\h'0.45i'7.4\h'|1.05i'Timing9
 .sp 0.25v
 \f[B]8.	Discussion\f[]10
 \h'0.45i'8.1\h'|1.05i'Why the simulation results carry over10
-\h'0.45i'8.2\h'|1.05i'Limitations10
+\h'0.45i'8.2\h'|1.05i'Limitations11
 \h'0.45i'8.3\h'|1.05i'Next steps11
 .sp 0.25v
 \f[B]9.	Reproducibility\f[]11

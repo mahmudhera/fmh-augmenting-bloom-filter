@@ -22,8 +22,15 @@
 // barriers; --het-fine-max N limits the fine-binned heterogeneity re-run to contigs with
 // <= N probes (faster on Mbp-scale contigs, slightly less accurate genome-level ANI).
 //
+// v1.3 (single-thread speed): forward/backward recursions interleaved, with look-ahead
+// normalisers that keep horizontal reductions off the dependency chain (HMM and
+// refinement; rounding-level output changes, <= 1e-6); cached emissions for fine bins;
+// GFNI reverse complements; AVX-512 2-bit packing and mask-popcount bin counts; batched,
+// branch-free calibration. Sketches are byte-identical to v1.1/v1.2.
+//
 // Build: g++ -O3 -march=native -std=c++17 -pthread -o aif aif.cpp
 #include <algorithm>
+#include <cstddef>
 #include <atomic>
 #include <condition_variable>
 #include <deque>
@@ -327,7 +334,32 @@ void pack_seq(const uint8_t* s, size_t L, int k, Packed& P) {
   P.badk.clear();
   std::vector<uint32_t>& bad = P.bad;
   bad.clear();
-  for (size_t w = 0; w < nw; ++w) {
+  size_t w0 = 0;
+#if defined(__AVX512BW__)
+  // 64 bases per step: code = (byte >> 1) & 3; pairs, quads and bytes are merged with
+  // multiply-adds, and vpmovdb keeps one byte (4 codes) per dword -> two packed words
+  {
+    const __m512i lcbit = _mm512_set1_epi8(0x20), m3 = _mm512_set1_epi8(3);
+    const __m512i ca = _mm512_set1_epi8('a'), cc = _mm512_set1_epi8('c'), cg = _mm512_set1_epi8('g'),
+                  ct = _mm512_set1_epi8('t');
+    const __m512i w14 = _mm512_set1_epi16(0x0401), w116 = _mm512_set1_epi32(0x00100001);
+    for (; (w0 + 2) * 32 <= L; w0 += 2) {
+      const size_t i0 = w0 * 32;
+      const __m512i v = _mm512_loadu_si512((const void*)(s + i0));
+      const __m512i lc = _mm512_or_si512(v, lcbit);
+      const __mmask64 ok = _mm512_cmpeq_epi8_mask(lc, ca) | _mm512_cmpeq_epi8_mask(lc, cc) |
+                           _mm512_cmpeq_epi8_mask(lc, cg) | _mm512_cmpeq_epi8_mask(lc, ct);
+      if (__builtin_expect(ok != ~0ULL, 0))
+        for (int b = 0; b < 64; ++b)
+          if (CODE[s[i0 + b]] < 0) bad.push_back((uint32_t)(i0 + b));
+      const __m512i c = _mm512_and_si512(_mm512_srli_epi16(v, 1), m3);
+      const __m512i p2 = _mm512_maddubs_epi16(c, w14);   // c0 + 4 c1 per 16 bits
+      const __m512i p4 = _mm512_madd_epi16(p2, w116);    // q0 + 16 q1 per 32 bits
+      _mm_storeu_si128((__m128i*)&P.w[w0], _mm512_cvtepi32_epi8(p4));
+    }
+  }
+#endif
+  for (size_t w = w0; w < nw; ++w) {
     const size_t i0 = w * 32;
     uint64_t acc = 0;
     if (i0 + 32 <= L) {
@@ -373,6 +405,20 @@ inline uint64_t rc_kmer(uint64_t f, int k) {
 }
 
 #ifdef AIF_AVX512
+// Complement every 2-bit base and reverse the 4 bases within each byte (the per-byte part
+// of a reverse complement; a byte shuffle and a shift finish it). With GFNI this is one
+// affine bit-matrix op: output bit pairs (7:6, 5:4, 3:2, 1:0) take input pairs (1:0, 3:2,
+// 5:4, 7:6), and 0xAA flips each base's high bit (A<->T, C<->G).
+inline __m512i comp_rev_bytes(__m512i x) {
+#if defined(__GFNI__)
+  return _mm512_gf2p8affine_epi64_epi8(x, _mm512_set1_epi64((long long)0x4080102004080102ULL), 0xAA);
+#else
+  x = _mm512_xor_si512(x, _mm512_set1_epi64((long long)0xAAAAAAAAAAAAAAAAULL));
+  x = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(x, 2), m33), _mm512_slli_epi64(_mm512_and_si512(x, m33), 2));
+  return _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(x, 4), m0f), _mm512_slli_epi64(_mm512_and_si512(x, m0f), 4));
+#endif
+}
+
 inline __m512i fmix64_v(__m512i k) {
   k = _mm512_xor_si512(k, _mm512_srli_epi64(k, 33));
   k = _mm512_mullo_epi64(k, _mm512_set1_epi64((long long)0xff51afd7ed558ccdULL));
@@ -400,9 +446,6 @@ size_t select_kmers(const Packed& P, int k, uint64_t hmax, size_t start, size_t 
                                               55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56};
   const __m512i bsw = _mm512_load_si512((const void*)BSW);
   const __m512i vmask = _mm512_set1_epi64((long long)mask);
-  const __m512i vcomp = _mm512_set1_epi64((long long)0xAAAAAAAAAAAAAAAAULL);
-  const __m512i m33 = _mm512_set1_epi64((long long)0x3333333333333333ULL);
-  const __m512i m0f = _mm512_set1_epi64((long long)0x0F0F0F0F0F0F0F0FULL);
   const __m512i vseed = _mm512_set1_epi64((long long)SEED_SEL);
   const __m512i vhmax = _mm512_set1_epi64((long long)hmax);
   const __m512i lane = _mm512_set_epi64(7, 6, 5, 4, 3, 2, 1, 0);
@@ -418,9 +461,7 @@ size_t select_kmers(const Packed& P, int k, uint64_t hmax, size_t start, size_t 
       const __m512i sh = _mm512_add_epi64(rv, rv);
       __m512i f = _mm512_or_si512(_mm512_srlv_epi64(W0, sh), _mm512_sllv_epi64(W1, _mm512_sub_epi64(v63, sh)));
       f = _mm512_and_si512(f, vmask);
-      __m512i x = _mm512_xor_si512(f, vcomp);
-      x = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(x, 2), m33), _mm512_slli_epi64(_mm512_and_si512(x, m33), 2));
-      x = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(x, 4), m0f), _mm512_slli_epi64(_mm512_and_si512(x, m0f), 4));
+      __m512i x = comp_rev_bytes(f);
       x = _mm512_shuffle_epi8(x, bsw);
       x = _mm512_srl_epi64(x, rcs);
       const __m512i c = _mm512_min_epu64(f, x);
@@ -472,9 +513,6 @@ size_t select_positions(const Packed& P, int k, uint64_t hmax, uint32_t* out_pos
                                               55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56};
   const __m512i bsw = _mm512_load_si512((const void*)BSW);
   const __m512i vmask = _mm512_set1_epi64((long long)mask);
-  const __m512i vcomp = _mm512_set1_epi64((long long)0xAAAAAAAAAAAAAAAAULL);
-  const __m512i m33 = _mm512_set1_epi64((long long)0x3333333333333333ULL);
-  const __m512i m0f = _mm512_set1_epi64((long long)0x0F0F0F0F0F0F0F0FULL);
   const __m512i vseed = _mm512_set1_epi64((long long)SEED_SEL);
   const __m512i vhmax = _mm512_set1_epi64((long long)hmax);
   const __m512i lane = _mm512_set_epi64(7, 6, 5, 4, 3, 2, 1, 0);
@@ -491,9 +529,7 @@ size_t select_positions(const Packed& P, int k, uint64_t hmax, uint32_t* out_pos
       const __m512i sh = _mm512_add_epi64(rv, rv);
       __m512i f = _mm512_or_si512(_mm512_srlv_epi64(W0, sh), _mm512_sllv_epi64(W1, _mm512_sub_epi64(v63, sh)));
       f = _mm512_and_si512(f, vmask);
-      __m512i x = _mm512_xor_si512(f, vcomp);
-      x = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(x, 2), m33), _mm512_slli_epi64(_mm512_and_si512(x, m33), 2));
-      x = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(x, 4), m0f), _mm512_slli_epi64(_mm512_and_si512(x, m0f), 4));
+      __m512i x = comp_rev_bytes(f);
       x = _mm512_srl_epi64(_mm512_shuffle_epi8(x, bsw), rcs);
       const __m512i h = fmix64_v(_mm512_xor_si512(_mm512_min_epu64(f, x), vseed));
       selm |= (uint32_t)_mm512_cmplt_epu64_mask(h, vhmax) << r0;
@@ -693,8 +729,7 @@ void insert_positions_v(Sketch& sk, const Packed& pk, int k, const uint32_t* pos
                                               39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40,
                                               55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56};
   const __m512i bsw = _mm512_load_si512((const void*)BSW);
-  const __m512i vmask = _mm512_set1_epi64((long long)kmask), vcomp = _mm512_set1_epi64((long long)0xAAAAAAAAAAAAAAAAULL);
-  const __m512i m33 = _mm512_set1_epi64((long long)0x3333333333333333ULL), m0f = _mm512_set1_epi64((long long)0x0F0F0F0F0F0F0F0FULL);
+  const __m512i vmask = _mm512_set1_epi64((long long)kmask);
   const __m512i vsel = _mm512_set1_epi64((long long)SEED_SEL), v63 = _mm512_set1_epi64(63), v31 = _mm512_set1_epi64(31);
   const __m128i rcs = _mm_cvtsi32_si128(64 - 2 * k);
   const __m512i vhi0 = _mm512_set1_epi64((long long)t0.hi);
@@ -712,9 +747,7 @@ void insert_positions_v(Sketch& sk, const Packed& pk, int k, const uint32_t* pos
     const __m512i Bw = _mm512_slli_epi64(_mm512_mask_i64gather_epi64(zero, tail, _mm512_add_epi64(wi, one), wbase64, 8), 1);
     const __m512i sh = _mm512_slli_epi64(_mm512_and_si512(pos, v31), 1);
     __m512i f = _mm512_and_si512(_mm512_or_si512(_mm512_srlv_epi64(A, sh), _mm512_sllv_epi64(Bw, _mm512_sub_epi64(v63, sh))), vmask);
-    __m512i r = _mm512_xor_si512(f, vcomp);
-    r = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(r, 2), m33), _mm512_slli_epi64(_mm512_and_si512(r, m33), 2));
-    r = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(r, 4), m0f), _mm512_slli_epi64(_mm512_and_si512(r, m0f), 4));
+    __m512i r = comp_rev_bytes(f);
     r = _mm512_srl_epi64(_mm512_shuffle_epi8(r, bsw), rcs);
     const __m512i x = _mm512_min_epu64(f, r);
     const __m512i h = fmix64_v(_mm512_xor_si512(x, vsel));
@@ -854,8 +887,7 @@ Sketch build_sketch(std::vector<Packed>& packs, int k, double budget, const std:
                                                   39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40,
                                                   55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56};
       const __m512i bsw = _mm512_load_si512((const void*)BSW);
-      const __m512i vmask = _mm512_set1_epi64((long long)mask), vcomp = _mm512_set1_epi64((long long)0xAAAAAAAAAAAAAAAAULL);
-      const __m512i m33 = _mm512_set1_epi64((long long)0x3333333333333333ULL), m0f = _mm512_set1_epi64((long long)0x0F0F0F0F0F0F0F0FULL);
+      const __m512i vmask = _mm512_set1_epi64((long long)mask);
       const __m512i vsel = _mm512_set1_epi64((long long)SEED_SEL), vhmax = _mm512_set1_epi64((long long)hmax);
       const __m512i v63 = _mm512_set1_epi64(63), v31 = _mm512_set1_epi64(31), one = _mm512_set1_epi64(1);
       const __m512i lo32 = _mm512_set1_epi64(0xFFFFFFFFLL), vk = _mm512_set1_epi64(k), v3 = _mm512_set1_epi64(3);
@@ -869,6 +901,16 @@ Sketch build_sketch(std::vector<Packed>& packs, int k, double budget, const std:
         return _mm512_xor_si512(v, _mm512_slli_epi64(v, 17));
       };
       alignas(64) uint64_t ox[8], oh[8], op[8];
+      // branch-free emission (no non-ACGT k-mers, <= 2 tiers): selected lanes are compressed
+      // straight into cal_x/cal_t in lane order, exactly as the scalar emit() loop would
+      const bool fast_emit = pk.badk.empty() && sk.tiers.size() <= 2;
+      const __m512i vhi0 = _mm512_set1_epi64((long long)sk.tiers[0].hi);
+      const size_t base_n = cal_x.size();
+      size_t ne = 0;
+      if (fast_emit) {
+        cal_x.resize(base_n + 8 * G + 8);
+        cal_t.resize(base_n + 8 * G + 8);
+      }
       for (size_t g = 0; g < G; ++g) {
         S = xs(S);
         const __m512i rr = S;
@@ -885,13 +927,19 @@ Sketch build_sketch(std::vector<Packed>& packs, int k, double budget, const std:
         const __m512i sh = _mm512_slli_epi64(_mm512_and_si512(pos, v31), 1);
         __m512i f = _mm512_and_si512(_mm512_or_si512(_mm512_srlv_epi64(A, sh), _mm512_sllv_epi64(Bw, _mm512_sub_epi64(v63, sh))), vmask);
         f = _mm512_xor_si512(f, _mm512_sllv_epi64(sub, off2));
-        __m512i r = _mm512_xor_si512(f, vcomp);
-        r = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(r, 2), m33), _mm512_slli_epi64(_mm512_and_si512(r, m33), 2));
-        r = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(r, 4), m0f), _mm512_slli_epi64(_mm512_and_si512(r, m0f), 4));
+        __m512i r = comp_rev_bytes(f);
         r = _mm512_srl_epi64(_mm512_shuffle_epi8(r, bsw), rcs);
         const __m512i x = _mm512_min_epu64(f, r);
         const __m512i h = fmix64_v(_mm512_xor_si512(x, vsel));
         __mmask8 sel = _mm512_cmplt_epu64_mask(h, vhmax);
+        if (fast_emit) {
+          const unsigned tm = sk.tiers.size() == 2 ? (unsigned)_mm512_mask_cmpge_epu64_mask(sel, h, vhi0) : 0u;
+          _mm512_storeu_si512((void*)(cal_x.data() + base_n + ne), _mm512_maskz_compress_epi64(sel, x));
+          const uint64_t tb = _pdep_u64(_pext_u32(tm, (unsigned)sel), 0x0101010101010101ULL);
+          std::memcpy(cal_t.data() + base_n + ne, &tb, 8);
+          ne += (size_t)__builtin_popcount((unsigned)sel);
+          continue;
+        }
         if (!sel) continue;
         _mm512_store_si512((void*)ox, x);
         _mm512_store_si512((void*)oh, h);
@@ -900,6 +948,10 @@ Sketch build_sketch(std::vector<Packed>& packs, int k, double budget, const std:
           int l = __builtin_ctz((unsigned)sel);
           emit(op[l], ox[l], oh[l]);
         }
+      }
+      if (fast_emit) {
+        cal_x.resize(base_n + ne);
+        cal_t.resize(base_n + ne);
       }
     }
 #else
@@ -928,9 +980,22 @@ Sketch build_sketch(std::vector<Packed>& packs, int k, double budget, const std:
   for (auto& t : sk.tiers) t.compute_eps();
   // spurious rate: inverse-variance combination of per-tier estimates
   double N[MAXT] = {0}, Y[MAXT] = {0};
-  for (size_t i = 0; i < cal_x.size(); ++i) {
-    N[cal_t[i]] += 1;
-    Y[cal_t[i]] += sk.tiers[cal_t[i]].contains(cal_x[i]);
+  {  // batched membership tests: block addresses and prefetches first, then the bit tests
+    const size_t BT = 64;
+    const uint64_t* cb[BT];
+    uint64_t ch[BT];
+    for (size_t i0 = 0; i0 < cal_x.size(); i0 += BT) {
+      const size_t n = std::min(BT, cal_x.size() - i0);
+      for (size_t j = 0; j < n; ++j) {
+        cb[j] = sk.tiers[cal_t[i0 + j]].block_of(cal_x[i0 + j], ch[j]);
+        __builtin_prefetch(cb[j]);
+      }
+      for (size_t j = 0; j < n; ++j) {
+        const int t = cal_t[i0 + j];
+        N[t] += 1;
+        Y[t] += sk.tiers[t].contains_at(cb[j], ch[j]);
+      }
+    }
   }
   double num = 0, den = 0;
   for (size_t t = 0; t < sk.tiers.size(); ++t) {
@@ -998,9 +1063,11 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   std::vector<uint32_t> bstart, bfirst, blast;
   std::vector<double> ab;  // per-bin aligned posterior
   std::vector<float> Bb, Bbu;           // stored backward messages per bin
+  std::vector<const float*> ep;         // per-bin emission vectors (into Ef or the emission cache)
   std::vector<uint8_t> refined;         // per bin: per-probe posteriors available in ap
   std::vector<double> ap;               // per-probe aligned posterior (refined bins only)
   std::vector<float> rfa, rfu, rb, rw;  // refinement scratch
+  std::vector<float> rbb, rbu;          // refinement: per-probe backward messages
   std::vector<uint8_t> bcnt;  // per bin: hits and misses per tier
   std::vector<double> E, F, a, b, w, conf;
 };
@@ -1045,9 +1112,20 @@ struct Estimator {
   std::vector<float> PE;           // per-probe emissions [t*2+hit][aligned state]
   float PEu[2 * MAXT];             // per-probe emission of U
   float PEs[2 * MAXT];             // row sums of PE
+  float PED[4 * MAXT * MAXT];      // <PE[a], PE[b]> for probe outcome pairs (refine look-ahead)
   double logU[2 * MAXT];
   static const size_t QMAX = 1 << 14;
   std::vector<double> tab_su, tab_h;
+  // emission cache for fine (bin_het) bins: one vector per hit/miss count combination
+  // (computed exactly as in hmm()); ecix maps the mixed-radix counts to a slot
+  size_t EB = 0;                   // counts per tier and outcome are < EB + 1
+  std::vector<int32_t> ecix;
+  std::vector<float> ecE, ecU, ecS;
+  inline size_t ec_key(const uint8_t* c) const {
+    size_t key = 0;
+    for (int q = 0; q < 2 * T; ++q) key = key * (EB + 1) + c[q];
+    return key;
+  }
 
   Estimator(const Sketch& s, const Params& p) : sk(s), P(p), T((int)s.tiers.size()) {
     double sg = sk.sigma_used();
@@ -1084,6 +1162,12 @@ struct Estimator {
         PEs[2 * t + 1] += (float)ph;
       }
     }
+    for (int a = 0; a < 2 * T; ++a)
+      for (int b = 0; b < 2 * T; ++b) {
+        float d = 0;
+        for (size_t j = 0; j < SPA; ++j) d += PE[(size_t)a * SPA + j] * PE[(size_t)b * SPA + j];
+        PED[a * 2 * T + b] = d;
+      }
     LH.assign((size_t)T * SPA, -1e30f);
     LM.assign((size_t)T * SPA, -1e30f);
     for (int t = 0; t < T; ++t) {
@@ -1109,6 +1193,7 @@ struct Estimator {
       logU[2 * t] = std::log(1 - e);
       logU[2 * t + 1] = std::log(e);
     }
+    if (P.bin_het > 0 && P.bin_het < P.bin && T <= 2) build_emission_cache((size_t)P.bin_het, B);
     tab_su.resize(QMAX);
     tab_h.resize(QMAX);
     for (size_t d = 0; d < QMAX; ++d) {
@@ -1206,9 +1291,8 @@ struct Estimator {
                                                   39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40,
                                                   55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56};
       const __m512i bsw = _mm512_load_si512((const void*)BSW);
-      const __m512i vmask = _mm512_set1_epi64((long long)kmask), vcomp = _mm512_set1_epi64((long long)0xAAAAAAAAAAAAAAAAULL);
-      const __m512i m33 = _mm512_set1_epi64((long long)0x3333333333333333ULL), m0f = _mm512_set1_epi64((long long)0x0F0F0F0F0F0F0F0FULL);
-      const __m512i vsel = _mm512_set1_epi64((long long)SEED_SEL), v63 = _mm512_set1_epi64(63), v31 = _mm512_set1_epi64(31);
+      const __m512i vmask = _mm512_set1_epi64((long long)kmask);
+      const __m512i v63 = _mm512_set1_epi64(63), v31 = _mm512_set1_epi64(31), vsel = _mm512_set1_epi64((long long)SEED_SEL);
       const __m128i rcs = _mm_cvtsi32_si128(64 - 2 * k);
       const Tier& t0 = sk.tiers[0];
       const Tier& t1 = sk.tiers[T - 1];
@@ -1229,13 +1313,11 @@ struct Estimator {
         const __m512i sh = _mm512_slli_epi64(_mm512_and_si512(pos, v31), 1);
         __m512i f = _mm512_or_si512(_mm512_srlv_epi64(A, sh), _mm512_sllv_epi64(Bw, _mm512_sub_epi64(v63, sh)));
         f = _mm512_and_si512(f, vmask);
-        __m512i r = _mm512_xor_si512(f, vcomp);
-        r = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(r, 2), m33), _mm512_slli_epi64(_mm512_and_si512(r, m33), 2));
-        r = _mm512_or_si512(_mm512_and_si512(_mm512_srli_epi64(r, 4), m0f), _mm512_slli_epi64(_mm512_and_si512(r, m0f), 4));
+        __m512i r = comp_rev_bytes(f);
         r = _mm512_srl_epi64(_mm512_shuffle_epi8(r, bsw), rcs);
         const __m512i x = _mm512_min_epu64(f, r);
-        const __m512i h = fmix64_v(_mm512_xor_si512(x, vsel));
-        const __mmask8 m1 = (T == 2) ? (__mmask8)(_mm512_cmpge_epu64_mask(h, vhi0) & tail) : (__mmask8)0;
+        const __m512i hs = fmix64_v(_mm512_xor_si512(x, vsel));  // selection hash: tier
+        const __mmask8 m1 = (T == 2) ? (__mmask8)(_mm512_cmpge_epu64_mask(hs, vhi0) & tail) : (__mmask8)0;
         const __m512i bh = fmix64_v(_mm512_xor_si512(x, sbf));
         const __m512i nb = _mm512_mask_blend_epi64(m1, vnb0, vnb1);
         const __m512i blk = _mm512_srli_epi64(_mm512_mul_epu32(_mm512_srli_epi64(bh, 32), nb), 32);
@@ -1310,90 +1392,136 @@ struct Estimator {
       const size_t i0 = W.bfirst[b0], i1 = W.bfirst[b1 + 1], nr = i1 - i0;
       W.rfa.resize(nr * SP);
       W.rfu.resize(nr);
-      W.rb.resize(SP);
-      W.rw.resize(SP);
-      // forward over the region's probes
-      float pu, pa_sum;
-      const float* pa = nullptr;
-      uint32_t ppos = 0;
-      for (size_t r = 0; r < nr; ++r) {
-        const Probe& p = pr[i0 + r];
-        const float* e = &PE[((size_t)p.tier * 2 + p.hit) * SP];
-        const float eu = PEu[2 * p.tier + p.hit];
-        float* fc = &W.rfa[r * SP];
+      W.rbb.resize(nr * SP);
+      W.rbu.resize(nr);
+      // Forward and backward recursions over the region's probes are independent: run them
+      // interleaved, with look-ahead dots (as in hmm(); <e[r-1], e[r]> is a table lookup since
+      // a probe's emission is one of 2T vectors), then the per-probe posteriors.
+      const int K = 2 * T;
+      auto kind = [&](size_t r) { return 2 * (int)pr[i0 + r].tier + (int)pr[i0 + r].hit; };
+      float fbz, fcz;            // F[r] = (fbz + fcz F[r-1]) e[r]
+      const float* fm1 = nullptr;  // forward message before the region (F[-1])
+      float pu;
+      uint32_t ppos;
+      {  // forward, probe 0
+        const int k0 = kind(0);
+        const float* e = &PE[(size_t)k0 * SP];
+        const float eu = PEu[k0];
+        float* fc = &W.rfa[0];
         float fu, iz;
-        if (r == 0 && b0 == 0) {  // contig start: initial distribution
+        if (b0 == 0) {  // contig start: initial distribution
           fu = 0.5f * eu;
-          float z = fu + 0.5f * pi * PEs[2 * p.tier + p.hit];
+          const float z = fu + 0.5f * pi * PEs[k0];
           iz = 1.0f / z;
-          const float c0 = 0.5f * pi * iz;
-          for (size_t j = 0; j < SP; ++j) fc[j] = c0 * e[j];
+          fbz = 0.5f * pi * iz;
+          fcz = 0.0f;
+          for (size_t j = 0; j < SP; ++j) fc[j] = fbz * e[j];
         } else {
-          if (r == 0) {
-            pa = &W.Ff[(b0 - 1) * SP];
-            pu = W.Fu[b0 - 1];
-            ppos = W.bstart[b0 - 1];
-          }
+          fm1 = &W.Ff[(b0 - 1) * SP];
+          const float pu0 = W.Fu[b0 - 1];
+          const uint32_t d = pr[i0].pos - W.bstart[b0 - 1];
+          const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
+          const float pa_sum = std::max(0.0f, 1.0f - pu0);
+          const float base = pu0 * u * pi + stay * h * pi * pa_sum, c1 = stay * (1.0f - h);
+          fu = (pu0 * stay + pa_sum * u) * eu;
+          float dot = 0;
+          for (size_t j = 0; j < SP; ++j) dot += fm1[j] * e[j];
+          const float z = fu + base * PEs[k0] + c1 * dot;
+          iz = 1.0f / z;
+          fbz = base * iz;
+          fcz = c1 * iz;
+          for (size_t j = 0; j < SP; ++j) fc[j] = (fbz + fcz * fm1[j]) * e[j];
+        }
+        W.rfu[0] = fu * iz;
+        pu = W.rfu[0];
+        ppos = pr[i0].pos;
+      }
+      float bbz, bcz, bu;          // B[r] = bbz + bcz (e[r+1] B[r+1])
+      const float* bnext_e = nullptr;  // e and B of the step after the region's last probe
+      const float* bnext_b = nullptr;
+      {  // backward message entering the region's last probe
+        float* bo = &W.rbb[(nr - 1) * SP];
+        if (b1 + 1 < nb) {
+          bnext_e = W.ep[b1 + 1];
+          bnext_b = &W.Bb[(b1 + 1) * SP];
+          const float wu = W.Eu[b1 + 1] * W.Bbu[b1 + 1];
+          float sw = 0;
+          for (size_t j = 0; j < SP; ++j) sw += bnext_e[j] * bnext_b[j];
+          const uint32_t d = W.bstart[b1 + 1] - pr[i1 - 1].pos;
+          const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * pi;
+          const float base = u * wu + stay * h * SW, c1 = stay * (1.0f - h), b0v = stay * wu + u * SW;
+          const float zz = b0v + (float)m * base + c1 * sw, iz = 1.0f / zz;
+          bbz = base * iz;
+          bcz = c1 * iz;
+          for (size_t j = 0; j < SP; ++j) bo[j] = bbz + bcz * (bnext_e[j] * bnext_b[j]);
+          bu = b0v * iz;
+        } else {
+          for (size_t j = 0; j < SP; ++j) bo[j] = 1.0f;
+          bbz = 1.0f;
+          bcz = 0.0f;
+          bu = 1.0f;
+        }
+        W.rbu[nr - 1] = bu;
+      }
+      for (size_t i = 1; i < nr; ++i) {
+        {  // forward step into probe i
+          const size_t r = i;
+          const int kr = kind(r), kp = kind(r - 1);
+          const float* __restrict e = &PE[(size_t)kr * SP];
+          const float* __restrict ep1 = &PE[(size_t)kp * SP];
+          const float* __restrict fprev = &W.rfa[(r - 1) * SP];
+          const float* __restrict fpp = r >= 2 ? &W.rfa[(r - 2) * SP] : fm1;
+          float s2 = 0;
+          if (fpp)
+            for (size_t j = 0; j < SP; ++j) s2 += fpp[j] * (ep1[j] * e[j]);
+          const float dot = fbz * PED[kp * K + kr] + fcz * s2;
+          const Probe& p = pr[i0 + r];
           const uint32_t d = p.pos - ppos;
           const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
-          pa_sum = std::max(0.0f, 1.0f - pu);
+          const float pa_sum = std::max(0.0f, 1.0f - pu);
           const float base = pu * u * pi + stay * h * pi * pa_sum, c1 = stay * (1.0f - h);
-          fu = (pu * stay + pa_sum * u) * eu;
-          float dot = 0;
-          for (size_t j = 0; j < SP; ++j) dot += pa[j] * e[j];
-          const float z = fu + base * PEs[2 * p.tier + p.hit] + c1 * dot;
-          iz = 1.0f / z;
+          const float fu = (pu * stay + pa_sum * u) * PEu[kr];
+          const float z = fu + base * PEs[kr] + c1 * dot;
+          const float iz = 1.0f / z, bz = base * iz, cz = c1 * iz;
+          float* __restrict fc = &W.rfa[r * SP];
+          for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fprev[j]) * e[j];
+          fbz = bz;
+          fcz = cz;
+          W.rfu[r] = fu * iz;
+          pu = W.rfu[r];
+          ppos = p.pos;
+        }
+        {  // backward step out of probe r = nr - i (gives B[r-1])
+          const size_t r = nr - i;
+          const int kr = kind(r);
+          const float* __restrict e = &PE[(size_t)kr * SP];
+          const float* __restrict bb = &W.rbb[r * SP];
+          const float* __restrict en = r + 1 < nr ? &PE[(size_t)kind(r + 1) * SP] : bnext_e;
+          const float* __restrict bn = r + 1 < nr ? &W.rbb[(r + 1) * SP] : bnext_b;
+          float t2 = 0;
+          if (en)
+            for (size_t j = 0; j < SP; ++j) t2 += e[j] * (en[j] * bn[j]);
+          const float sw = bbz * PEs[kr] + bcz * t2;
+          const float wu = PEu[kr] * bu;
+          const uint32_t d = pr[i0 + r].pos - pr[i0 + r - 1].pos;
+          const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * pi;
+          const float base = u * wu + stay * h * SW, c1 = stay * (1.0f - h), b0v = stay * wu + u * SW;
+          const float zz = b0v + (float)m * base + c1 * sw, iz = 1.0f / zz;
           const float bz = base * iz, cz = c1 * iz;
-          for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * pa[j]) * e[j];
+          float* __restrict bo = &W.rbb[(r - 1) * SP];
+          for (size_t j = 0; j < SP; ++j) bo[j] = bz + cz * (e[j] * bb[j]);
+          bbz = bz;
+          bcz = cz;
+          bu = b0v * iz;
+          W.rbu[r - 1] = bu;
         }
-        W.rfu[r] = fu * iz;
-        pa = fc;
-        pu = W.rfu[r];
-        ppos = p.pos;
       }
-      // backward message entering the region's last probe
-      float* bb = W.rb.data();
-      float* ww = W.rw.data();
-      float bu = 1.0f;
-      if (b1 + 1 < nb) {
-        const float* e = &W.Ef[(b1 + 1) * SP];
-        const float* bn = &W.Bb[(b1 + 1) * SP];
-        const float wu = W.Eu[b1 + 1] * W.Bbu[b1 + 1];
-        float sw = 0;
-        for (size_t j = 0; j < SP; ++j) {
-          ww[j] = e[j] * bn[j];
-          sw += ww[j];
-        }
-        const uint32_t d = W.bstart[b1 + 1] - pr[i1 - 1].pos;
-        const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * pi;
-        const float base = u * wu + stay * h * SW, c1 = stay * (1.0f - h), b0v = stay * wu + u * SW;
-        const float zz = b0v + (float)m * base + c1 * sw, iz = 1.0f / zz;
-        for (size_t j = 0; j < SP; ++j) bb[j] = (base + c1 * ww[j]) * iz;
-        bu = b0v * iz;
-      } else {
-        for (size_t j = 0; j < SP; ++j) bb[j] = 1.0f;
-      }
-      // backward over the region with per-probe posteriors
-      for (size_t r = nr; r-- > 0;) {
-        const float* fa = &W.rfa[r * SP];
-        float tot = W.rfu[r] * bu, gu = tot;
+      for (size_t r = 0; r < nr; ++r) {  // per-probe aligned posterior
+        const float* __restrict fa = &W.rfa[r * SP];
+        const float* __restrict bb = &W.rbb[r * SP];
+        float gu = W.rfu[r] * W.rbu[r], tot = gu;
         for (size_t j = 0; j < SP; ++j) tot += fa[j] * bb[j];
         W.ap[i0 + r] = 1.0 - (double)gu / (double)tot;
-        if (r == 0) break;
-        const Probe& p = pr[i0 + r];
-        const float* e = &PE[((size_t)p.tier * 2 + p.hit) * SP];
-        const float wu = PEu[2 * p.tier + p.hit] * bu;
-        float sw = 0;
-        for (size_t j = 0; j < SP; ++j) {
-          ww[j] = e[j] * bb[j];
-          sw += ww[j];
-        }
-        const uint32_t d = p.pos - pr[i0 + r - 1].pos;
-        const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * pi;
-        const float base = u * wu + stay * h * SW, c1 = stay * (1.0f - h), b0v = stay * wu + u * SW;
-        const float zz = b0v + (float)m * base + c1 * sw, iz = 1.0f / zz;
-        for (size_t j = 0; j < SP; ++j) bb[j] = (base + c1 * ww[j]) * iz;
-        bu = b0v * iz;
       }
       // per-bin mean posterior for bin-level uses (heterogeneity windows)
       for (size_t q = b0; q <= b1; ++q) {
@@ -1401,6 +1529,48 @@ struct Estimator {
         for (uint32_t i = W.bfirst[q]; i < W.bfirst[q + 1]; ++i) acc += W.ap[i];
         W.ab[q] = acc / (double)(W.bfirst[q + 1] - W.bfirst[q]);
       }
+    }
+  }
+
+  // emission vector of a bin with per-tier miss/hit counts c (B = power-table stride)
+  void emission(const uint8_t* c, size_t B, float* __restrict e, float& eu_out, float& es_out) const {
+    const size_t SP = SPA;
+    const float* h0 = &PHa[((size_t)0 * (B + 1) + c[1]) * SP];
+    const float* m0 = &PMa[((size_t)0 * (B + 1) + c[0]) * SP];
+    for (size_t j = 0; j < SP; ++j) e[j] = h0[j] * m0[j];
+    double eu = PHu[c[1]] * PMu[c[0]];
+    for (int t = 1; t < T; ++t) {
+      const float* ht = &PHa[((size_t)t * (B + 1) + c[2 * t + 1]) * SP];
+      const float* mt = &PMa[((size_t)t * (B + 1) + c[2 * t]) * SP];
+      for (size_t j = 0; j < SP; ++j) e[j] *= ht[j] * mt[j];
+      eu *= PHu[t * (B + 1) + c[2 * t + 1]] * PMu[t * (B + 1) + c[2 * t]];
+    }
+    eu_out = (float)eu;
+    float se = 0;
+    for (size_t j = 0; j < SP; ++j) se += e[j];
+    es_out = se;
+  }
+
+  void build_emission_cache(size_t Bh, size_t B) {
+    EB = Bh;
+    size_t nkey = 1;
+    for (int q = 0; q < 2 * T; ++q) nkey *= EB + 1;
+    ecix.assign(nkey, -1);
+    uint8_t c[2 * MAXT] = {0};
+    for (size_t key = 0; key < nkey; ++key) {
+      size_t r = key, sum = 0;
+      for (int q = 2 * T - 1; q >= 0; --q) {
+        c[q] = (uint8_t)(r % (EB + 1));
+        r /= EB + 1;
+        sum += c[q];
+      }
+      if (sum == 0 || sum > EB) continue;
+      const size_t slot = ecU.size();
+      ecix[key] = (int32_t)slot;
+      ecE.resize((slot + 1) * SPA);
+      ecU.push_back(0);
+      ecS.push_back(0);
+      emission(c, B, &ecE[slot * SPA], ecU[slot], ecS[slot]);
     }
   }
 
@@ -1414,13 +1584,37 @@ struct Estimator {
     W.bcnt.assign(nb * 2 * T, 0);
     double llU = 0;
     hits = 0;
+#ifdef AIF_AVX512
+    // counts of full bins from tier/hit bit masks: 8 probes (8-byte structs) per load
+    const bool vec = T <= 2 && sizeof(Probe) == 8 && B % 8 == 0 && B <= 64;
+    static_assert(offsetof(Probe, tier) == 4 && offsetof(Probe, hit) == 5, "Probe layout");
+    const __m512i tbit = _mm512_set1_epi64(1LL << 32), hbit = _mm512_set1_epi64(1LL << 40);
+#endif
     for (size_t bi = 0; bi < nb; ++bi) {
       size_t f = bi * B, l = std::min(n, f + B);
       W.bstart[bi] = pr[f].pos;
       W.blast[bi] = pr[l - 1].pos;
       W.bfirst[bi] = (uint32_t)f;
       uint8_t* c = &W.bcnt[bi * 2 * T];
-      for (size_t i = f; i < l; ++i) ++c[2 * pr[i].tier + pr[i].hit];
+#ifdef AIF_AVX512
+      if (vec && l - f == B) {
+        uint64_t tm = 0, hm = 0;
+        for (size_t g = 0; g < B; g += 8) {
+          const __m512i v = _mm512_loadu_si512((const void*)&pr[f + g]);
+          tm |= (uint64_t)_mm512_test_epi64_mask(v, tbit) << g;
+          hm |= (uint64_t)_mm512_test_epi64_mask(v, hbit) << g;
+        }
+        const int h1 = __builtin_popcountll(hm & tm), h0 = __builtin_popcountll(hm & ~tm);
+        const int n1 = __builtin_popcountll(tm);
+        c[1] = (uint8_t)h0;
+        c[0] = (uint8_t)(B - n1 - h0);
+        if (T == 2) {
+          c[3] = (uint8_t)h1;
+          c[2] = (uint8_t)(n1 - h1);
+        }
+      } else
+#endif
+        for (size_t i = f; i < l; ++i) ++c[2 * pr[i].tier + pr[i].hit];
       for (int t = 0; t < T; ++t) {
         llU += c[2 * t] * logU[2 * t] + c[2 * t + 1] * logU[2 * t + 1];
         hits += c[2 * t + 1];
@@ -1430,82 +1624,128 @@ struct Estimator {
     return llU;
   }
 
-  void hmm(Work& W, double& ll, double& pm_ani, double& low_frac) const {
+  void hmm(Work& W, double& ll, double& pm_ani, double& low_frac, bool fine = false) const {
     const size_t m = gth.size(), SP = SPA;
     const size_t B = (size_t)std::max(1, std::max(P.bin, P.bin_het));  // power-table stride
     const size_t nb = W.bstart.size();
     const float pi = 1.0f / (float)m;
-    // emissions
-    W.Ef.resize(nb * SP);
+    // emissions: fine bins (no refinement follows) take vectors from the cache, others are
+    // computed into Ef (which refine() reads)
+    W.ep.resize(nb);
     W.Eu.resize(nb);
     W.Es.resize(nb);
+    const bool cached = fine && EB > 0;
+    if (!cached) W.Ef.resize(nb * SP);
     for (size_t bi = 0; bi < nb; ++bi) {
-      float* __restrict e = &W.Ef[bi * SP];
       const uint8_t* c = &W.bcnt[bi * 2 * T];
-      const float* h0 = &PHa[((size_t)0 * (B + 1) + c[1]) * SP];
-      const float* m0 = &PMa[((size_t)0 * (B + 1) + c[0]) * SP];
-      for (size_t j = 0; j < SP; ++j) e[j] = h0[j] * m0[j];
-      double eu = PHu[c[1]] * PMu[c[0]];
-      for (int t = 1; t < T; ++t) {
-        const float* ht = &PHa[((size_t)t * (B + 1) + c[2 * t + 1]) * SP];
-        const float* mt = &PMa[((size_t)t * (B + 1) + c[2 * t]) * SP];
-        for (size_t j = 0; j < SP; ++j) e[j] *= ht[j] * mt[j];
-        eu *= PHu[t * (B + 1) + c[2 * t + 1]] * PMu[t * (B + 1) + c[2 * t]];
+      if (cached) {
+        const int32_t slot = ecix[ec_key(c)];
+        W.ep[bi] = &ecE[(size_t)slot * SP];
+        W.Eu[bi] = ecU[slot];
+        W.Es[bi] = ecS[slot];
+      } else {
+        emission(c, B, &W.Ef[bi * SP], W.Eu[bi], W.Es[bi]);
+        W.ep[bi] = &W.Ef[bi * SP];
       }
-      W.Eu[bi] = (float)eu;
-      float se = 0;
-      for (size_t j = 0; j < SP; ++j) se += e[j];
-      W.Es[bi] = se;
     }
-    // forward
+    const float* const* EP = W.ep.data();
+    // forward / backward. Both recursions are latency-bound, so (1) they run interleaved in
+    // one loop and (2) each step's normalising dot product is obtained from scalars of the
+    // previous step and sums over older messages (look-ahead), keeping the horizontal
+    // reductions off the dependency chain:
+    //   F[b-1] = (bz + cz F[b-2]) e[b-1]  =>  <F[b-1], e[b]> = bz <e[b-1],e[b]> + cz <F[b-2] e[b-1], e[b]>
+    //   B[b]   = bz' + cz' e[b+1] B[b+1]  =>  <e[b], B[b]>   = bz' Es[b] + cz' <e[b] e[b+1], B[b+1]>
     W.Ff.resize(nb * SP);
     W.Fu.resize(nb);
+    W.ab.resize(nb);
+    W.Bb.resize(nb * SP);
+    W.Bbu.resize(nb);
+    std::fill(W.Bb.begin() + (nb - 1) * SP, W.Bb.begin() + nb * SP, 1.0f);
+    W.Bbu[nb - 1] = 1.0f;
     ll = 0;
     double zprod = 1.0;
     int zcnt = 0;
+    float fbz, fcz;  // forward: F[b-1] = (fbz + fcz F[b-2]) e[b-1]
     {
-      const float* e = &W.Ef[0];
+      const float* e = EP[0];
       float* f = &W.Ff[0];
-      float fu = 0.5f * W.Eu[0], z = fu;
-      for (size_t j = 0; j < SP; ++j) {
-        f[j] = 0.5f * pi * e[j];
-        z += f[j];
-      }
+      const float fu = 0.5f * W.Eu[0], z = fu + 0.5f * pi * W.Es[0];
       const float iz = 1.0f / z;
-      for (size_t j = 0; j < SP; ++j) f[j] *= iz;
+      fbz = 0.5f * pi * iz;
+      fcz = 0.0f;
+      for (size_t j = 0; j < SP; ++j) f[j] = fbz * e[j];
       W.Fu[0] = fu * iz;
       ll += std::log((double)z);
     }
-    for (size_t bi = 1; bi < nb; ++bi) {
-      uint32_t d = W.bstart[bi] - W.bstart[bi - 1];
-      const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
-      const float* __restrict fp = &W.Ff[(bi - 1) * SP];
-      float* __restrict fc = &W.Ff[bi * SP];
-      const float* __restrict e = &W.Ef[bi * SP];
-      const float fpu = W.Fu[bi - 1];
-      const float SA = std::max(0.0f, 1.0f - fpu);  // previous step is normalised
-      const float base = fpu * u * pi + stay * h * pi * SA;
-      const float c1 = stay * (1.0f - h);
-      const float fu = (fpu * stay + SA * u) * W.Eu[bi];
-      float dot = 0;
-      for (size_t j = 0; j < SP; ++j) dot += fp[j] * e[j];
-      const float z = fu + base * W.Es[bi] + c1 * dot;
-      const float iz = 1.0f / z, bz = base * iz, cz = c1 * iz;
-      for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fp[j]) * e[j];
-      W.Fu[bi] = fu * iz;
-      zprod *= (double)z;
-      if (++zcnt == 16) {
-        ll += std::log(zprod);
-        zprod = 1.0;
-        zcnt = 0;
+    float bu = 1.0f, bbz = 1.0f, bcz = 0.0f;  // backward: B[b] = bbz + bcz e[b+1] B[b+1]
+    for (size_t i = 1; i < nb; ++i) {
+      {  // forward step into bin i
+        const size_t bi = i;
+        uint32_t d = W.bstart[bi] - W.bstart[bi - 1];
+        const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
+        const float* __restrict fp = &W.Ff[(bi - 1) * SP];
+        float* __restrict fc = &W.Ff[bi * SP];
+        const float* __restrict e = EP[bi];
+        const float* __restrict e1 = EP[bi - 1];
+        float s1 = 0, s2 = 0;
+        if (bi >= 2) {
+          const float* __restrict fpp = &W.Ff[(bi - 2) * SP];
+          for (size_t j = 0; j < SP; ++j) {
+            const float ee = e1[j] * e[j];
+            s1 += ee;
+            s2 += fpp[j] * ee;
+          }
+        } else {
+          for (size_t j = 0; j < SP; ++j) s1 += e1[j] * e[j];
+        }
+        const float dot = fbz * s1 + fcz * s2;
+        const float fpu = W.Fu[bi - 1];
+        const float SA = std::max(0.0f, 1.0f - fpu);  // previous step is normalised
+        const float base = fpu * u * pi + stay * h * pi * SA;
+        const float c1 = stay * (1.0f - h);
+        const float fu = (fpu * stay + SA * u) * W.Eu[bi];
+        const float z = fu + base * W.Es[bi] + c1 * dot;
+        const float iz = 1.0f / z, bz = base * iz, cz = c1 * iz;
+        for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fp[j]) * e[j];
+        fbz = bz;
+        fcz = cz;
+        W.Fu[bi] = fu * iz;
+        zprod *= (double)z;
+        if (++zcnt == 16) {
+          ll += std::log(zprod);
+          zprod = 1.0;
+          zcnt = 0;
+        }
+      }
+      {  // backward step out of bin nb - i
+        const size_t bi = nb - i;
+        uint32_t d = W.bstart[bi] - W.bstart[bi - 1];
+        const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
+        const float* __restrict e = EP[bi];
+        const float* __restrict bb = &W.Bb[bi * SP];
+        float* __restrict bo = &W.Bb[(bi - 1) * SP];
+        float t2 = 0;
+        if (bi + 1 < nb) {
+          const float* __restrict e1 = EP[bi + 1];
+          const float* __restrict bn = &W.Bb[(bi + 1) * SP];
+          for (size_t j = 0; j < SP; ++j) t2 += e[j] * e1[j] * bn[j];
+        }
+        const float sw = bbz * W.Es[bi] + bcz * t2;
+        const float wu = W.Eu[bi] * bu;
+        const float SW = sw * pi;
+        const float base = u * wu + stay * h * SW;
+        const float c1 = stay * (1.0f - h);
+        const float b0 = stay * wu + u * SW;
+        const float zz = b0 + (float)m * base + c1 * sw;  // any positive scale works
+        const float iz = 1.0f / zz, bz = base * iz, cz = c1 * iz;
+        for (size_t j = 0; j < SP; ++j) bo[j] = bz + cz * (e[j] * bb[j]);
+        bbz = bz;
+        bcz = cz;
+        bu = b0 * iz;
+        W.Bbu[bi - 1] = bu;
       }
     }
     ll += std::log(zprod);
-    // backward with posteriors
-    W.ab.resize(nb);
-    W.bf.assign(SP, 1.0f);
-    W.wf.resize(SP);
-    float bu = 1.0f;
     double pm_num = 0, pm_den = 0, low = 0;
     const size_t nlow = std::min<size_t>(2, m);
     auto post = [&](size_t bi, const float* fa, float fu, const float* ba, float bub) {
@@ -1523,35 +1763,7 @@ struct Estimator {
       pm_den += cnt * al;
       low += cnt * (double)lw * it;
     };
-    W.Bb.resize(nb * SP);
-    W.Bbu.resize(nb);
-    std::fill(W.Bb.begin() + (nb - 1) * SP, W.Bb.begin() + nb * SP, 1.0f);
-    W.Bbu[nb - 1] = 1.0f;
-    post(nb - 1, &W.Ff[(nb - 1) * SP], W.Fu[nb - 1], W.bf.data(), bu);
-    for (size_t bi = nb - 1; bi > 0; --bi) {
-      uint32_t d = W.bstart[bi] - W.bstart[bi - 1];
-      const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
-      const float* __restrict e = &W.Ef[bi * SP];
-      float* __restrict bb = W.bf.data();
-      float* __restrict ww = W.wf.data();
-      const float wu = W.Eu[bi] * bu;
-      float sw = 0;
-      for (size_t j = 0; j < SP; ++j) {
-        ww[j] = e[j] * bb[j];
-        sw += ww[j];
-      }
-      const float SW = sw * pi;
-      const float base = u * wu + stay * h * SW;
-      const float c1 = stay * (1.0f - h);
-      const float b0 = stay * wu + u * SW;
-      const float zz = b0 + (float)m * base + c1 * sw;  // any positive scale works
-      const float iz = 1.0f / zz, bz = base * iz, cz = c1 * iz;
-      for (size_t j = 0; j < SP; ++j) bb[j] = bz + cz * ww[j];
-      bu = b0 * iz;
-      std::memcpy(&W.Bb[(bi - 1) * SP], bb, SP * sizeof(float));
-      W.Bbu[bi - 1] = bu;
-      post(bi - 1, &W.Ff[(bi - 1) * SP], W.Fu[bi - 1], bb, bu);
-    }
+    for (size_t bi = nb; bi-- > 0;) post(bi, &W.Ff[bi * SP], W.Fu[bi], &W.Bb[bi * SP], W.Bbu[bi]);
     pm_ani = pm_den > 0 ? pm_num / pm_den : NAN;
     low_frac = pm_den > 0 ? low / pm_den : 0;
   }
@@ -1716,7 +1928,7 @@ struct Estimator {
       if (P.bin_het != P.bin && pr.size() <= P.het_fine_max) {
         size_t hh = 0;
         make_bins(W, hh, P.bin_het);
-        hmm(W, ll, pm_ani, low_frac);
+        hmm(W, ll, pm_ani, low_frac, true);
         R.low_frac = low_frac;
       } else if (fast) {  // the fast path skipped the HMM; the main bins are still in W
         hmm(W, ll, pm_ani, low_frac);

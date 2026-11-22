@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Thread scaling of aif query on the largest real set (B. cereus group, 449 Mbp of contigs).
 
-Compares two aif binaries (e.g. v1.1 built from git and the current one) at 1-16 threads,
-interleaved, median of rounds; peak RSS from one GNU time run.
+Compares aif binaries (e.g. older versions built from git and the current one) at 1-16
+threads, interleaved, median of rounds; peak RSS from one GNU time run.
 
-Usage: python3 bench_real/scaling.py <aif_old> <aif_new> [rounds]  -> data/real/results/scaling.tsv
+Usage: python3 bench_real/scaling.py <label>=<aif binary> [...] [--rounds N]
+       -> data/real/results/scaling.tsv
 """
 import os
 import statistics
@@ -32,14 +33,16 @@ def rss_kb(cmd):
 
 
 def main():
-    old, new = sys.argv[1], sys.argv[2]
-    rounds = int(sys.argv[3]) if len(sys.argv) > 3 else 5
+    args = [a for a in sys.argv[1:] if "=" in a]
+    rounds = int(sys.argv[sys.argv.index("--rounds") + 1]) if "--rounds" in sys.argv else 5
+    binaries = [tuple(a.split("=", 1)) for a in args]
     tmp = tempfile.mkdtemp()
     sk = os.path.join(tmp, "BA52G.aif")
-    subprocess.run([new, "sketch", os.path.join(R, "refs", "BA52G.fa"), "-o", sk], check=True, stderr=subprocess.DEVNULL)
+    subprocess.run([binaries[-1][1], "sketch", os.path.join(R, "refs", "BA52G.fa"), "-o", sk], check=True,
+                   stderr=subprocess.DEVNULL)
     q = os.path.join(R, "sets", "bcereus", "BA52G.contigs.fa")
     cmds = {(tag, t): ["taskset", "-c", c, b, "query", sk, q, "-t", str(t)]
-            for t, c in CORES.items() for tag, b in (("v1.1", old), ("v1.2", new))}
+            for t, c in CORES.items() for tag, b in binaries}
     for c in cmds.values():
         wall(c)
     times = {k: [] for k in cmds}

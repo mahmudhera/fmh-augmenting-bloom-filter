@@ -4,7 +4,7 @@ Three reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
-3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf) (11 pages). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth, plus the v1.2 speed fixes for real assemblies.
+3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf) (11 pages). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth, plus the v1.2/v1.3 speed work for real assemblies.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -21,7 +21,7 @@ within-species contigs:
 | AF MAE, all contigs (pp) | 9.35 | 4.29 | **2.63** | 1.85 |
 | AF MAE on 0.5-1 kb contigs (pp) | 39.2 | 21.3 | **4.3** | 3.9 |
 | genome ANI MAE vs ANIm, 224 genomes (pp) | 0.237 | 0.259 | **0.190** | 0.263 |
-| wall time, 5 sets, 1 / 8 threads (s) | 3.27 / 2.68 | | 3.88 / **1.05** | |
+| wall time, 5 sets, 1 / 8 threads (s), aif v1.3 | 3.28 / 2.66 | | **2.81 / 0.89** | |
 
 aif beats both skani presets on ANI and AF on every set. aif-RT is one setting chosen on a disjoint real tuning set
 (it helps contig AF, costs genome-level ANI on divergent genomes and simulated AF; the default is unchanged).
@@ -41,25 +41,49 @@ fastANI's genome ANI MAE on the same genomes is 0.247 pp.
 A freshly generated confirmation benchmark reproduces this: ANI 0.366 vs 1.206 pp, AF 0.55 vs 7.46 pp, 28/28 conditions.
 aif at half the budget (0.44 bits/base) still beats skani's densest preset (`--slow`, 3.33 bits/base).
 
-## Speed on simulated contigs (single thread unless noted; medians of interleaved, core-pinned runs)
+## Speed (single thread unless noted; medians of interleaved, core-pinned runs)
 
-| workload | skani (sketch + query) | aif v1.0 | **aif v1.1** |
-|---|---|---|---|
-| 20 Mbp of contigs vs E. coli, sketch + query | 0.095 s | 0.373 s | **0.084 s** |
-| 81 Mbp of contigs vs E. coli, sketch + query | 0.300 s | 1.319 s | **0.259 s** |
-| 81 Mbp, 8 threads (aif: query only) | 0.452 s | n/a | **0.122 s** |
-| 4 references x 700 contigs, total | **0.136 s** | 0.545 s | 0.178 s |
+Real genomes, aif v1.3 sketch + query vs skani `dist --qi` (sketch + query):
+
+| set (contigs vs reference) | Mbp | skani 1 thread | **aif 1 thread** | skani 8 threads | **aif 8 threads** |
+|---|---|---|---|---|---|
+| B. cereus group vs B. anthracis 52-G | 449 | 1.34 s | **1.27 s** | 1.11 s | **0.41 s** |
+| E. coli vs K-12 | 243 | 0.75 s | **0.64 s** | 0.61 s | **0.17 s** |
+| MAGs of bin 2328 vs best MAG | 116 | 0.39 s | **0.28 s** | 0.31 s | **0.09 s** |
+| P. aeruginosa vs PAO1 | 165 | 0.57 s | **0.44 s** | 0.44 s | **0.14 s** |
+| S. aureus vs NCTC 8325 | 68 | 0.23 s | **0.18 s** | 0.19 s | **0.08 s** |
+
+Simulated contigs:
+
+| workload | skani (sketch + query) | aif v1.0 | aif v1.1 | **aif v1.3** |
+|---|---|---|---|---|
+| 20 Mbp of contigs vs E. coli, sketch + query | 0.095 s | 0.373 s | 0.084 s | **0.067 s** |
+| 81 Mbp of contigs vs E. coli, sketch + query | 0.300 s | 1.319 s | 0.259 s | **0.194 s** |
+| 81 Mbp, 8 threads (aif: query only) | 0.452 s | n/a | 0.122 s | **0.062 s** |
+| 4 references x 700 contigs, total | **0.138 s** | 0.545 s | 0.178 s | 0.155 s |
 
 v1.1 queries are 5.2x faster than v1.0 and sketching is 1.9x faster, at equal accuracy. skani is still faster when a
 few hundred contigs meet a newly sketched reference (aif's sketch build costs more); aif is faster on larger
 query sets and scales with threads. The fast paths need AVX-512; a scalar fallback gives byte-identical sketches.
 
 **v1.2 (real assemblies).** Draft assemblies have Mbp-scale contigs, on which v1.1's batch-and-barrier thread
-pipeline did not scale (449 Mbp B. cereus set: 3.6 s at both 1 and 8 threads, 1.95 GB). v1.2 probes long contigs
-in cache-sized windows and uses a streaming pipeline (chunked work queue, ordered writer, workers strip FASTA line
-breaks from the memory map). Output is byte-identical to v1.1. The same set now takes 1.66 s at 1 thread,
-0.50 s at 8 and 0.42 s at 16. `--het-fine-max 16384` is an optional switch, 22% faster on Mbp-scale contigs, with
-slightly less accurate genome-level ANI. Simulated-set timings with v1.2 are in `results/main/*_v12.tsv`.
+pipeline did not scale (449 Mbp B. cereus set: 1.9 s at 1 thread, 3.5 s at 8 threads, 1.6 GB). v1.2 probes long
+contigs in cache-sized windows and uses a streaming pipeline (chunked work queue, ordered writer, workers strip FASTA
+line breaks from the memory map), with output byte-identical to v1.1. `--het-fine-max 16384` is an optional switch,
+about 20% faster on Mbp-scale contigs, with slightly less accurate genome-level ANI.
+
+**v1.3 (single thread).** After v1.2, aif was still up to 31% slower than skani at 1 thread on real sets. v1.3 is
+29% faster than v1.2 there (B. cereus set: 1.19 s at 1 thread, 0.34 s at 8, 0.29 s at 16). Changes:
+- HMM forward/backward recursions are interleaved, and their per-step normalisers come from look-ahead scalars, so
+  horizontal reductions leave the dependency chain (same for per-probe refinement).
+- Fine bins use cached emission vectors.
+- Reverse complements use GFNI (`vgf2p8affineqb`).
+- AVX-512 2-bit packing; mask-popcount bin counts; batched, branch-free calibration.
+
+Sketches are byte-identical. Estimates differ from v1.2 only by floating-point rounding (at most 1e-6, in 0.3% of rows),
+and every accuracy metric is unchanged. When a few hundred contigs meet a newly sketched reference, the sketch build
+(18-40 ms, built twice for GC-rich references by the adaptive-k search) still makes skani slightly faster end to end.
+Simulated-set timings are in `results/main/*_v12.tsv` and `*_v13.tsv`.
 
 ## The `aif` tool
 
@@ -68,7 +92,7 @@ slightly less accurate genome-level ANI. Simulated-set timings with v1.2 are in 
 * **Sketch.** Canonical k-mers are FracMinHash-selected into two hash-range tiers, each stored as a blocked Bloom filter (FPR 0.005 and 0.1; 0.88 bits/base by default). The exact FPR comes from the fill ratio. The spurious-match rate is calibrated empirically, and k is chosen per reference (17-21) to keep it at or below 0.003.
 * **Query** (raw contigs). Every selected k-mer is probed. A multi-level HMM (one unaligned state plus aligned identity levels) gives the aligned fraction and the FP-corrected aligned containment, so ANI = C^(1/k) with bias correction. Heterogeneous contigs use posterior-mean ANI instead.
 * **v1.1 speed**: 2-bit packing and AVX-512 k-mer selection, gather-based Bloom tests, a binned single-precision HMM with exact per-probe refinement around alignment boundaries, mmap input, vectorised sketch insertion, and `-t N` threads with ordered output.
-* **v1.2**: windowed probing of long contigs and a streaming multithreaded pipeline (see above); `make prof` builds a per-stage cycle-counter binary.
+* **v1.2/v1.3**: windowed probing of long contigs, a streaming multithreaded pipeline, latency-optimised HMM recursions, GFNI/AVX-512 packing and reverse complements (see above); `make prof` builds a per-stage cycle-counter binary.
 
 ```
 make aif
