@@ -1,0 +1,71 @@
+{
+ "db405": {
+  "refs": 405,
+  "bases": 2055036124,
+  "aif": {
+   "build_s": 2.95,
+   "build_kb": 295588,
+   "bytes": 267663061,
+   "filter_bytes": 226028608,
+   "screen_bytes": 41581120
+  },
+  "skani": {
+   "build_s": 1.02,
+   "build_kb": 181728,
+   "bytes": 230300195
+  }
+ },
+ "db805": {
+  "refs": 805,
+  "bases": 3708924351,
+  "aif": {
+   "build_s": 4.97,
+   "build_kb": 351916,
+   "bytes": 490768597,
+   "filter_bytes": 407930240,
+   "screen_bytes": 82732408
+  },
+  "skani": {
+   "build_s": 1.4,
+   "build_kb": 260128,
+   "bytes": 415527911
+  }
+ },
+ "db1205": {
+  "refs": 1205,
+  "bases": 5321203277,
+  "aif": {
+   "build_s": 6.8,
+   "build_kb": 382752,
+   "bytes": 697852805,
+   "filter_bytes": 585255680,
+   "screen_bytes": 112438648
+  },
+  "skani": {
+   "build_s": 1.86,
+   "build_kb": 310668,
+   "bytes": 596087319
+  }
+ },
+ "db2005": {
+  "refs": 2005,
+  "bases": 8617817531,
+  "aif": {
+   "build_s": 10.92,
+   "build_kb": 504628,
+   "bytes": 1115411157,
+   "filter_bytes": 947831104,
+   "screen_bytes": 167316696
+  },
+  "skani": {
+   "build_s": 3.03,
+   "build_kb": 368092,
+   "bytes": 965102961
+  },
+  "aif_b074": {
+   "build_s": 7.12,
+   "build_kb": 493596,
+   "bytes": 964600213
+  }
+ }
+}

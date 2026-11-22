@@ -38,12 +38,20 @@
 .sp 0.25v
 \f[B]9.	Toward a principled AF model\f[]13
 .sp 0.25v
-\f[B]10.	Discussion\f[]14
-\h'0.45i'10.1\h'|1.05i'Why the simulation results carry over14
-\h'0.45i'10.2\h'|1.05i'Limitations15
-\h'0.45i'10.3\h'|1.05i'Next steps15
+\f[B]10.	Database mode (v1.5)\f[]14
+\h'0.45i'10.1\h'|1.05i'Design15
+\h'0.45i'10.2\h'|1.05i'Cost of one shared k15
+\h'0.45i'10.3\h'|1.05i'Benchmark database15
+\h'0.45i'10.4\h'|1.05i'Accuracy of the top hit16
+\h'0.45i'10.5\h'|1.05i'Screening17
+\h'0.45i'10.6\h'|1.05i'Speed and scaling17
 .sp 0.25v
-\f[B]11.	Reproducibility\f[]15
+\f[B]11.	Discussion\f[]18
+\h'0.45i'11.1\h'|1.05i'Why the simulation results carry over18
+\h'0.45i'11.2\h'|1.05i'Limitations18
+\h'0.45i'11.3\h'|1.05i'Next steps19
+.sp 0.25v
+\f[B]12.	Reproducibility\f[]19
 .lc
 .ps \n(PS
 .vs \n(VSp

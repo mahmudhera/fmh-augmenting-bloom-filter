@@ -35,6 +35,11 @@
 // GFNI reverse complements; AVX-512 2-bit packing and mask-popcount bin counts; batched,
 // branch-free calibration. Sketches are byte-identical to v1.1/v1.2.
 //
+// v1.5 (database mode): "aif db build/search/info". References share one k and tier layout,
+// so a contig is prepared once (selection, filter hashes) and each candidate reference costs
+// only its filter tests and the HMM; candidates come from a bit-sliced screening index.
+// Exhaustive search is byte-identical to pairwise queries against "-k K" sketches.
+//
 // Build: g++ -O3 -march=native -std=c++17 -pthread -o aif aif.cpp
 #include <algorithm>
 #include <cstddef>
@@ -54,6 +59,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -1104,7 +1110,8 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   std::vector<uint64_t> skey;       // screening keys of the contig (block hashes)
   std::vector<uint16_t> scnt16;     // screening counts (per group, short-term)
   std::vector<uint32_t> scnt;       // screening counts per reference
-  std::vector<std::pair<float, uint32_t>> cand;  // (screening z, reference)
+  std::vector<std::pair<float, uint32_t>> cand;  // (screening containment, reference)
+  std::vector<std::pair<float, uint32_t>> cand2; // (probe containment, reference)
 };
 
 #ifdef AIF_PROF  // per-stage cycle counters (make prof): probe, bins, hmm, refine, integrate, het-test, het-rerun
@@ -2431,11 +2438,12 @@ void usage() {
           "database mode (one k and tier layout for all references; results equal pairwise query with -k K sketches):\n"
           "aif db build -o <db.aifd> [refs.fa ...] [--list refs.txt (path [name] per line)] [-k 20] [-t threads]\n"
           "             [--budget 0.88] [--tiers 0.005:0.6,0.1:0.4] [--max-hashes 6]\n"
-          "             [--screen-frac 0.03125] [--screen-bits 8] [--screen-hashes 3] (screening index)\n"
+          "             [--screen-frac 0.015625] [--screen-bits 8] [--screen-hashes 3] [--screen-group-ratio 1.5] (screening index)\n"
           "aif db search <db.aifd> <contigs.fa> [-t threads] [-n 1 (hits per contig; 0: every candidate, any status)]\n"
-          "             [--max-cand 16] [--screen-z 2] [--screen-min 2] [--no-screen (every reference)] [--sort aniaf|ani|af]\n"
+          "             [--max-cand 16 (evaluated by the model)] [--prescreen K (0: off; rank K screened references by probe containment)]\n"
+          "             [--screen-z 2] [--screen-min 2] [--no-screen (every reference)] [--sort aniaf|ani|af]\n"
           "             [query options]\n"
-          "output: contig reference rank <query columns> screen_count screen_keys screen_z candidates\n"
+          "output: contig reference rank <query columns> screen_count screen_keys screen_containment candidates\n"
           "aif db info <db.aifd> [--refs]\n");
   exit(1);
 }
@@ -2835,7 +2843,7 @@ struct Db {
 int cmd_db_build(int argc, char** argv) {
   std::string out, list;
   int k = 20, threads = 1;
-  double budget = 0.88, scr_frac = 1.0 / 32, scr_bits = 8;
+  double budget = 0.88, scr_frac = 1.0 / 64, scr_bits = 8, grp_ratio = 1.5;
   uint32_t max_hashes = 6, scr_h = 3;
   std::string tiers = "0.005:0.6,0.1:0.4";
   struct RefIn {
@@ -2859,6 +2867,7 @@ int cmd_db_build(int argc, char** argv) {
     else if (a == "--screen-frac") scr_frac = atof(val());
     else if (a == "--screen-bits") scr_bits = atof(val());
     else if (a == "--screen-hashes") scr_h = (uint32_t)std::max(1, std::min(8, atoi(val())));
+    else if (a == "--screen-group-ratio") grp_ratio = std::max(1.0, atof(val()));
     else if (!a.empty() && a[0] == '-') usage();
     else in.push_back({a, "", 0});
   }
@@ -2931,12 +2940,16 @@ int cmd_db_build(int argc, char** argv) {
   std::vector<RefMeta> meta(in.size());
   std::vector<DbGroup> groups;
   uint64_t fbytes = 0, sbytes = 0;
-  for (size_t g0 = 0; g0 < in.size(); g0 += DB_GROUP) {
-    const size_t nd = std::min<size_t>(DB_GROUP, in.size() - g0);
-    uint64_t maxsize = 0;
-    for (size_t d = 0; d < nd; ++d) maxsize = std::max(maxsize, in[g0 + d].fsize);
-    // rows from the largest file of the group (file bytes >= bases: a slight overestimate)
-    const uint64_t rows = std::max<uint64_t>(64, (uint64_t)std::ceil(scr_bits * scr_frac * (double)maxsize));
+  // screening groups: consecutive (size-sorted) references, at most DB_GROUP per group and at most
+  // grp_ratio between the largest and smallest file, so the common column length fits them all
+  for (size_t g0 = 0, nd = 0; g0 < in.size(); g0 += nd) {
+    nd = 1;
+    while (g0 + nd < in.size() && nd < DB_GROUP && (double)in[g0 + nd].fsize <= grp_ratio * (double)std::max<uint64_t>(1, in[g0].fsize)) ++nd;
+    double meansize = 0;
+    for (size_t d = 0; d < nd; ++d) meansize += (double)in[g0 + d].fsize / (double)nd;
+    // rows from the group's mean file size (file bytes ~ bases); larger members get a somewhat
+    // higher screening false-positive rate, which is measured per reference (column fill)
+    const uint64_t rows = std::max<uint64_t>(64, (uint64_t)std::ceil(scr_bits * scr_frac * meansize));
     if (rows >= (1ULL << 32)) throw std::runtime_error("reference too large for the screening index");
     const size_t words = (nd + 63) / 64;
     std::vector<uint64_t> mat(rows * words, 0);
@@ -3223,6 +3236,65 @@ void db_hits(const Sketch& R, Work& W) {
   }
 }
 
+// hits per tier of the prepared probes against one reference, without storing them (candidate
+// ranking); returns the FP-corrected containment of the probes
+double db_containment(const Sketch& R, const Work& W, const size_t* ntier) {
+  const size_t m = W.pr.size();
+  const int T = (int)R.tiers.size();
+  uint64_t h[MAXT] = {0};
+#ifdef AIF_AVX512
+  if (T <= 2) {
+    const Tier& t0 = R.tiers[0];
+    const Tier& t1 = R.tiers[T - 1];
+    const long long* base0 = (const long long*)t0.data();
+    const long long delta1 = (long long)((const long long*)t1.data() - base0);
+    const __m512i vnb0 = _mm512_set1_epi64((long long)t0.nblocks), vnb1 = _mm512_set1_epi64((long long)t1.nblocks);
+    const __m512i voff1 = _mm512_set1_epi64(delta1), zero = _mm512_setzero_si512();
+    const __m512i m511 = _mm512_set1_epi64(511), m63 = _mm512_set1_epi64(63), one = _mm512_set1_epi64(1);
+    const __m512i tierm = _mm512_set1_epi64(0xFFLL << 32);
+    const uint32_t nh0 = t0.nh, nh1 = t1.nh, nhmax = std::max(nh0, nh1);
+    const long long* prw = (const long long*)W.pr.data();
+    for (size_t j = 0; j < m; j += 8) {
+      const __mmask8 tail = (m - j >= 8) ? (__mmask8)0xFF : (__mmask8)((1u << (m - j)) - 1);
+      const __m512i pv = _mm512_maskz_loadu_epi64(tail, prw + j);
+      const __mmask8 m1 = (T == 2) ? (__mmask8)(_mm512_test_epi64_mask(pv, tierm) & tail) : (__mmask8)0;
+      const __m512i bh32 = _mm512_cvtepu32_epi64(_mm256_maskz_loadu_epi32(tail, W.pbh.data() + j));
+      const __m512i nb = _mm512_mask_blend_epi64(m1, vnb0, vnb1);
+      const __m512i blk = _mm512_srli_epi64(_mm512_mul_epu32(bh32, nb), 32);
+      const __m512i wb = _mm512_add_epi64(_mm512_slli_epi64(blk, 3), _mm512_mask_blend_epi64(m1, zero, voff1));
+      __m512i h2 = _mm512_maskz_loadu_epi64(tail, W.ph2.data() + j);
+      __m512i acc = one;
+      for (uint32_t q = 0; q < nhmax; ++q) {
+        if (q && q % 7 == 0) h2 = fmix64_v(_mm512_add_epi64(h2, _mm512_set1_epi64(q)));
+        const __m512i bp = _mm512_and_si512(_mm512_srl_epi64(h2, _mm_cvtsi32_si128(9 * (q % 7))), m511);
+        const __m512i idx = _mm512_add_epi64(wb, _mm512_srli_epi64(bp, 6));
+        const __mmask8 am = (__mmask8)(((q < nh0) ? (__mmask8)(~m1) : 0) | ((q < nh1) ? m1 : 0)) & tail;
+        const __m512i g = _mm512_mask_i64gather_epi64(zero, am, idx, base0, 8);
+        acc = _mm512_mask_and_epi64(acc, am, acc, _mm512_srlv_epi64(g, _mm512_and_si512(bp, m63)));
+      }
+      const __mmask8 hit = _mm512_test_epi64_mask(acc, one) & tail;
+      h[T - 1] += (uint64_t)__builtin_popcount((unsigned)(hit & m1));
+      h[0] += (uint64_t)__builtin_popcount((unsigned)(hit & ~m1));
+    }
+  } else
+#endif
+  {
+    for (size_t j = 0; j < m; ++j) {
+      const Tier& t = R.tiers[W.pr[j].tier];
+      const uint64_t* blk = t.data() + (((uint64_t)W.pbh[j] * t.nblocks) >> 32) * 8;
+      h[W.pr[j].tier] += t.contains_h2(blk, W.ph2[j]);
+    }
+  }
+  const double sg = R.sigma_used();
+  double num = 0, den = 0;
+  for (int t = 0; t < T; ++t) {
+    const double e = R.tiers[t].eps + sg - R.tiers[t].eps * sg;
+    num += (double)h[t] - (double)ntier[t] * e;
+    den += (double)ntier[t] * (1 - e);
+  }
+  return den > 0 ? num / den : 0.0;
+}
+
 // screening counts of the contig's keys for every reference into W.scnt
 void db_screen(const Db& D, Work& W) {
   const size_t nr = D.refs.size(), ns = W.skey.size();
@@ -3316,7 +3388,7 @@ int cmd_db_search(int argc, char** argv) {
   D.load(argv[3]);
   Params P;
   int threads = 1, nout = 1, sort_by = 0;  // 0: ani*af, 1: ani, 2: af
-  size_t max_cand = 16;
+  size_t max_cand = 16, prescreen = 0;
   double zmin = 2.0;
   uint32_t cmin = 2;
   bool screen = true;
@@ -3328,6 +3400,7 @@ int cmd_db_search(int argc, char** argv) {
     };
     if (a == "-n") nout = std::max(0, atoi(val()));
     else if (a == "--max-cand") max_cand = (size_t)std::max(1, atoi(val()));
+    else if (a == "--prescreen") prescreen = (size_t)std::max(0, atoi(val()));
     else if (a == "--screen-z") zmin = atof(val());
     else if (a == "--screen-min") cmin = (uint32_t)std::max(0, atoi(val()));
     else if (a == "--no-screen") screen = false;
@@ -3343,7 +3416,7 @@ int cmd_db_search(int argc, char** argv) {
   DbEstimators ests(D, P);
   Fasta fa(argv[4]);
   fputs("contig\treference\trank\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\tani_lo\tani_hi"
-        "\taf_lo\taf_hi\tani_se\taf_se\tscreen_count\tscreen_keys\tscreen_z\tcandidates\n",
+        "\taf_lo\taf_hi\tani_se\taf_se\tscreen_count\tscreen_keys\tscreen_containment\tcandidates\n",
         stdout);
   const uint32_t nr = (uint32_t)D.refs.size();
   struct Hit {
@@ -3365,16 +3438,33 @@ int cmd_db_search(int argc, char** argv) {
         if (c < cmin || c == 0) continue;
         const double f = D.scr_f[d], mu = (double)ns * f, sd = std::sqrt(std::max((double)ns * f * (1 - f), 1e-12));
         const double z = ((double)c - mu) / sd;
-        if (z >= zmin) W.cand.emplace_back((float)z, d);
+        // significance by z; ranking by the FP-corrected screening containment (z would favour
+        // references with a low screening FPR on long contigs)
+        if (z >= zmin) W.cand.emplace_back((float)(((double)c / (double)ns - f) / (1 - f)), d);
       }
       auto better = [](const std::pair<float, uint32_t>& a, const std::pair<float, uint32_t>& b) {
         return a.first != b.first ? a.first > b.first : a.second < b.second;
       };
-      if (W.cand.size() > max_cand) {
-        std::partial_sort(W.cand.begin(), W.cand.begin() + max_cand, W.cand.end(), better);
-        W.cand.resize(max_cand);
+      const size_t K1 = std::max(max_cand, prescreen);
+      if (W.cand.size() > K1) {
+        std::partial_sort(W.cand.begin(), W.cand.begin() + K1, W.cand.end(), better);
+        W.cand.resize(K1);
       } else {
         std::sort(W.cand.begin(), W.cand.end(), better);
+      }
+      // second stage: rank the screened references by the FP-corrected containment of ALL probes
+      // (filter tests only), and keep the best max_cand for the full model
+      if (W.cand.size() > max_cand) {
+        size_t nt[MAXT] = {0};
+        for (const Probe& p : W.pr) ++nt[p.tier];
+        W.cand2.clear();
+        for (auto& cd : W.cand) W.cand2.emplace_back((float)db_containment(D.refs[cd.second], W, nt), cd.second);
+        std::partial_sort(W.cand2.begin(), W.cand2.begin() + max_cand, W.cand2.end(), better);
+        std::unordered_map<uint32_t, float> zof;
+        W.cand2.resize(max_cand);
+        for (auto& cd : W.cand) zof[cd.second] = cd.first;
+        W.cand.clear();
+        for (auto& cd : W.cand2) W.cand.emplace_back(zof[cd.second], cd.second);
       }
     } else {
       W.scnt.assign(nr, 0);
@@ -3407,7 +3497,7 @@ int cmd_db_search(int argc, char** argv) {
     }
     for (size_t r = 0; r < hits.size(); ++r) {
       const Hit& h = hits[r];
-      snprintf(extra, sizeof extra, "\t%u\t%zu\t%.2f\t%zu", W.scnt[h.d], ns, screen ? h.z : NAN, W.cand.size());
+      snprintf(extra, sizeof extra, "\t%u\t%zu\t%.4f\t%zu", W.scnt[h.d], ns, screen ? h.z : NAN, W.cand.size());
       format_result(out, name + "\t" + D.names[h.d] + "\t" + std::to_string(r + 1), h.R, extra);
     }
   });

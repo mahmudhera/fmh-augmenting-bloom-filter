@@ -1,0 +1,187 @@
+{
+ "note": "db2005, 5 within-species sets (32,441 contigs with an exhaustive hit), 8 threads; recall = screened top hit is the exhaustive best (same reference or ani*af within 0.001)",
+ "configs": [
+  {
+   "frac": "1/32",
+   "bits": 8,
+   "hashes": 3,
+   "screen_bits_per_base": 0.3106,
+   "ranking": "z",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.9268,
+   "reported": 0.9982
+  },
+  {
+   "frac": "1/64",
+   "bits": 8,
+   "hashes": 3,
+   "screen_bits_per_base": 0.1553,
+   "ranking": "z",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.9197,
+   "reported": 0.9959
+  },
+  {
+   "frac": "1/32",
+   "bits": 4,
+   "hashes": 3,
+   "screen_bits_per_base": 0.1553,
+   "ranking": "z",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.923,
+   "reported": 0.9946
+  },
+  {
+   "frac": "1/64",
+   "bits": 4,
+   "hashes": 2,
+   "screen_bits_per_base": 0.0777,
+   "ranking": "z",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.9561,
+   "reported": 0.9898
+  },
+  {
+   "frac": "1/32",
+   "bits": 8,
+   "hashes": 3,
+   "screen_bits_per_base": 0.3106,
+   "ranking": "containment",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.9754323232945964,
+   "reported": 0.998150488579267,
+   "time_s_t8": 7.18,
+   "by_length": {
+    ">=10k": 0.9695444685466378,
+    "3-10k": 0.9809587813620072,
+    "1-3k": 0.9821388198055618,
+    "<1k": 0.962444302991725
+   },
+   "by_af": {
+    "af>=0.9": 0.9802081665332266,
+    "af<0.9": 0.8767605633802817,
+    "af<0.2": 0.5125
+   }
+  },
+  {
+   "frac": "1/32",
+   "bits": 8,
+   "hashes": 3,
+   "screen_bits_per_base": 0.3106,
+   "ranking": "containment",
+   "max_cand": 8,
+   "prescreen": 32,
+   "recall": 0.9739835393483555,
+   "reported": 0.998489565673068,
+   "time_s_t8": 8.22,
+   "by_length": {
+    ">=10k": 0.9579175704989153,
+    "3-10k": 0.9777105734767025,
+    "1-3k": 0.988243273796066,
+    "<1k": 0.982176957352005
+   },
+   "by_af": {
+    "af>=0.9": 0.979759807846277,
+    "af<0.9": 0.8441901408450704,
+    "af<0.2": 0.5625
+   }
+  },
+  {
+   "frac": "1/64",
+   "bits": 8,
+   "hashes": 3,
+   "screen_bits_per_base": 0.1553,
+   "ranking": "containment",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.9618384143522086,
+   "reported": 0.9955303473998952,
+   "time_s_t8": 5.96,
+   "by_length": {
+    ">=10k": 0.9662472885032538,
+    "3-10k": 0.97334229390681,
+    "1-3k": 0.9608862762830658,
+    "<1k": 0.9156588160407384
+   },
+   "by_af": {
+    "af>=0.9": 0.9677181745396317,
+    "af<0.9": 0.8424295774647887,
+    "af<0.2": 0.3625
+   }
+  },
+  {
+   "frac": "1/64",
+   "bits": 8,
+   "hashes": 3,
+   "screen_bits_per_base": 0.1553,
+   "ranking": "containment",
+   "max_cand": 8,
+   "prescreen": 32,
+   "recall": 0.9675102493757899,
+   "reported": 0.9965784038716439,
+   "time_s_t8": 7.0,
+   "by_length": {
+    ">=10k": 0.9573101952277657,
+    "3-10k": 0.9737903225806451,
+    "1-3k": 0.9793126836988469,
+    "<1k": 0.9538510502864418
+   },
+   "by_af": {
+    "af>=0.9": 0.9739631705364291,
+    "af<0.9": 0.829225352112676,
+    "af<0.2": 0.4125
+   }
+  },
+  {
+   "frac": "1/64",
+   "bits": 4,
+   "hashes": 2,
+   "screen_bits_per_base": 0.0777,
+   "ranking": "containment",
+   "max_cand": 16,
+   "prescreen": 0,
+   "recall": 0.946179217656669,
+   "reported": 0.9885946795721463,
+   "time_s_t8": 5.47,
+   "by_length": {
+    ">=10k": 0.9598264642082429,
+    "3-10k": 0.962141577060932,
+    "1-3k": 0.9411033235360615,
+    "<1k": 0.8650541056651814
+   },
+   "by_af": {
+    "af>=0.9": 0.9549719775820656,
+    "af<0.9": 0.761443661971831,
+    "af<0.2": 0.1375
+   }
+  },
+  {
+   "frac": "1/64",
+   "bits": 4,
+   "hashes": 2,
+   "screen_bits_per_base": 0.0777,
+   "ranking": "containment",
+   "max_cand": 8,
+   "prescreen": 32,
+   "recall": 0.9565056564224285,
+   "reported": 0.9909990444190993,
+   "time_s_t8": 6.7299999999999995,
+   "by_length": {
+    ">=10k": 0.9519305856832971,
+    "3-10k": 0.9658378136200717,
+    "1-3k": 0.9665385484964956,
+    "<1k": 0.9185232336091661
+   },
+   "by_af": {
+    "af>=0.9": 0.9657646116893515,
+    "af<0.9": 0.7579225352112676,
+    "af<0.2": 0.1625
+   }
+  }
+ ]
+}

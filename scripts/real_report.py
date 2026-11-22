@@ -604,10 +604,153 @@ def main():
     fig.savefig(os.path.join(FIG, "fig_af_tradeoff.eps"))
     plt.close(fig)
 
+    db_section(nums)
+
     with open(os.path.join(GEN, "numbers.txt"), "w") as fh:
         for k, v in nums.items():
             fh.write(f"{k}\t{v}\n")
     print("\n".join(f"{k} = {v}" for k, v in nums.items()))
+
+
+def db_section(nums):
+    """Database mode (v1.5): tables 21-25 and figure 8, from data/db/results (bench_real/db_bench.py)."""
+    DB = os.path.join(ROOT, "data", "db", "results")
+    if not os.path.exists(os.path.join(DB, "db_eval.json")):
+        print("database results missing; skipping the database section")
+        return
+    E = json.load(open(os.path.join(DB, "db_eval.json")))
+    K = json.load(open(os.path.join(R, "results", "eval_k.json")))
+    SG = json.load(open(os.path.join(DB, "screen_grid.json")))
+    BLD, TIM = E.get("build", {}), E.get("time", {})
+    # (21) cost of one shared k (pairwise, real sets, pooled within-species)
+    rows = []
+    for k, lab in (("aif", "adaptive k (17\\(en20), default"), ("aif_k19", "k = 19 for every reference"),
+                   ("aif_k20", "k = 20 for every reference (database default)"), ("skani", "skani (default)")):
+        w = K["sets"]["all_within"][k]
+        rows.append([lab, f(w["coverage"], 3), f(w["ani_mae"], 3), f(w["paired_ani_mae"], 3), f(w["af_mae"], 2)])
+        nums[f"k_{k}"] = (w["coverage"], w["ani_mae"], w["paired_ani_mae"], w["af_mae"])
+    tbl("tab_db_k.tbl", ["l c c c c"], "l n n n n",
+        [["pairwise, 33,464 within-species contigs", "coverage", "ANI MAE", "paired ANI", "AF MAE"]], rows)
+    # (22) database build and size
+    rows = []
+    for name in ("db405", "db805", "db1205", "db2005"):
+        b = BLD[name]
+        a, s = b["aif"], b["skani"]
+        rows.append([str(b["refs"]), f(b["bases"] / 1e9, 2), f(a["build_s"], 1), f(a["build_kb"] / 1e6, 2), f(a["bytes"] / 1e6, 0),
+                     f(8 * a["bytes"] / b["bases"], 3), f(s["build_s"], 1), f(s["build_kb"] / 1e6, 2), f(s["bytes"] / 1e6, 0),
+                     f(8 * s["bytes"] / b["bases"], 3)])
+    b = BLD["db2005"]
+    a = b["aif_b074"]
+    rows.append(["2005*", f(b["bases"] / 1e9, 2), f(a["build_s"], 1), f(a["build_kb"] / 1e6, 2), f(a["bytes"] / 1e6, 0),
+                 f(8 * a["bytes"] / b["bases"], 3), "", "", "", ""])
+    nums["db2005_aif_bpb"] = 8 * b["aif"]["bytes"] / b["bases"]
+    nums["db2005_skani_bpb"] = 8 * b["skani"]["bytes"] / b["bases"]
+    nums["db2005_aif_screen_bpb"] = 8 * b["aif"]["screen_bytes"] / b["bases"]
+    nums["db2005_build"] = (b["aif"]["build_s"], b["skani"]["build_s"])
+    tbl("tab_db_build.tbl", ["c c c s s s c s s s", "^ ^ c c c c c c c c"], "n n n n n n n n n n",
+        [["references", "Gbp", "aif db build", "", "", "", "skani sketch", "", "", ""],
+         ["", "", "time (s)", "peak (GB)", "MB", "bits/base", "time (s)", "peak (GB)", "MB", "bits/base"]], rows)
+    # (23) accuracy on db2005
+    P = E["pooled"]
+    labs = (("aif", "aif db search"), ("aif_b074", "aif, size-matched database"), ("aif_exhaustive", "aif, exhaustive (no screening)"),
+            ("skani", "skani search"), ("skani_dist", "skani dist (all references)"))
+    rows = []
+    for k, lab in labs:
+        r = P[k]
+        rows.append([lab, f(r["coverage"], 3), f(r["ani_mae_pp"], 3), f(r["af_mae_pp"], 2), f(r["af_mae_all_pp"], 2),
+                     f(r["regret_pp"], 2), f(r["top1_best"], 3), f(r["regret_ani_pp"], 3),
+                     f(r["ci_cov_ani"], 3) if r.get("ci_cov_ani") is not None else "\\(em",
+                     f(r["ci_cov_af"], 3) if r.get("ci_cov_af") is not None else "\\(em"])
+        nums[f"db_{k}"] = (r["coverage"], r["ani_mae_pp"], r["af_mae_pp"], r["af_mae_all_pp"], r["regret_pp"], r["top1_best"],
+                           r["regret_ani_pp"], r.get("ci_cov_ani"), r.get("ci_cov_af"), r["n_ani"])
+    nums["db_paired"] = (P["paired"]["n"], P["paired"]["aif_ani_mae_pp"], P["paired"]["skani_ani_mae_pp"])
+    nums["db_paired_dist"] = (P["paired_dist"]["n"], P["paired_dist"]["aif_ani_mae_pp"], P["paired_dist"]["skani_ani_mae_pp"])
+    nums["db_screen_recall"] = P["screen_recall"]
+    nums["db_n_hom"] = P["aif"]["n_hom"]
+    tbl("tab_db_acc.tbl", ["l c c c c c s c c s", "^ ^ ^ ^ ^ c c c c c"], "l n n n n n n n n n",
+        [["top hit (2,005 genomes)", "coverage", "ANI MAE", "AF MAE", "AF MAE*", "regret (ANI\\(muAF)", "", "ANI", "CI coverage", ""],
+         ["", "", "", "", "", "pp", "best", "regret", "ANI", "AF"]], rows)
+    rows = []
+    for s in SETS:
+        m = E["sets"][s]
+        rows.append([SSHORT[s], str(m["aif"]["n_hom"]), f(m["aif"]["coverage"], 3), f(m["skani"]["coverage"], 3),
+                     f(m["skani_dist"]["coverage"], 3), f(m["paired_dist"]["aif_ani_mae_pp"], 3), f(m["paired_dist"]["skani_ani_mae_pp"], 3),
+                     f(m["aif"]["af_mae_all_pp"], 2), f(m["skani"]["af_mae_all_pp"], 2), f(m["skani_dist"]["af_mae_all_pp"], 2),
+                     f(m["aif"]["regret_pp"], 2), f(m["skani_dist"]["regret_pp"], 2), f(m["screen_recall"], 3)])
+    tbl("tab_db_sets.tbl", ["l c c s s c s c s s c s c", "^ ^ c c c c c c c c c c ^"], "l n n n n n n n n n n n n",
+        [["set", "homol.", "coverage", "", "", "paired ANI MAE", "", "AF MAE*", "", "", "regret", "", "screen"],
+         ["", "contigs", "aif", "search", "dist", "aif", "dist", "aif", "search", "dist", "aif", "dist", "recall"]], rows,
+        opts="center box tab(@) expand")
+    # (24) screening configurations
+    rows = []
+    for c in SG["configs"]:
+        rows.append([c["frac"], str(c["bits"]), str(c["hashes"]), f(c["screen_bits_per_base"], 3), c["ranking"],
+                     str(c["max_cand"]) if not c["prescreen"] else f"{c['prescreen']}\\(->{c['max_cand']}", f(c["recall"], 4),
+                     f(c["reported"], 4), f(c.get("time_s_t8"), 1)])
+    tbl("tab_db_screen.tbl", ["c c c c l c c c c"], "n n n n l n n n n",
+        [["fraction", "bits", "hashes", "bits/base", "ranking", "evaluated", "recall", "any hit", "time (s)"]], rows)
+    # (25) search time and memory
+    rows = []
+    for name in ("db405", "db805", "db1205", "db2005"):
+        r = [str(BLD[name]["refs"])]
+        for tool in ("aif", "skani", "skani_keep"):
+            for th in (1, 8):
+                t = TIM.get(f"{name}.{tool}.t{th}")
+                r.append(f(t["s"], 1) if t else "\\(em")
+            t = TIM.get(f"{name}.{tool}.t8")
+            r.append(f(t["kb"] / 1e6, 2) if t else "\\(em")
+        t = TIM.get(f"{name}.skani_dist.t8")
+        r += [f(t["s"], 1) if t else "\\(em", f(t["kb"] / 1e6, 2) if t else "\\(em"]
+        rows.append(r)
+        for tool in ("aif", "skani", "skani_keep", "skani_dist"):
+            for th in (1, 8):
+                t = TIM.get(f"{name}.{tool}.t{th}")
+                if t:
+                    nums[f"time_{name}_{tool}_t{th}"] = (t["s"], t["kb"] / 1e6)
+    tbl("tab_db_time.tbl", ["c c s s c s s c s s c s", "^ c c c c c c c c c c c"], "n n n n n n n n n n n n",
+        [["refs", "aif db search", "", "", "skani search", "", "", "search --keep-refs", "", "", "skani dist", ""],
+         ["", "1 thr", "8 thr", "GB", "1 thr", "8 thr", "GB", "1 thr", "8 thr", "GB", "8 thr", "GB"]], rows)
+    # figure 8: search time and memory against database size
+    names_ = ("db405", "db805", "db1205", "db2005")
+    sizes = [BLD[n]["refs"] for n in names_]
+    fig, axes = plt.subplots(1, 2, figsize=(6.6, 2.7))
+    styles = (("aif", "aif db search", COL["aif"], "o"), ("skani", "skani search", COL["skani"], "s"),
+              ("skani_keep", "skani search --keep-refs", "#eda100", "^"), ("skani_dist", "skani dist", INK2, "D"))
+    handles = []
+    for tool, lab, col, mk in styles:
+        for th, ls in ((8, "-"), (1, "--")):
+            pts = [(BLD[n]["refs"], TIM[f"{n}.{tool}.t{th}"]["s"]) for n in names_ if f"{n}.{tool}.t{th}" in TIM]
+            if not pts:
+                continue
+            h, = axes[0].plot([x for x, _ in pts], [y for _, y in pts], ls + mk, color=col, lw=1.5, ms=4,
+                              mfc=col if th == 8 else "white")
+            if th == 8:
+                handles.append((h, lab))
+        pts = [(BLD[n]["refs"], TIM[f"{n}.{tool}.t8"]["kb"] / 1e6) for n in names_ if f"{n}.{tool}.t8" in TIM]
+        axes[1].plot([x for x, _ in pts], [y for _, y in pts], "-" + mk, color=col, lw=1.5, ms=4)
+    axes[0].set_yscale("log")
+    yt = [3, 5, 10, 20, 50, 100, 200]
+    axes[0].set_yticks(yt)
+    axes[0].set_yticklabels([str(y) for y in yt])
+    axes[0].minorticks_off()
+    axes[0].set_ylabel("wall time (s), 33,464 contigs", fontsize=7.5)
+    axes[1].set_ylabel("peak memory (GB), 8 threads", fontsize=7.5)
+    for ax in axes:
+        ax.set_xlabel("references in the database", fontsize=7.5)
+        ax.set_xticks(sizes)
+        ax.grid(True, which="both", color=GRID, lw=0.4)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    fig.legend([h for h, _ in handles], [l for _, l in handles], loc="upper center", ncol=4, frameon=False, fontsize=6.8)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(os.path.join(FIG, "fig_db_scaling.eps"))
+    plt.close(fig)
+    # committed summaries
+    out = os.path.join(ROOT, "results_real", "db")
+    os.makedirs(out, exist_ok=True)
+    for src, dst in ((os.path.join(DB, "db_eval.json"), "db_eval.json"), (os.path.join(DB, "screen_grid.json"), "screen_grid.json"),
+                     (os.path.join(R, "results", "eval_k.json"), "eval_fixed_k.json")):
+        open(os.path.join(out, dst), "w").write(open(src).read())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c c c c c s c c s
+^ ^ ^ ^ ^ c c c c c
+l n n n n n n n n n.
+top hit (2,005 genomes)@coverage@ANI MAE@AF MAE@AF MAE*@regret (ANI\(muAF)@ANI@CI coverage
+@@@@@pp@best@regret@ANI@AF
+_
+aif db search@0.999@0.321@1.30@1.36@0.20@0.900@0.102@0.938@0.941
+aif, size-matched database@0.999@0.330@1.38@1.45@0.20@0.898@0.100@0.941@0.936
+aif, exhaustive (no screening)@1.000@0.322@1.37@1.39@0.18@0.915@0.112@0.937@0.939
+skani search@0.770@0.513@3.03@23.55@1.94@0.772@0.151@\(em@\(em
+skani dist (all references)@0.945@0.690@4.15@8.74@2.35@0.739@0.244@\(em@\(em
+.TE

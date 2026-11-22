@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+c c s s c s s c s s c s
+^ c c c c c c c c c c c
+n n n n n n n n n n n n.
+refs@aif db search@skani search@search --keep-refs@skani dist
+@1 thr@8 thr@GB@1 thr@8 thr@GB@1 thr@8 thr@GB@8 thr@GB
+_
+405@26.8@3.9@0.94@243.4@34.1@0.54@75.5@13.8@0.82@30.4@0.64
+805@\(em@4.6@1.18@\(em@35.2@0.76@\(em@13.9@1.09@52.4@0.83
+1205@\(em@5.1@1.43@\(em@35.9@0.94@\(em@15.5@1.38@74.3@1.11
+2005@34.9@5.2@2.01@264.5@37.9@1.32@83.8@15.9@1.87@118.5@1.62
+.TE

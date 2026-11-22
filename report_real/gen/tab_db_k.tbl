@@ -1,0 +1,11 @@
+.TS
+center box tab(@);
+l c c c c
+l n n n n.
+pairwise, 33,464 within-species contigs@coverage@ANI MAE@paired ANI@AF MAE
+_
+adaptive k (17\(en20), default@0.992@0.502@0.392@2.63
+k = 19 for every reference@0.991@0.500@0.396@2.86
+k = 20 for every reference (database default)@0.991@0.519@0.408@2.80
+skani (default)@0.901@0.677@0.676@9.35
+.TE

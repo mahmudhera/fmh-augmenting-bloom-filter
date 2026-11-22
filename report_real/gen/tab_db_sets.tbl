@@ -1,0 +1,14 @@
+.TS
+center box tab(@) expand;
+l c c s s c s c s s c s c
+^ ^ c c c c c c c c c c ^
+l n n n n n n n n n n n n.
+set@homol.@coverage@paired ANI MAE@AF MAE*@regret@screen
+@contigs@aif@search@dist@aif@dist@aif@search@dist@aif@dist@recall
+_
+B. cereus@8009@0.999@0.732@0.932@0.423@1.189@2.24@27.78@11.94@0.49@3.36@0.923
+E. coli@4054@0.998@0.799@0.911@0.226@0.516@1.27@18.29@10.42@0.23@5.55@0.967
+MAGs 2328@8082@0.999@0.793@0.996@0.360@0.584@1.14@22.12@3.64@0.00@0.01@0.998
+P. aerug.@3730@1.000@0.794@0.931@0.092@0.262@0.65@20.54@8.63@0.05@2.50@0.966
+S. aureus@2209@1.000@0.726@0.892@0.064@0.312@0.32@28.23@12.95@0.06@1.74@0.983
+.TE

@@ -4,7 +4,7 @@ Three reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
-3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf) (18 pages). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; and an analysis of the AF model.
+3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; and the v1.5 database mode against 2,005 genomes.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -43,6 +43,34 @@ islands get absorbed as low-identity alignment.
   by 13% (2.45 -> 2.14 pp) but raises genome-level ANI error (0.190 -> 0.251 pp).
 - **Rejected:** model averaging over switching rates, and overdispersed emissions.
 - **Conclusion:** no tested correction improves both contig AF and genome ANI, so the defaults are unchanged.
+
+## Database mode (v1.5): contigs against 2,005 genomes
+
+`aif db build` puts many references in one memory-mapped file with one k (20) and one tier layout. A contig is then
+hashed once, and each candidate reference costs only its filter tests and the HMM. Candidates come from a
+bit-sliced (COBS-style) screening index at 0.155 bits/base. Exhaustive search (`--no-screen`) is byte-identical
+to pairwise `aif query` against `-k 20` sketches on all 33,464 real contigs.
+
+Benchmark database: the 5 pairwise references, 100 RefSeq complete genomes each of E. coli, S. aureus,
+P. aeruginosa and the B. cereus group, and 1,600 other RefSeq reference genomes (8.62 Gbp). All query
+assemblies are excluded. Queries are the 33,464 within-species contigs; truth is MUMmer for every
+(contig, reference) pair among each tool's top 3 hits (145,591 pairs). Pooled over the 26,084 homologous contigs:
+
+| | skani search | skani dist (2,005 FASTA) | **aif db search** | aif, size-matched DB |
+|---|---|---|---|---|
+| database (bits / reference base) | 0.896 | (FASTA) | 1.035 | 0.895 |
+| homologous contigs with a hit | 77.0% | 94.5% | **99.9%** | 99.9% |
+| top-hit ANI MAE (pp) | 0.513 | 0.690 | **0.321** | 0.330 |
+| paired top-hit ANI MAE vs aif (pp) | 0.513 vs 0.256 | 0.690 vs 0.297 | | |
+| top-hit AF MAE (pp) | 3.03 | 4.15 | **1.30** | 1.38 |
+| top hit is the best reference | 77.2% | 73.9% | **90.0%** | 89.8% |
+| regret, true ANI x AF (pp) | 1.94 | 2.35 | **0.20** | 0.20 |
+| search time, 33,464 contigs, 1 / 8 threads (s) | 264.5 / 37.9 (`--keep-refs` 83.8 / 15.9) | - / 118.5 | **34.9 / 5.2** | |
+| peak memory, 8 threads (GB) | 1.32 (1.87) | 1.62 | 2.01 | |
+
+Calibrated intervals keep 93.8% (ANI) / 94.1% (AF) coverage at 95% in database mode. Screening misses cost
+0.015 pp of regret against exhaustive search (screening recall 96.2%). From 405 to 2,005 genomes aif's search
+time grows 1.3x. skani builds its database faster (3.0 vs 10.9 s at 8 threads) and uses less memory.
 
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
@@ -112,6 +140,7 @@ Simulated-set timings are in `results/main/*_v12.tsv` and `*_v13.tsv`.
 * **Query** (raw contigs). Every selected k-mer is probed. A multi-level HMM (one unaligned state plus aligned identity levels) gives the aligned fraction and the FP-corrected aligned containment, so ANI = C^(1/k) with bias correction. Heterogeneous contigs use posterior-mean ANI instead.
 * **v1.1 speed**: 2-bit packing and AVX-512 k-mer selection, gather-based Bloom tests, a binned single-precision HMM with exact per-probe refinement around alignment boundaries, mmap input, vectorised sketch insertion, and `-t N` threads with ordered output.
 * **v1.2/v1.3**: windowed probing of long contigs, a streaming multithreaded pipeline, latency-optimised HMM recursions, GFNI/AVX-512 packing and reverse complements (see above); `make prof` builds a per-stage cycle-counter binary.
+* **v1.5**: database mode (`aif db build/search/info`): shared-k two-stage probing, bit-sliced screening index, memory-mapped database, lazily built per-reference estimators, top-n hits per contig.
 * **v1.4**: per-contig confidence intervals (statistical, or conformal-calibrated from the table in `src/ci_table.inc`, refit with `bench_real/calibration.py fit`); optional local identity prior (`--ident-window`) and overdispersed emissions (`--overdisp`).
 
 ```
@@ -119,6 +148,9 @@ make aif
 bin/aif sketch ref.fa -o ref.aif          # -k auto --budget 0.88 --tiers 0.005:0.6,0.1:0.4
 bin/aif query ref.aif contigs.fa -t 8 > out.tsv  # contig ani af theta probes hits aligned_probes status lr het low_frac
                                                 #   ani_lo ani_hi af_lo af_hi ani_se af_se   (95% intervals; --ci-level, --ci-stat)
+bin/aif db build --list refs.txt -o refs.aifd -t 8   # refs.txt: "path [name]" per line; -k 20 --budget 0.88
+bin/aif db search refs.aifd contigs.fa -t 8 -n 5 > hits.tsv  # contig reference rank <query columns> screen_count ...
+bin/aif db info refs.aifd --refs
 ```
 
 ## Layout
@@ -130,7 +162,8 @@ bench/                         simulated benchmark: download_genomes.sh, make_sc
                                run_all.sh, evaluate.py, tune.py, time_all.py (interleaved timing), time_compare.sh, medtime.sh
 bench_real/                    real genomes: select_datasets.py, select_tune.py, download.sh, prepare.py, truth.py (MUMmer),
                                run_tools.py, evaluate_real.py, genome_level.py, blast_audit.py, tune_real.py,
-                               time_real.py, scaling.py, consistency.py, calibration.py, af_model_grid.py, afopt_heldout.py
+                               time_real.py, scaling.py, consistency.py, calibration.py, af_model_grid.py, afopt_heldout.py,
+                               database mode: db_select.py, db_download.sh, db_bench.py, db_screen_eval.py
 results/, results_real/        committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
@@ -159,6 +192,8 @@ python3 -I bench_real/evaluate_real.py --json data/real/results/eval_main.json
 python3 -I bench_real/genome_level.py && python3 -I bench_real/blast_audit.py && python3 -I bench_real/time_real.py 7
 python3 -I bench_real/consistency.py aif && python3 -I bench_real/calibration.py evaluate
 python3 -I bench_real/af_model_grid.py && python3 -I bench_real/afopt_heldout.py
+python3 -I bench_real/db_select.py && bench_real/db_download.sh      # database mode
+for s in build search truth time evaluate; do python3 -I bench_real/db_bench.py $s; done
 python3 scripts/real_report.py && report_real/build.sh
 ```
 
