@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c s c s c s
+^ c c c c c c
+l n n n n n n.
+held-out evaluation@real contigs (macro)@real genomes (224)@simulated main
+@ANI MAE@AF MAE@ANI MAE@AF MAE@ANI MAE@AF MAE
+_
+default@0.483@2.45@0.190@2.39@0.502@0.51
+aif-RT (--rho-u 2e-5)@0.470@1.71@0.263@1.39@0.523@1.24
+local prior (0.08, R = 3)@0.476@2.14@0.251@1.87@0.507@0.50
+.TE

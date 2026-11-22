@@ -4,7 +4,7 @@ Three reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
-3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf) (11 pages). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth, plus the v1.2/v1.3 speed work for real assemblies.
+3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf) (18 pages). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; and an analysis of the AF model.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -21,11 +21,28 @@ within-species contigs:
 | AF MAE, all contigs (pp) | 9.35 | 4.29 | **2.63** | 1.85 |
 | AF MAE on 0.5-1 kb contigs (pp) | 39.2 | 21.3 | **4.3** | 3.9 |
 | genome ANI MAE vs ANIm, 224 genomes (pp) | 0.237 | 0.259 | **0.190** | 0.263 |
-| wall time, 5 sets, 1 / 8 threads (s), aif v1.3 | 3.28 / 2.66 | | **2.81 / 0.89** | |
+| wall time, 5 sets, 1 / 8 threads (s), aif v1.4 | 3.27 / 2.72 | | **2.92 / 0.86** | |
 
 aif beats both skani presets on ANI and AF on every set. aif-RT is one setting chosen on a disjoint real tuning set
 (it helps contig AF, costs genome-level ANI on divergent genomes and simulated AF; the default is unchanged).
-fastANI's genome ANI MAE on the same genomes is 0.247 pp.
+fastANI's genome ANI MAE on the same genomes is 0.247 pp. Broken down by set, length, divergence, aligned
+fraction and genome (`bench_real/consistency.py`), aif's paired ANI error is lower than skani's in every cell.
+
+**Confidence intervals (v1.4).** Every estimate has an ANI and an AF interval (`ani_lo ani_hi af_lo af_hi`).
+- **Statistical intervals** (`--ci-stat`) come from the estimator's variance: Theorem 1, conditioned on the
+  realised substitutions, for ANI; posterior boundary uncertainty for AF. They are calibrated when truth
+  follows the model: 96.5% coverage at 95% on simulated substitution-only contigs.
+- **Default intervals** are calibrated against MUMmer truth by stratified split-conformal prediction, fitted on
+  the real tuning set only. On held-out real contigs they cover 94.4% (ANI) and 94.2% (AF) at 95%, and
+  98.6% / 99.0% at 99%. Median half-widths are 0.87 pp (ANI) and 2.6 pp (AF); at >= 99% identity on contigs
+  >= 3 kb they are 0.44 / 0.54 pp. skani reports no uncertainty.
+
+**AF model (v1.4 analysis).** aif over-estimates AF on partially aligned, divergent contigs because unaligned
+islands get absorbed as low-identity alignment.
+- **Local identity prior** (`--ident-window 0.08 --ident-radius 3`, an option): lowers held-out contig AF error
+  by 13% (2.45 -> 2.14 pp) but raises genome-level ANI error (0.190 -> 0.251 pp).
+- **Rejected:** model averaging over switching rates, and overdispersed emissions.
+- **Conclusion:** no tested correction improves both contig AF and genome ANI, so the defaults are unchanged.
 
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
@@ -43,15 +60,17 @@ aif at half the budget (0.44 bits/base) still beats skani's densest preset (`--s
 
 ## Speed (single thread unless noted; medians of interleaved, core-pinned runs)
 
-Real genomes, aif v1.3 sketch + query vs skani `dist --qi` (sketch + query):
+Real genomes, aif v1.4 (with confidence intervals) sketch + query vs skani `dist --qi` (sketch + query):
 
 | set (contigs vs reference) | Mbp | skani 1 thread | **aif 1 thread** | skani 8 threads | **aif 8 threads** |
 |---|---|---|---|---|---|
-| B. cereus group vs B. anthracis 52-G | 449 | 1.34 s | **1.27 s** | 1.11 s | **0.41 s** |
-| E. coli vs K-12 | 243 | 0.75 s | **0.64 s** | 0.61 s | **0.17 s** |
-| MAGs of bin 2328 vs best MAG | 116 | 0.39 s | **0.28 s** | 0.31 s | **0.09 s** |
-| P. aeruginosa vs PAO1 | 165 | 0.57 s | **0.44 s** | 0.44 s | **0.14 s** |
+| B. cereus group vs B. anthracis 52-G | 449 | 1.34 s | **1.33 s** | 1.16 s | **0.37 s** |
+| E. coli vs K-12 | 243 | 0.75 s | **0.66 s** | 0.62 s | **0.17 s** |
+| MAGs of bin 2328 vs best MAG | 116 | 0.39 s | **0.29 s** | 0.31 s | **0.09 s** |
+| P. aeruginosa vs PAO1 | 165 | 0.56 s | **0.45 s** | 0.44 s | **0.14 s** |
 | S. aureus vs NCTC 8325 | 68 | 0.23 s | **0.18 s** | 0.19 s | **0.08 s** |
+
+v1.3 (no intervals) was 4% faster (B. cereus 1.28 s).
 
 Simulated contigs:
 
@@ -93,23 +112,25 @@ Simulated-set timings are in `results/main/*_v12.tsv` and `*_v13.tsv`.
 * **Query** (raw contigs). Every selected k-mer is probed. A multi-level HMM (one unaligned state plus aligned identity levels) gives the aligned fraction and the FP-corrected aligned containment, so ANI = C^(1/k) with bias correction. Heterogeneous contigs use posterior-mean ANI instead.
 * **v1.1 speed**: 2-bit packing and AVX-512 k-mer selection, gather-based Bloom tests, a binned single-precision HMM with exact per-probe refinement around alignment boundaries, mmap input, vectorised sketch insertion, and `-t N` threads with ordered output.
 * **v1.2/v1.3**: windowed probing of long contigs, a streaming multithreaded pipeline, latency-optimised HMM recursions, GFNI/AVX-512 packing and reverse complements (see above); `make prof` builds a per-stage cycle-counter binary.
+* **v1.4**: per-contig confidence intervals (statistical, or conformal-calibrated from the table in `src/ci_table.inc`, refit with `bench_real/calibration.py fit`); optional local identity prior (`--ident-window`) and overdispersed emissions (`--overdisp`).
 
 ```
 make aif
 bin/aif sketch ref.fa -o ref.aif          # -k auto --budget 0.88 --tiers 0.005:0.6,0.1:0.4
 bin/aif query ref.aif contigs.fa -t 8 > out.tsv  # contig ani af theta probes hits aligned_probes status lr het low_frac
+                                                #   ani_lo ani_hi af_lo af_hi ani_se af_se   (95% intervals; --ci-level, --ci-stat)
 ```
 
 ## Layout
 
 ```
 fmh_bloom_filter_theory.pdf, aif_benchmark_report.pdf, aif_real_genomes_report.pdf
-src/aif.cpp                    the tool
+src/aif.cpp, src/ci_table.inc  the tool (+ built-in confidence-interval calibration table)
 bench/                         simulated benchmark: download_genomes.sh, make_scenarios.py, run_skani.sh, run_aif.sh,
                                run_all.sh, evaluate.py, tune.py, time_all.py (interleaved timing), time_compare.sh, medtime.sh
 bench_real/                    real genomes: select_datasets.py, select_tune.py, download.sh, prepare.py, truth.py (MUMmer),
                                run_tools.py, evaluate_real.py, genome_level.py, blast_audit.py, tune_real.py,
-                               time_real.py, scaling.py
+                               time_real.py, scaling.py, consistency.py, calibration.py, af_model_grid.py, afopt_heldout.py
 results/, results_real/        committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
@@ -136,6 +157,8 @@ python3 -I bench_real/select_datasets.py && bench_real/download.sh && python3 -I
 python3 -I bench_real/truth.py && python3 -I bench_real/run_tools.py
 python3 -I bench_real/evaluate_real.py --json data/real/results/eval_main.json
 python3 -I bench_real/genome_level.py && python3 -I bench_real/blast_audit.py && python3 -I bench_real/time_real.py 7
+python3 -I bench_real/consistency.py aif && python3 -I bench_real/calibration.py evaluate
+python3 -I bench_real/af_model_grid.py && python3 -I bench_real/afopt_heldout.py
 python3 scripts/real_report.py && report_real/build.sh
 ```
 

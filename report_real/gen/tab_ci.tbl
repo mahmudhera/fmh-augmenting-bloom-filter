@@ -1,0 +1,20 @@
+.TS
+center box tab(@);
+l l c s s c s s c s
+^ ^ c c c c c c c c
+l l n n n n n n n n.
+data@intervals@ANI coverage (%)@AF coverage (%)@median half-width
+@@90%@95%@99%@90%@95%@99%@ANI (pp)@AF (pp)
+_
+real, tuning (fit)@statistical@69.5@74.4@81.8@78.9@81.4@85.2@0.34@1.02
+real, tuning (fit)@calibrated@90.1@95.1@99.1@89.9@95.0@99.2@0.90@2.61
+_
+real, held out@statistical@69.3@74.6@81.8@79.1@81.6@85.2@0.33@1.03
+real, held out@calibrated@89.7@94.4@98.6@89.0@94.2@99.0@0.87@2.60
+_
+simulated main@statistical@87.0@91.8@97.1@98.9@99.0@99.2@0.71@1.00
+simulated main@calibrated@99.6@99.8@99.9@99.8@100.0@100.0@2.01@8.58
+_
+simulated fresh@statistical@87.8@92.1@96.6@98.7@99.0@99.1@0.71@1.00
+simulated fresh@calibrated@99.2@99.7@99.9@99.9@99.9@100.0@2.01@8.58
+.TE

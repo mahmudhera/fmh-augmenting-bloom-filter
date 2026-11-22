@@ -78,7 +78,7 @@ def score(contigs, truth, preds, cfgs):
 
 def main():
     argv = sys.argv[1:]
-    cfgs = ["skani", "skani_relaxed", "skani_slow", "aif", "aif_0.44", "aif_rt", "aif_0.44_rt", "aif_fast"]
+    cfgs = ["skani", "skani_relaxed", "skani_slow", "aif", "aif_0.44", "aif_rt", "aif_0.44_rt", "aif_fast", "aif_lp"]
     if "--configs" in argv:
         cfgs = argv[argv.index("--configs") + 1].split(",")
     jout = argv[argv.index("--json") + 1] if "--json" in argv else None

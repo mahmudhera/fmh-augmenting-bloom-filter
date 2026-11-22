@@ -13,5 +13,5 @@ AF MAE, all contigs (pp)@9.35@4.29@2.63@1.85
 AF MAE, mean over the 5 sets (pp)@9.86@4.51@2.45@1.71
 false homology calls (% of non-homologous)@0.03@0.17@0.22@0.19
 genome ANI MAE vs ANIm, 224 genomes (pp)@0.237@0.259@0.190@0.263
-wall time, 5 sets, 1 / 8 threads (s)@3.28 / 2.66@\(em@2.81 / 0.89@\(em
+wall time, 5 sets, 1 / 8 threads (s)@3.27 / 2.72@\(em@2.92 / 0.86@\(em
 .TE

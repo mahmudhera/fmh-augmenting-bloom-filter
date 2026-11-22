@@ -22,6 +22,13 @@
 // barriers; --het-fine-max N limits the fine-binned heterogeneity re-run to contigs with
 // <= N probes (faster on Mbp-scale contigs, slightly less accurate genome-level ANI).
 //
+// v1.4 (uncertainty): per-contig confidence intervals for ANI and AF. Statistical SEs come
+// from Theorem 1 (FP-corrected containment, conditioned on the realised substitutions) and from
+// the posterior uncertainty of alignment boundaries; calibrated intervals (default) use
+// stratified split-conformal multipliers fitted on the real tuning set (src/ci_table.inc,
+// bench_real/calibration.py). Optional AF-model variants: a local identity prior
+// (--ident-window) and overdispersed bin emissions (--overdisp); both off by default.
+//
 // v1.3 (single-thread speed): forward/backward recursions interleaved, with look-ahead
 // normalisers that keep horizontal reductions off the dependency chain (HMM and
 // refinement; rounding-level output changes, <= 1e-6); cached emissions for fine bins;
@@ -1025,6 +1032,13 @@ struct Params {
   double het_z = 3.0;        // z threshold of the heterogeneity test
   double lr_min = 10.0;      // log-likelihood ratio (vs. all-unaligned) needed to report
   double ident_c = 8.0;      // keep aligned levels with theta >= ident_c * min effective FPR
+  double ident_window = 0.0;   // local identity prior: aligned levels within this ANI of the local identity (0 = off)
+  int ident_win_probes = 256;  // window (probes) of the local identity profile
+  int ident_radius = 3;        // local identity = median over windows within +-radius (>= 10000: whole contig)
+  double overdisp = 0.0;       // scale of the k-mer-overlap overdispersion of aligned bin counts (0 = binomial)
+  double ci_level = 0.95;      // two-sided level of the reported intervals (0.90, 0.95 or 0.99 calibrated)
+  bool ci_stat = false;        // intervals from the statistical SE alone (normal quantile), no calibration
+  std::string ci_table;        // file with a calibration table (default: built in, from the real tuning set)
   double grid_step = 0.005;  // ANI spacing of aligned levels
   double floor_frac = 2.0;   // flag below_floor if this much aligned mass is on the 2 lowest levels (>1 = off)
   int bin = 32;              // probes per HMM step (main pass)
@@ -1045,6 +1059,8 @@ struct Result {
   bool het = false;
   double low_frac = 0;
   const char* status = "ok";
+  double ani_se = NAN, af_se = NAN;        // standard errors (statistical + model discrepancy)
+  double ani_lo = NAN, ani_hi = NAN, af_lo = NAN, af_hi = NAN;  // confidence intervals (P.ci_level)
 };
 
 double Bcoef(double p, int k) {
@@ -1064,11 +1080,21 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   std::vector<double> ab;  // per-bin aligned posterior
   std::vector<float> Bb, Bbu;           // stored backward messages per bin
   std::vector<const float*> ep;         // per-bin emission vectors (into Ef or the emission cache)
+  std::vector<uint16_t> wj;             // local identity prior: allowed levels 0..wj-1 per probe window
+  size_t wprobes = 0;                   // probes per window (0: prior off)
+  std::vector<std::pair<double, double>> wtheta;  // scratch: (window containment, probes)
+  std::vector<double> wth, wn;          // scratch: per-window containment and probe counts
+  std::vector<uint16_t> bjc;            // allowed level count per bin of the current binning
+  std::vector<std::pair<double, double>> hw;  // heterogeneity windows: (containment, aligned length)
+  double se_pooled = 0;                 // statistical SE of the pooled ANI (for the heterogeneous CI)
+  std::vector<double> cxs, cas;         // scratch for the AF interval
+  double afvar = 0;                     // AF boundary variance (bp^2), accumulated by refine()
   std::vector<uint8_t> refined;         // per bin: per-probe posteriors available in ap
   std::vector<double> ap;               // per-probe aligned posterior (refined bins only)
   std::vector<float> rfa, rfu, rb, rw;  // refinement scratch
   std::vector<float> rbb, rbu;          // refinement: per-probe backward messages
   std::vector<uint8_t> bcnt;  // per bin: hits and misses per tier
+  std::vector<int32_t> bslot; // per bin: emission-cache slot (fine bins only)
   std::vector<double> E, F, a, b, w, conf;
 };
 
@@ -1099,6 +1125,15 @@ void prof_report() {
 #endif
 }
 
+// level mask value inside templates on M (local identity prior): constant 1 when the prior is off
+#define MKV(p, j) (M ? (p)[j] : 1.0f)
+
+// Built-in calibration table for the confidence intervals: conformal multipliers [level 90/95/99%]
+// [stratum][ANI, AF], fitted on the real tuning set by bench_real/calibration.py (see there).
+static const double CI_DEFAULT[3][24][2] = {
+#include "ci_table.inc"
+};
+
 struct Estimator {
   const Sketch& sk;
   Params P;
@@ -1106,6 +1141,12 @@ struct Estimator {
   std::vector<double> epsp, stier, gth, gani;
   size_t SPA = 16;                 // aligned states padded to a multiple of 16
   std::vector<float> PHa, PMa;     // [t][c][aligned state] = (hit prob)^c, (miss prob)^c
+  // Overdispersed aligned emissions: overlapping k-mers share bases, so probe survivals within a
+  // bin are positively correlated under the simple mutation model. A bin's tier-t hit count is
+  // modelled as beta-binomial with the intra-bin correlation implied by that overlap structure
+  // (density s_t, k, identity), scaled by P.overdisp. BBa[t][hits][misses][state] holds the
+  // probability of one ordered outcome (the binomial coefficient cancels against U's).
+  std::vector<float> BBa;
   std::vector<double> PHu, PMu;    // [t][c] for the unaligned state
   std::vector<float> gaf;          // padded aligned-level ANIs
   std::vector<float> LH, LM;       // [t][aligned state]: log((hit|A)/(hit|U)), log((miss|A)/(miss|U))
@@ -1120,7 +1161,10 @@ struct Estimator {
   // (computed exactly as in hmm()); ecix maps the mixed-radix counts to a slot
   size_t EB = 0;                   // counts per tier and outcome are < EB + 1
   std::vector<int32_t> ecix;
-  std::vector<float> ecE, ecU, ecS;
+  std::vector<float> ecE, ecU, ecS, ecC;  // ecC: prefix sums of ecE over levels (masked row sums)
+  std::vector<float> MT;                  // MT[c*SP + j] = (j < c): prefix masks, c = 0..m
+  std::vector<float> PIc;                 // 1 / c
+  std::vector<float> PEcum, PEDcum;       // prefix sums over levels of PE rows and of PE row products
   inline size_t ec_key(const uint8_t* c) const {
     size_t key = 0;
     for (int q = 0; q < 2 * T; ++q) key = key * (EB + 1) + c[q];
@@ -1148,6 +1192,32 @@ struct Estimator {
     PMu.assign((size_t)T * (B + 1), 1.0);
     gaf.assign(SPA, 0.0f);
     for (size_t j = 0; j < m; ++j) gaf[j] = (float)gani[j];
+    if (P.overdisp > 0) {
+      BBa.assign((size_t)T * (B + 1) * (B + 1) * SPA, 0.0f);
+      for (int t = 0; t < T; ++t) {
+        const double e = epsp[t], st = stier[t];
+        for (size_t j = 0; j < m; ++j) {
+          const double th = gth[j], q = gani[j], pi = th + (1 - th) * e;
+          double sum = 0;
+          if (th < 1)
+            for (int d = 1; d < sk.k; ++d) sum += (std::pow(q, d) - th) / (1 - th);
+          const double Dm1 = std::max(0.0, 2.0 * st * sum * P.overdisp);  // design effect - 1 (survivals)
+          for (size_t c = 0; c <= B; ++c)
+            for (size_t mm = 0; c + mm <= B; ++mm) {
+              const size_t n = c + mm;
+              double lp;
+              const double rho = n >= 2 ? (1 - e) * (1 - e) * th * (1 - th) * Dm1 / ((double)(n - 1) * pi * (1 - pi)) : 0;
+              if (rho < 1e-7) {
+                lp = (double)c * std::log(pi) + (double)mm * std::log(1 - pi);
+              } else {
+                const double A = 1.0 / std::min(rho, 0.5) - 1.0, a = pi * A, b = (1 - pi) * A;
+                lp = std::lgamma(a + c) - std::lgamma(a) + std::lgamma(b + mm) - std::lgamma(b) - std::lgamma(A + n) + std::lgamma(A);
+              }
+              BBa[(((size_t)t * (B + 1) + c) * (B + 1) + mm) * SPA + j] = (float)std::exp(lp);
+            }
+        }
+      }
+    }
     PE.assign((size_t)T * 2 * SPA, 0.0f);
     for (int t = 0; t < T; ++t) {
       double e = epsp[t];
@@ -1168,6 +1238,22 @@ struct Estimator {
         for (size_t j = 0; j < SPA; ++j) d += PE[(size_t)a * SPA + j] * PE[(size_t)b * SPA + j];
         PED[a * 2 * T + b] = d;
       }
+    PIc.assign(m + 1, 0.0f);
+    for (size_t c = 1; c <= m; ++c) PIc[c] = 1.0f / (float)c;
+    MT.assign((m + 1) * SPA, 0.0f);
+    for (size_t c = 0; c <= m; ++c)
+      for (size_t j = 0; j < c; ++j) MT[c * SPA + j] = 1.0f;
+    PEcum.assign((size_t)2 * T * SPA, 0.0f);
+    PEDcum.assign((size_t)4 * T * T * SPA, 0.0f);
+    for (int a = 0; a < 2 * T; ++a) {
+      float acc = 0;
+      for (size_t j = 0; j < SPA; ++j) PEcum[(size_t)a * SPA + j] = (acc += PE[(size_t)a * SPA + j]);
+      for (int b = 0; b < 2 * T; ++b) {
+        float d = 0;
+        for (size_t j = 0; j < SPA; ++j)
+          PEDcum[((size_t)a * 2 * T + b) * SPA + j] = (d += PE[(size_t)a * SPA + j] * PE[(size_t)b * SPA + j]);
+      }
+    }
     LH.assign((size_t)T * SPA, -1e30f);
     LM.assign((size_t)T * SPA, -1e30f);
     for (int t = 0; t < T; ++t) {
@@ -1194,6 +1280,7 @@ struct Estimator {
       logU[2 * t + 1] = std::log(e);
     }
     if (P.bin_het > 0 && P.bin_het < P.bin && T <= 2) build_emission_cache((size_t)P.bin_het, B);
+    load_ci_table();
     tab_su.resize(QMAX);
     tab_h.resize(QMAX);
     for (size_t d = 0; d < QMAX; ++d) {
@@ -1368,8 +1455,19 @@ struct Estimator {
   // exact per-probe forward-backward over bins with uncertain posterior (alignment boundaries),
   // conditioned on the binned forward/backward messages at the region edges
   void refine(Work& W) const {
+    if (W.wprobes)
+      refine_t<true>(W);
+    else
+      refine_t<false>(W);
+  }
+  template <bool M>
+  void refine_t(Work& W) const {
+    W.afvar = 0;
     const size_t nb = W.bstart.size(), SP = SPA, m = gth.size();
-    const float pi = 1.0f / (float)m;
+    const float* MTp = MT.data();
+    // masked per-probe emission sums / dots for a probe kind and an allowed level count
+    auto pes = [&](int kk, size_t c) { return (!M || c >= m) ? PEs[kk] : PEcum[(size_t)kk * SP + c - 1]; };
+    auto ped = [&](int ka, int kb, size_t c) { return PEDcum[((size_t)ka * 2 * T + kb) * SP + (M ? c : m) - 1]; };
     const std::vector<Probe>& pr = W.pr;
     W.refined.assign(nb, 0);
     for (size_t bi = 0; bi < nb; ++bi) {
@@ -1397,7 +1495,6 @@ struct Estimator {
       // Forward and backward recursions over the region's probes are independent: run them
       // interleaved, with look-ahead dots (as in hmm(); <e[r-1], e[r]> is a table lookup since
       // a probe's emission is one of 2T vectors), then the per-probe posteriors.
-      const int K = 2 * T;
       auto kind = [&](size_t r) { return 2 * (int)pr[i0 + r].tier + (int)pr[i0 + r].hit; };
       float fbz, fcz;            // F[r] = (fbz + fcz F[r-1]) e[r]
       const float* fm1 = nullptr;  // forward message before the region (F[-1])
@@ -1407,15 +1504,18 @@ struct Estimator {
         const int k0 = kind(0);
         const float* e = &PE[(size_t)k0 * SP];
         const float eu = PEu[k0];
+        const size_t jc0 = M ? jc_at(W, i0) : m;
+        const float* mk0 = MTp + jc0 * SP;
+        const float pi = PIc[jc0];
         float* fc = &W.rfa[0];
         float fu, iz;
         if (b0 == 0) {  // contig start: initial distribution
           fu = 0.5f * eu;
-          const float z = fu + 0.5f * pi * PEs[k0];
+          const float z = fu + 0.5f * pi * pes(k0, jc0);
           iz = 1.0f / z;
           fbz = 0.5f * pi * iz;
           fcz = 0.0f;
-          for (size_t j = 0; j < SP; ++j) fc[j] = fbz * e[j];
+          for (size_t j = 0; j < SP; ++j) fc[j] = fbz * e[j] * MKV(mk0, j);
         } else {
           fm1 = &W.Ff[(b0 - 1) * SP];
           const float pu0 = W.Fu[b0 - 1];
@@ -1425,12 +1525,12 @@ struct Estimator {
           const float base = pu0 * u * pi + stay * h * pi * pa_sum, c1 = stay * (1.0f - h);
           fu = (pu0 * stay + pa_sum * u) * eu;
           float dot = 0;
-          for (size_t j = 0; j < SP; ++j) dot += fm1[j] * e[j];
-          const float z = fu + base * PEs[k0] + c1 * dot;
+          for (size_t j = 0; j < SP; ++j) dot += fm1[j] * e[j] * MKV(mk0, j);
+          const float z = fu + base * pes(k0, jc0) + c1 * dot;
           iz = 1.0f / z;
           fbz = base * iz;
           fcz = c1 * iz;
-          for (size_t j = 0; j < SP; ++j) fc[j] = (fbz + fcz * fm1[j]) * e[j];
+          for (size_t j = 0; j < SP; ++j) fc[j] = (fbz + fcz * fm1[j]) * e[j] * MKV(mk0, j);
         }
         W.rfu[0] = fu * iz;
         pu = W.rfu[0];
@@ -1439,21 +1539,24 @@ struct Estimator {
       float bbz, bcz, bu;          // B[r] = bbz + bcz (e[r+1] B[r+1])
       const float* bnext_e = nullptr;  // e and B of the step after the region's last probe
       const float* bnext_b = nullptr;
+      size_t jcn = m;                  // allowed levels of that step
       {  // backward message entering the region's last probe
         float* bo = &W.rbb[(nr - 1) * SP];
         if (b1 + 1 < nb) {
           bnext_e = W.ep[b1 + 1];
           bnext_b = &W.Bb[(b1 + 1) * SP];
+          jcn = M ? W.bjc[b1 + 1] : m;
+          const float* mkn = MTp + jcn * SP;
           const float wu = W.Eu[b1 + 1] * W.Bbu[b1 + 1];
           float sw = 0;
-          for (size_t j = 0; j < SP; ++j) sw += bnext_e[j] * bnext_b[j];
+          for (size_t j = 0; j < SP; ++j) sw += bnext_e[j] * MKV(mkn, j) * bnext_b[j];
           const uint32_t d = W.bstart[b1 + 1] - pr[i1 - 1].pos;
-          const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * pi;
+          const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * PIc[jcn];
           const float base = u * wu + stay * h * SW, c1 = stay * (1.0f - h), b0v = stay * wu + u * SW;
-          const float zz = b0v + (float)m * base + c1 * sw, iz = 1.0f / zz;
+          const float zz = b0v + (float)jcn * base + c1 * sw, iz = 1.0f / zz;
           bbz = base * iz;
           bcz = c1 * iz;
-          for (size_t j = 0; j < SP; ++j) bo[j] = bbz + bcz * (bnext_e[j] * bnext_b[j]);
+          for (size_t j = 0; j < SP; ++j) bo[j] = bbz + bcz * (bnext_e[j] * MKV(mkn, j) * bnext_b[j]);
           bu = b0v * iz;
         } else {
           for (size_t j = 0; j < SP; ++j) bo[j] = 1.0f;
@@ -1471,20 +1574,24 @@ struct Estimator {
           const float* __restrict ep1 = &PE[(size_t)kp * SP];
           const float* __restrict fprev = &W.rfa[(r - 1) * SP];
           const float* __restrict fpp = r >= 2 ? &W.rfa[(r - 2) * SP] : fm1;
+          const size_t jcr = M ? jc_at(W, i0 + r) : m, jcm = M ? std::min(jcr, jc_at(W, i0 + r - 1)) : m;
+          const float* __restrict mmin = MTp + jcm * SP;
+          const float* __restrict mkr = MTp + jcr * SP;
+          const float pi = PIc[jcr];
           float s2 = 0;
           if (fpp)
-            for (size_t j = 0; j < SP; ++j) s2 += fpp[j] * (ep1[j] * e[j]);
-          const float dot = fbz * PED[kp * K + kr] + fcz * s2;
+            for (size_t j = 0; j < SP; ++j) s2 += fpp[j] * (ep1[j] * e[j]) * MKV(mmin, j);
+          const float dot = fbz * ped(kp, kr, jcm) + fcz * s2;
           const Probe& p = pr[i0 + r];
           const uint32_t d = p.pos - ppos;
           const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d);
           const float pa_sum = std::max(0.0f, 1.0f - pu);
           const float base = pu * u * pi + stay * h * pi * pa_sum, c1 = stay * (1.0f - h);
           const float fu = (pu * stay + pa_sum * u) * PEu[kr];
-          const float z = fu + base * PEs[kr] + c1 * dot;
+          const float z = fu + base * pes(kr, jcr) + c1 * dot;
           const float iz = 1.0f / z, bz = base * iz, cz = c1 * iz;
           float* __restrict fc = &W.rfa[r * SP];
-          for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fprev[j]) * e[j];
+          for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fprev[j]) * e[j] * MKV(mkr, j);
           fbz = bz;
           fcz = cz;
           W.rfu[r] = fu * iz;
@@ -1498,18 +1605,22 @@ struct Estimator {
           const float* __restrict bb = &W.rbb[r * SP];
           const float* __restrict en = r + 1 < nr ? &PE[(size_t)kind(r + 1) * SP] : bnext_e;
           const float* __restrict bn = r + 1 < nr ? &W.rbb[(r + 1) * SP] : bnext_b;
+          const size_t jcr = M ? jc_at(W, i0 + r) : m, jcx = M ? (r + 1 < nr ? jc_at(W, i0 + r + 1) : jcn) : m;
+          const float* __restrict mmin = MTp + std::min(jcr, jcx) * SP;
+          const float* __restrict mkr = MTp + jcr * SP;
+          const float pi = PIc[jcr];
           float t2 = 0;
           if (en)
-            for (size_t j = 0; j < SP; ++j) t2 += e[j] * (en[j] * bn[j]);
-          const float sw = bbz * PEs[kr] + bcz * t2;
+            for (size_t j = 0; j < SP; ++j) t2 += e[j] * (en[j] * bn[j]) * MKV(mmin, j);
+          const float sw = bbz * pes(kr, jcr) + bcz * t2;
           const float wu = PEu[kr] * bu;
           const uint32_t d = pr[i0 + r].pos - pr[i0 + r - 1].pos;
           const float stay = (float)su(d), u = 1.0f - stay, h = (float)hh(d), SW = sw * pi;
           const float base = u * wu + stay * h * SW, c1 = stay * (1.0f - h), b0v = stay * wu + u * SW;
-          const float zz = b0v + (float)m * base + c1 * sw, iz = 1.0f / zz;
+          const float zz = b0v + (float)jcr * base + c1 * sw, iz = 1.0f / zz;
           const float bz = base * iz, cz = c1 * iz;
           float* __restrict bo = &W.rbb[(r - 1) * SP];
-          for (size_t j = 0; j < SP; ++j) bo[j] = bz + cz * (e[j] * bb[j]);
+          for (size_t j = 0; j < SP; ++j) bo[j] = bz + cz * (e[j] * MKV(mkr, j) * bb[j]);
           bbz = bz;
           bcz = cz;
           bu = b0v * iz;
@@ -1521,8 +1632,11 @@ struct Estimator {
         const float* __restrict bb = &W.rbb[r * SP];
         float gu = W.rfu[r] * W.rbu[r], tot = gu;
         for (size_t j = 0; j < SP; ++j) tot += fa[j] * bb[j];
-        W.ap[i0 + r] = 1.0 - (double)gu / (double)tot;
+        W.ap[i0 + r] = tot > 0 ? 1.0 - (double)gu / (double)tot : 0.0;
       }
+      // AF boundary variance of this region (confidence interval), from the per-probe posterior
+      W.afvar += boundary_var(W, i0, i1, [&](size_t i) { return W.ap[i]; }, b0 ? W.ab[b0 - 1] : 0.0,
+                              b1 + 1 < nb ? W.ab[b1 + 1] : 0.0);
       // per-bin mean posterior for bin-level uses (heterogeneity windows)
       for (size_t q = b0; q <= b1; ++q) {
         double acc = 0;
@@ -1535,6 +1649,21 @@ struct Estimator {
   // emission vector of a bin with per-tier miss/hit counts c (B = power-table stride)
   void emission(const uint8_t* c, size_t B, float* __restrict e, float& eu_out, float& es_out) const {
     const size_t SP = SPA;
+    if (!BBa.empty()) {
+      const float* r0 = &BBa[(((size_t)0 * (B + 1) + c[1]) * (B + 1) + c[0]) * SP];
+      for (size_t j = 0; j < SP; ++j) e[j] = r0[j];
+      double eu = PHu[c[1]] * PMu[c[0]];
+      for (int t = 1; t < T; ++t) {
+        const float* rt = &BBa[(((size_t)t * (B + 1) + c[2 * t + 1]) * (B + 1) + c[2 * t]) * SP];
+        for (size_t j = 0; j < SP; ++j) e[j] *= rt[j];
+        eu *= PHu[t * (B + 1) + c[2 * t + 1]] * PMu[t * (B + 1) + c[2 * t]];
+      }
+      eu_out = (float)eu;
+      float se = 0;
+      for (size_t j = 0; j < SP; ++j) se += e[j];
+      es_out = se;
+      return;
+    }
     const float* h0 = &PHa[((size_t)0 * (B + 1) + c[1]) * SP];
     const float* m0 = &PMa[((size_t)0 * (B + 1) + c[0]) * SP];
     for (size_t j = 0; j < SP; ++j) e[j] = h0[j] * m0[j];
@@ -1572,6 +1701,75 @@ struct Estimator {
       ecS.push_back(0);
       emission(c, B, &ecE[slot * SPA], ecU[slot], ecS[slot]);
     }
+    ecC.resize(ecE.size());
+    for (size_t sl = 0; sl < ecU.size(); ++sl) {
+      float acc = 0;
+      for (size_t j = 0; j < SPA; ++j) ecC[sl * SPA + j] = (acc += ecE[sl * SPA + j]);
+    }
+  }
+
+  // Local identity prior. Uniform jumps between identity levels let an unaligned island be
+  // absorbed as "aligned at ~85%" inside a high-identity region. Identity varies smoothly
+  // along a genome except at real breakpoints, so the aligned levels allowed at a position are
+  // restricted to within ident_window of the LOCAL identity: the probe-weighted median
+  // FP-corrected containment of the aligned-looking windows (containment above the lowest
+  // level's) within +-ident_radius windows of ident_win_probes probes. Islands (containment
+  // ~0) and isolated conserved genes do not move the median; a long divergent tract sets its
+  // own local identity and stays aligned. Fills W.wj (allowed level count per window).
+  void set_local_prior(Work& W) const {
+    const size_t m = gth.size(), nb = W.bstart.size();
+    W.wprobes = 0;
+    W.wj.clear();
+    if (P.ident_window <= 0 || nb == 0) return;
+    const size_t B = (size_t)std::max(1, P.bin);
+    const size_t wbins = std::max<size_t>(1, ((size_t)P.ident_win_probes + B - 1) / B);
+    const size_t nw = (nb + wbins - 1) / wbins;
+    W.wprobes = wbins * B;
+    W.wth.assign(nw, -1.0);
+    W.wn.assign(nw, 0.0);
+    for (size_t w = 0; w < nw; ++w) {
+      double N[MAXT] = {0}, Y[MAXT] = {0}, tot = 0;
+      for (size_t bi = w * wbins; bi < std::min(nb, (w + 1) * wbins); ++bi)
+        for (int t = 0; t < T; ++t) {
+          N[t] += W.bcnt[bi * 2 * T + 2 * t] + W.bcnt[bi * 2 * T + 2 * t + 1];
+          Y[t] += W.bcnt[bi * 2 * T + 2 * t + 1];
+        }
+      for (int t = 0; t < T; ++t) tot += N[t];
+      const double th = combine(N, Y, 0.5);
+      if (th >= gth.back() && th == th) {
+        W.wth[w] = std::min(th, 1.0);
+        W.wn[w] = tot;
+      }
+    }
+    W.wj.assign(nw, (uint16_t)m);
+    const size_t R = (size_t)P.ident_radius;
+    for (size_t w = 0; w < nw; ++w) {
+      const size_t lo = (R >= nw || w < R) ? 0 : w - R, hi = (R >= nw) ? nw : std::min(nw, w + R + 1);
+      auto& v = W.wtheta;
+      v.clear();
+      double wsum = 0;
+      for (size_t q = lo; q < hi; ++q)
+        if (W.wth[q] >= 0) {
+          v.emplace_back(W.wth[q], W.wn[q]);
+          wsum += W.wn[q];
+        }
+      if (v.empty()) continue;
+      std::sort(v.begin(), v.end());
+      double acc = 0, med = v.back().first;
+      for (auto& x : v)
+        if ((acc += x.second) >= 0.5 * wsum) {
+          med = x.first;
+          break;
+        }
+      const double floor = std::pow(med, 1.0 / sk.k) - P.ident_window;
+      size_t jc = 0;
+      while (jc < m && gani[jc] >= floor) ++jc;
+      W.wj[w] = (uint16_t)std::max<size_t>(jc, std::min<size_t>(m, 2));
+    }
+  }
+  // allowed level count at probe index i (m when the prior is off)
+  inline size_t jc_at(const Work& W, size_t i) const {
+    return W.wprobes ? W.wj[std::min(W.wj.size() - 1, i / W.wprobes)] : gth.size();
   }
 
   // bins of B consecutive probes: start/last position, per-tier hit/miss counts; returns llU
@@ -1621,14 +1819,34 @@ struct Estimator {
       }
     }
     W.bfirst[nb] = (uint32_t)n;
+    if (EB > 0 && (size_t)binsz == EB) {  // fine bins: emission-cache slots (hmm reads them)
+      W.bslot.resize(nb);
+      for (size_t bi = 0; bi < nb; ++bi) W.bslot[bi] = ecix[ec_key(&W.bcnt[bi * 2 * T])];
+    }
     return llU;
   }
 
   void hmm(Work& W, double& ll, double& pm_ani, double& low_frac, bool fine = false) const {
+    if (W.wprobes)
+      hmm_t<true>(W, ll, pm_ani, low_frac, fine);
+    else
+      hmm_t<false>(W, ll, pm_ani, low_frac, fine);
+  }
+  // M: local identity prior active (per-bin level masks); M = false compiles the masks away
+  template <bool M>
+  void hmm_t(Work& W, double& ll, double& pm_ani, double& low_frac, bool fine) const {
     const size_t m = gth.size(), SP = SPA;
     const size_t B = (size_t)std::max(1, std::max(P.bin, P.bin_het));  // power-table stride
     const size_t nb = W.bstart.size();
-    const float pi = 1.0f / (float)m;
+    // local identity prior: allowed aligned levels per bin (all m when off); jumps are uniform
+    // over the levels allowed at the destination bin
+    W.bjc.resize(nb);
+    if (M)
+      for (size_t bi = 0; bi < nb; ++bi) W.bjc[bi] = (uint16_t)jc_at(W, W.bfirst[bi]);
+    else
+      std::fill(W.bjc.begin(), W.bjc.end(), (uint16_t)m);
+    const uint16_t* JC = W.bjc.data();
+    const float* MTp = MT.data();
     // emissions: fine bins (no refinement follows) take vectors from the cache, others are
     // computed into Ef (which refine() reads)
     W.ep.resize(nb);
@@ -1639,13 +1857,18 @@ struct Estimator {
     for (size_t bi = 0; bi < nb; ++bi) {
       const uint8_t* c = &W.bcnt[bi * 2 * T];
       if (cached) {
-        const int32_t slot = ecix[ec_key(c)];
+        const int32_t slot = W.bslot[bi];
         W.ep[bi] = &ecE[(size_t)slot * SP];
         W.Eu[bi] = ecU[slot];
-        W.Es[bi] = ecS[slot];
+        W.Es[bi] = (M && JC[bi] < m) ? ecC[(size_t)slot * SP + JC[bi] - 1] : ecS[slot];
       } else {
         emission(c, B, &W.Ef[bi * SP], W.Eu[bi], W.Es[bi]);
         W.ep[bi] = &W.Ef[bi * SP];
+        if (M && JC[bi] < m) {
+          float sm = 0;
+          for (size_t j = 0; j < JC[bi]; ++j) sm += W.Ef[bi * SP + j];
+          W.Es[bi] = sm;
+        }
       }
     }
     const float* const* EP = W.ep.data();
@@ -1668,12 +1891,14 @@ struct Estimator {
     float fbz, fcz;  // forward: F[b-1] = (fbz + fcz F[b-2]) e[b-1]
     {
       const float* e = EP[0];
+      const float* mk0 = MTp + (size_t)JC[0] * SP;
+      const float pi = M ? PIc[JC[0]] : PIc[m];
       float* f = &W.Ff[0];
       const float fu = 0.5f * W.Eu[0], z = fu + 0.5f * pi * W.Es[0];
       const float iz = 1.0f / z;
       fbz = 0.5f * pi * iz;
       fcz = 0.0f;
-      for (size_t j = 0; j < SP; ++j) f[j] = fbz * e[j];
+      for (size_t j = 0; j < SP; ++j) f[j] = fbz * e[j] * MKV(mk0, j);
       W.Fu[0] = fu * iz;
       ll += std::log((double)z);
     }
@@ -1687,16 +1912,19 @@ struct Estimator {
         float* __restrict fc = &W.Ff[bi * SP];
         const float* __restrict e = EP[bi];
         const float* __restrict e1 = EP[bi - 1];
+        const float* __restrict mkb = MTp + (size_t)JC[bi] * SP;
+        const float* __restrict mmin = MTp + (size_t)std::min(JC[bi], JC[bi - 1]) * SP;
+        const float pi = M ? PIc[JC[bi]] : PIc[m];
         float s1 = 0, s2 = 0;
         if (bi >= 2) {
           const float* __restrict fpp = &W.Ff[(bi - 2) * SP];
           for (size_t j = 0; j < SP; ++j) {
-            const float ee = e1[j] * e[j];
+            const float ee = e1[j] * e[j] * MKV(mmin, j);
             s1 += ee;
             s2 += fpp[j] * ee;
           }
         } else {
-          for (size_t j = 0; j < SP; ++j) s1 += e1[j] * e[j];
+          for (size_t j = 0; j < SP; ++j) s1 += e1[j] * e[j] * MKV(mmin, j);
         }
         const float dot = fbz * s1 + fcz * s2;
         const float fpu = W.Fu[bi - 1];
@@ -1706,7 +1934,7 @@ struct Estimator {
         const float fu = (fpu * stay + SA * u) * W.Eu[bi];
         const float z = fu + base * W.Es[bi] + c1 * dot;
         const float iz = 1.0f / z, bz = base * iz, cz = c1 * iz;
-        for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fp[j]) * e[j];
+        for (size_t j = 0; j < SP; ++j) fc[j] = (bz + cz * fp[j]) * e[j] * MKV(mkb, j);
         fbz = bz;
         fcz = cz;
         W.Fu[bi] = fu * iz;
@@ -1724,11 +1952,15 @@ struct Estimator {
         const float* __restrict e = EP[bi];
         const float* __restrict bb = &W.Bb[bi * SP];
         float* __restrict bo = &W.Bb[(bi - 1) * SP];
+        const float* __restrict mkb = MTp + (size_t)JC[bi] * SP;
+        const float pi = M ? PIc[JC[bi]] : PIc[m];
+        const float mcb = M ? (float)JC[bi] : (float)m;
         float t2 = 0;
         if (bi + 1 < nb) {
           const float* __restrict e1 = EP[bi + 1];
           const float* __restrict bn = &W.Bb[(bi + 1) * SP];
-          for (size_t j = 0; j < SP; ++j) t2 += e[j] * e1[j] * bn[j];
+          const float* __restrict mmin = MTp + (size_t)std::min(JC[bi], JC[bi + 1]) * SP;
+          for (size_t j = 0; j < SP; ++j) t2 += e[j] * e1[j] * bn[j] * MKV(mmin, j);
         }
         const float sw = bbz * W.Es[bi] + bcz * t2;
         const float wu = W.Eu[bi] * bu;
@@ -1736,9 +1968,9 @@ struct Estimator {
         const float base = u * wu + stay * h * SW;
         const float c1 = stay * (1.0f - h);
         const float b0 = stay * wu + u * SW;
-        const float zz = b0 + (float)m * base + c1 * sw;  // any positive scale works
+        const float zz = b0 + mcb * base + c1 * sw;  // any positive scale works
         const float iz = 1.0f / zz, bz = base * iz, cz = c1 * iz;
-        for (size_t j = 0; j < SP; ++j) bo[j] = bz + cz * (e[j] * bb[j]);
+        for (size_t j = 0; j < SP; ++j) bo[j] = bz + cz * (e[j] * MKV(mkb, j) * bb[j]);
         bbz = bz;
         bcz = cz;
         bu = b0 * iz;
@@ -1756,9 +1988,13 @@ struct Estimator {
         num += g * gaf[j];
       }
       for (size_t j = m - nlow; j < m; ++j) lw += fa[j] * ba[j];
+      if (!(tot > 0)) {  // degenerate (underflow): treat the bin as unaligned
+        W.ab[bi] = 0;
+        return;
+      }
       double it = 1.0 / (double)tot, al = 1.0 - (double)pu * it;
       double cnt = (double)(W.bfirst[bi + 1] - W.bfirst[bi]);
-      W.ab[bi] = al;
+      if (!fine) W.ab[bi] = al;  // per-bin posteriors are not used after the fine re-run
       pm_num += cnt * (double)num * it;
       pm_den += cnt * al;
       low += cnt * (double)lw * it;
@@ -1790,7 +2026,9 @@ struct Estimator {
         for (size_t j = 0; j < SP; ++j) acc[j] += ch * lh[j] + cm * lm[j];
       }
       float best = -1e30f;
-      for (size_t j = 0; j < SP; ++j) best = std::max(best, acc[j]);
+      size_t jc = 0;
+      for (size_t bi = lo; bi < hi; ++bi) jc = std::max(jc, jc_at(W, W.bfirst[bi]));
+      for (size_t j = 0; j < std::min(jc, SP); ++j) best = std::max(best, acc[j]);
       if (best < (float)P.fast_llr) return false;
       llr_out += best;
       if (hi == nb) break;
@@ -1798,9 +2036,179 @@ struct Estimator {
     return true;
   }
 
+  // ---- confidence intervals
+  static constexpr double CI_ANI_FLOOR = 5e-4, CI_AF_FLOOR = 1e-2;  // SE floors: 0.05 pp ANI, 1 pp (+1/L) AF
+  static constexpr int CI_NSTRATA = 24, CI_NLEVELS = 3;  // 4 identity x 3 length x 2 AF classes; 90/95/99%
+  std::vector<double> ci_tab;  // [level][stratum][ani, af] conformal multipliers
+  static int ci_stratum(double ani, double af, size_t L) {
+    const int ia = ani >= 0.99 ? 0 : ani >= 0.97 ? 1 : ani >= 0.93 ? 2 : 3;
+    const int il = L < 1000 ? 0 : L < 3000 ? 1 : 2;
+    const int ic = af >= 0.999 ? 0 : 1;
+    return (ia * 3 + il) * 2 + ic;
+  }
+  static int ci_level_index(double lv) { return lv < 0.925 ? 0 : lv < 0.97 ? 1 : 2; }
+  void load_ci_table() {
+    ci_tab.assign((size_t)CI_NLEVELS * CI_NSTRATA * 2, 0.0);
+    if (!P.ci_table.empty()) {
+      FILE* f = fopen(P.ci_table.c_str(), "r");
+      if (!f) throw std::runtime_error("cannot open " + P.ci_table);
+      int lv, st;
+      double qa, qf;
+      char line[256];
+      while (fgets(line, sizeof line, f))
+        if (sscanf(line, "%d %d %lf %lf", &lv, &st, &qa, &qf) == 4 && lv >= 0 && lv < CI_NLEVELS && st >= 0 && st < CI_NSTRATA) {
+          ci_tab[((size_t)lv * CI_NSTRATA + st) * 2] = qa;
+          ci_tab[((size_t)lv * CI_NSTRATA + st) * 2 + 1] = qf;
+        }
+      fclose(f);
+      return;
+    }
+    for (int lv = 0; lv < CI_NLEVELS; ++lv)
+      for (int st = 0; st < CI_NSTRATA; ++st) {
+        ci_tab[((size_t)lv * CI_NSTRATA + st) * 2] = CI_DEFAULT[lv][st][0];
+        ci_tab[((size_t)lv * CI_NSTRATA + st) * 2 + 1] = CI_DEFAULT[lv][st][1];
+      }
+  }
+  // z quantile of the two-sided level (Acklam's rational approximation of the normal quantile)
+  static double zq(double level) {
+    const double p = 0.5 + 0.5 * level, q = std::sqrt(-2 * std::log(1 - p));
+    return q - (2.515517 + 0.802853 * q + 0.010328 * q * q) / (1 + 1.432788 * q + 0.189269 * q * q + 0.001308 * q * q * q);
+  }
+  // Calibrated intervals (stratified split-conformal): half-width = q * sigma, where sigma is
+  // the statistical SE with a small floor and q is the conformal quantile of |error| / sigma
+  // in the contig's stratum (estimated identity x length x fully/partially aligned), fitted on
+  // the real tuning set against MUMmer truth (bench_real/calibration.py). The ANI statistical
+  // SE is set aside in R.ani_se until both estimates are final (finish_ci).
+  void set_ani_ci(Result& R, double se_stat) const { R.ani_se = se_stat; }
+  void finish_ci(Result& R, size_t L) const {
+    const double sa = std::sqrt(R.ani_se * R.ani_se + CI_ANI_FLOOR * CI_ANI_FLOOR);
+    const double sf = std::sqrt(R.af_se * R.af_se + std::pow(1.0 / (double)std::max<size_t>(L, 1) + CI_AF_FLOOR, 2));
+    double qa, qf;
+    if (P.ci_stat || ci_tab.empty()) {
+      qa = qf = zq(P.ci_level);
+    } else {
+      const int st = ci_stratum(R.ani, R.af, L), lv = ci_level_index(P.ci_level);
+      qa = ci_tab[((size_t)lv * CI_NSTRATA + st) * 2 + 0];
+      qf = ci_tab[((size_t)lv * CI_NSTRATA + st) * 2 + 1];
+    }
+    const double z = zq(0.95);
+    R.ani_lo = std::max(0.0, R.ani - qa * sa);
+    R.ani_hi = std::min(1.0, R.ani + qa * sa);
+    R.af_lo = std::max(0.0, R.af - qf * sf);
+    R.af_hi = std::min(1.0, R.af + qf * sf);
+    R.ani_se = std::min(0.5, qa * sa / z);  // reported as the equivalent normal SE of the interval
+    R.af_se = std::min(0.5, qf * sf / z);
+  }
+  // Theorem 1, conditioned on the contig's realised substitutions: probe-level variance of the
+  // FP-corrected containment (FMH sampling + false positives) plus the mutation-process term
+  // minus the part explained by the realised substitution count, k^2 theta^2 p / ((1-p) n).
+  void ani_ci_pooled(Result& R, Work& W, double th, double var, double nk) const {
+    const int k = sk.k;
+    th = std::min(std::max(th, 1e-9), 1.0);
+    const double p = std::max(1e-9, 1 - std::pow(th, 1.0 / k));
+    const double cond = std::max(0.0, Bcoef(p, k) - (double)k * k * th * p / (1 - p));
+    const double vth = var + (nk > 0 ? th * cond / nk : 0);
+    W.se_pooled = R.ani * std::sqrt(vth) / (th * k);
+    set_ani_ci(R, W.se_pooled);
+  }
+  // heterogeneous contigs: the posterior-mean ANI's error is dominated by the spread of local
+  // identity, estimated from the heterogeneity-test windows (cluster-robust)
+  void ani_ci_het(Result& R, const Work& W) const {
+    double sw = 0, s1 = 0, s2 = 0, sw2 = 0;
+    for (auto& x : W.hw) {
+      const double a = std::pow(std::min(std::max(x.first, 1e-9), 1.0), 1.0 / sk.k);
+      sw += x.second;
+      s1 += x.second * a;
+      s2 += x.second * a * a;
+      sw2 += x.second * x.second;
+    }
+    double se = W.se_pooled;
+    if (W.hw.size() >= 2 && sw > 0) {
+      const double mu = s1 / sw, var = std::max(0.0, s2 / sw - mu * mu), neff = sw * sw / sw2;
+      se = std::max(se, std::sqrt(var / std::max(1.0, neff - 1)));
+    }
+    set_ani_ci(R, se);
+  }
+  // AF: the aligned length is uncertain only where the per-probe aligned posterior is
+  // intermediate. Each such region is one alignment boundary whose position has survival
+  // function a(x) (aligned on the left) or 1 - a(x); a region with the same state on both
+  // sides is split at its extremum into two boundaries. Var(AF) = sum of boundary variances / L^2.
+  // Variance (bp^2) of the aligned length contributed by uncertain probes in [p0, p1): each run
+  // of probes with intermediate aligned posterior is one alignment boundary whose position has
+  // survival a(x) (aligned on the left) or 1 - a(x); a run with the same state on both sides is
+  // split at its extremum into two boundaries. aleft/aright: posterior just outside the range.
+  template <class Post>
+  double boundary_var(const Work& W, size_t p0, size_t p1, Post post, double aleft, double aright) const {
+    const std::vector<Probe>& pr = W.pr;
+    const size_t n = pr.size();
+    const double lo = 0.02, hi = 0.98;
+    std::vector<double>& xs = const_cast<Work&>(W).cxs;
+    std::vector<double>& as = const_cast<Work&>(W).cas;
+    auto bvar = [&](size_t s0, size_t e, bool down) {
+      double m1 = 0, m2 = 0;
+      for (size_t q = s0 + 1; q <= e; ++q) {
+        const double dx = xs[q] - xs[q - 1];
+        const double S0 = down ? as[q - 1] : 1 - as[q - 1], S1 = down ? as[q] : 1 - as[q];
+        const double xm = 0.5 * (xs[q] + xs[q - 1]) - xs[s0];
+        m1 += 0.5 * (S0 + S1) * dx;
+        m2 += (S0 + S1) * xm * dx;
+      }
+      return std::max(0.0, m2 - m1 * m1);
+    };
+    double var = 0, prev = aleft;
+    for (size_t i = p0; i < p1;) {
+      const double a = post(i);
+      if (a <= lo || a >= hi) {
+        prev = a;
+        ++i;
+        continue;
+      }
+      xs.clear();
+      as.clear();
+      xs.push_back(i ? (double)pr[i - 1].pos : (double)pr[i].pos);
+      as.push_back(prev >= 0.5 ? 1.0 : 0.0);
+      while (i < p1) {
+        const double ai = post(i);
+        if (ai <= lo || ai >= hi) break;
+        xs.push_back((double)pr[i].pos);
+        as.push_back(ai);
+        ++i;
+      }
+      const double ar = i < p1 ? post(i) : aright;
+      xs.push_back(i < n ? (double)pr[std::min(i, n - 1)].pos : (double)pr[n - 1].pos);
+      as.push_back(ar >= 0.5 ? 1.0 : 0.0);
+      const size_t e = xs.size() - 1;
+      const bool lA = as.front() >= 0.5, rA = as.back() >= 0.5;
+      if (lA != rA) {
+        var += bvar(0, e, lA);
+      } else {
+        size_t ext = 1;
+        for (size_t q = 1; q < e; ++q)
+          if (lA ? as[q] < as[ext] : as[q] > as[ext]) ext = q;
+        var += bvar(0, ext, lA) + bvar(ext, e, !lA);
+      }
+      prev = ar;
+    }
+    return var;
+  }
+
+  void af_ci(Result& R, const Work& W, size_t L) const {
+    double var = W.afvar;  // refined regions (refine() accumulates it); fast path: 0
+    if (!P.refine && !W.refined.empty() && !W.pr.empty()) {  // no refinement: bin-level posteriors
+      const size_t nb = W.bstart.size();
+      size_t b = 0;
+      var = boundary_var(W, 0, W.pr.size(), [&](size_t i) {
+        while (b + 1 < nb && W.bfirst[b + 1] <= i) ++b;
+        return W.ab[b];
+      }, 0.0, 0.0);
+    }
+    R.af_se = L > 0 ? std::sqrt(var) / (double)L : 0;  // statistical SE; finish_ci calibrates
+  }
+
   Result estimate(std::string_view seq, Work& W) const {
     Result R;
     const int k = sk.k;
+    W.afvar = 0;
     PSTART;
     probe(seq, W);
     PSTAMP(0);
@@ -1812,6 +2220,7 @@ struct Estimator {
       return R;
     }
     const double llU = make_bins(W, R.hits, P.bin);
+    set_local_prior(W);
     PSTAMP(1);
     const size_t nb = W.bstart.size();
     double ll = 0, pm_ani = NAN, low_frac = 0, fast_lr = 0;
@@ -1827,7 +2236,10 @@ struct Estimator {
       else W.refined.assign(nb, 0);
       PSTAMP(3);
     }
-    if (fast) W.refined.assign(nb, 0);
+    if (fast) {
+      W.refined.assign(nb, 0);
+      W.afvar = 0;
+    }
     if (R.lr < P.lr_min) {
       R.status = "no_homology";
       return R;
@@ -1884,8 +2296,15 @@ struct Estimator {
     }
     const double ani_pooled = ani_from_theta(th, var, nk_aligned);
     R.ani = ani_pooled;
+
     PSTAMP(4);
-    if (P.het_mode == 0 || P.window <= 0) return R;
+    if (P.het_mode == 0 || P.window <= 0) {
+      finish_ci(R, seq.size());
+      return R;
+    }
+    ani_ci_pooled(R, W, th, var, nk_aligned);
+    af_ci(R, W, seq.size());
+    W.hw.clear();
     // pass 2: heterogeneity test over windows (whole bins) of confidently aligned bins
     const double bproc = std::max(th, 1e-6) * Bcoef(1 - ani_pooled, k);
     double Q = 0;
@@ -1914,6 +2333,7 @@ struct Estimator {
       if (len > 100 && ne >= 10) {
         Q += (tw - th) * (tw - th) / std::max(v + bproc / len, 1e-12);
         ++nw;
+        W.hw.emplace_back(tw, len);
       }
       i = j;
     }
@@ -1938,8 +2358,10 @@ struct Estimator {
     if (het && pm_ani == pm_ani) {
       R.het = true;
       R.ani = pm_ani;
+      ani_ci_het(R, W);
     }
     if (R.low_frac > P.floor_frac) R.status = "below_floor";
+    finish_ci(R, seq.size());
     PSTAMP(6);
     return R;
   }
@@ -1971,15 +2393,19 @@ void usage() {
           "aif query <ref.aif> <contigs.fa> [-t threads] [--bin 32] [--bin-het 8] [--het-fine-max N (off)] [--fast-win 32] [--fast-llr 10] [--rho-u 3e-6] [--rho-h 1e-4] [--ident-c 8]\n"
           "          [--lr-min 10] [--het 0|1|2 (1)] [--window 1000] [--het-z 3] [--grid-step 0.005]\n"
           "          [--floor-frac 2] [--no-bias-correct]\n"
-          "output: contig ani af theta probes hits aligned_probes status lr het low_frac\n"
+          "          intervals: [--ci-level 0.95 (0.90/0.95/0.99)] [--ci-stat (statistical SE only)] [--ci-table FILE]\n"
+          "          AF model options: [--ident-window D (0: off) --ident-radius 3] (local identity prior)\n"
+          "                            [--overdisp L (0: off)] (overdispersed bin emissions, experimental)\n"
+          "output: contig ani af theta probes hits aligned_probes status lr het low_frac ani_lo ani_hi af_lo af_hi ani_se af_se\n"
           "aif info <ref.aif>\n");
   exit(1);
 }
 
 void format_result(std::string& out, const std::string& name, const Result& r) {
   char buf[512];
-  int n = snprintf(buf, sizeof buf, "\t%.6f\t%.6f\t%.6f\t%zu\t%zu\t%.1f\t%s\t%.1f\t%d\t%.3f\n", r.ani, r.af, r.theta,
-                   r.probes, r.hits, r.aligned_probes, r.status, r.lr, (int)r.het, r.low_frac);
+  int n = snprintf(buf, sizeof buf, "\t%.6f\t%.6f\t%.6f\t%zu\t%zu\t%.1f\t%s\t%.1f\t%d\t%.3f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n",
+                   r.ani, r.af, r.theta, r.probes, r.hits, r.aligned_probes, r.status, r.lr, (int)r.het, r.low_frac,
+                   r.ani_lo, r.ani_hi, r.af_lo, r.af_hi, r.ani_se, r.af_se);
   out.append(name);
   out.append(buf, (size_t)n);
 }
@@ -2007,6 +2433,13 @@ int cmd_query(int argc, char** argv) {
     else if (a == "--het-z") P.het_z = atof(argv[++i]);
     else if (a == "--lr-min") P.lr_min = atof(argv[++i]);
     else if (a == "--ident-c") P.ident_c = atof(argv[++i]);
+    else if (a == "--ident-window") P.ident_window = atof(argv[++i]);
+    else if (a == "--ident-win-probes") P.ident_win_probes = std::max(8, atoi(argv[++i]));
+    else if (a == "--ident-radius") P.ident_radius = std::max(0, atoi(argv[++i]));
+    else if (a == "--overdisp") P.overdisp = std::max(0.0, atof(argv[++i]));
+    else if (a == "--ci-level") P.ci_level = std::min(0.9999, std::max(0.5, atof(argv[++i])));
+    else if (a == "--ci-stat") P.ci_stat = true;
+    else if (a == "--ci-table") P.ci_table = argv[++i];
     else if (a == "--grid-step") P.grid_step = atof(argv[++i]);
     else if (a == "--floor-frac") P.floor_frac = atof(argv[++i]);
     else if (a == "--no-bias-correct") P.bias_correct = false;
@@ -2017,7 +2450,8 @@ int cmd_query(int argc, char** argv) {
   _mm_setcsr(_mm_getcsr() | 0x8040);  // flush-to-zero / denormals-are-zero
 #endif
   Fasta fa(argv[3]);
-  fputs("contig\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\n", stdout);
+  fputs("contig\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\tani_lo\tani_hi\taf_lo\taf_hi\tani_se\taf_se\n",
+        stdout);
   std::string out;
   if (threads == 1) {
     Work W;

@@ -1,0 +1,14 @@
+setting	options	real_ani_mae	real_af_mae	genome_ani_mae	sim_ani_mae	sim_af_mae
+default		0.4859	2.6190	0.1642	0.4982	0.7933
+switching rate 1e-5	--rho-u 1e-5	0.4711	2.0597	0.1975	0.5145	1.2111
+switching rate 2e-5 (aif-RT)	--rho-u 2e-5	0.4800	1.7842	0.2289	0.5251	1.5181
+switching rate 3e-5	--rho-u 3e-5	0.4906	1.6639	0.2526	0.5313	1.7553
+contig window 0.06	--ident-window 0.06 --ident-radius 10000	0.5000	2.0768	0.2759	0.5184	0.7817
+contig window 0.08	--ident-window 0.08 --ident-radius 10000	0.4783	2.2540	0.2266	0.4960	0.7223
+contig window 0.10	--ident-window 0.10 --ident-radius 10000	0.4714	2.4345	0.1882	0.4923	0.7407
+local prior 0.08, R=1	--ident-window 0.08 --ident-radius 1	0.4751	2.3541	0.2002	0.4944	0.7269
+local prior 0.08, R=3	--ident-window 0.08 --ident-radius 3	0.4737	2.2799	0.2159	0.4950	0.7184
+local prior 0.10, R=1	--ident-window 0.10 --ident-radius 1	0.4760	2.5132	0.1740	0.4916	0.7462
+local prior 0.10, R=3	--ident-window 0.10 --ident-radius 3	0.4705	2.4574	0.1817	0.4918	0.7370
+overdispersion 1	--overdisp 1	0.5138	2.7779	0.1914	0.4755	0.6411
+overdispersion 1, rate 1e-5	--overdisp 1 --rho-u 1e-5	0.4946	2.2081	0.2260	0.5045	1.3123

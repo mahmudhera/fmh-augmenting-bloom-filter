@@ -1,0 +1,22 @@
+.TS
+center box tab(@);
+l c s c c s
+^ c c c c c
+l n n n n n.
+setting (tuning sets)@real contigs@real genomes@simulated
+@ANI MAE@AF MAE@ANI MAE@ANI MAE@AF MAE
+_
+default@0.486@2.62@0.164@0.498@0.79
+switching rate 1e-5@0.471@2.06@0.198@0.514@1.21
+switching rate 2e-5 (aif-RT)@0.480@1.78@0.229@0.525@1.52
+switching rate 3e-5@0.491@1.66@0.253@0.531@1.76
+contig window 0.06@0.500@2.08@0.276@0.518@0.78
+contig window 0.08@0.478@2.25@0.227@0.496@0.72
+contig window 0.10@0.471@2.43@0.188@0.492@0.74
+local prior 0.08, R=1@0.475@2.35@0.200@0.494@0.73
+local prior 0.08, R=3@0.474@2.28@0.216@0.495@0.72
+local prior 0.10, R=1@0.476@2.51@0.174@0.492@0.75
+local prior 0.10, R=3@0.470@2.46@0.182@0.492@0.74
+overdispersion 1@0.514@2.78@0.191@0.475@0.64
+overdispersion 1, rate 1e-5@0.495@2.21@0.226@0.504@1.31
+.TE

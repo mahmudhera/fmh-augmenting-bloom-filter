@@ -100,6 +100,7 @@ def main():
         tools["aif_agg"] = aggregate("aif", s)
         tools["aif_rt_agg"] = aggregate("aif_rt", s)
         tools["aif_fast_agg"] = aggregate("aif_fast", s)
+        tools["aif_lp_agg"] = aggregate("aif_lp", s)
         tools["skani_qi_agg"] = aggregate("skani", s)
         tools["skani_slow_qi_agg"] = aggregate("skani_slow", s)
         for g in gs:
@@ -116,7 +117,7 @@ def main():
         fh.write("\t".join(keys) + "\n")
         for r in rows:
             fh.write("\t".join(f"{r[k]:.5f}" if isinstance(r[k], float) else str(r[k]) for k in keys) + "\n")
-    tl = ["skani", "skani_slow", "fastANI", "skani_qi_agg", "skani_slow_qi_agg", "aif_agg", "aif_rt_agg", "aif_fast_agg"]
+    tl = ["skani", "skani_slow", "fastANI", "skani_qi_agg", "skani_slow_qi_agg", "aif_agg", "aif_rt_agg", "aif_fast_agg", "aif_lp_agg"]
     summ = {}
     for s in SETS + ["all"]:
         rr = [r for r in rows if s == "all" or r["set"] == s]

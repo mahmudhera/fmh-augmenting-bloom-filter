@@ -468,6 +468,142 @@ def main():
     fig.savefig(os.path.join(FIG, "fig_scaling.eps"))
     plt.close(fig)
 
+    # ================= v1.4: confidence intervals =================
+    CAL = json.load(open(os.path.join(R, "results", "calibration.json")))
+    lvls = ["0.9", "0.95", "0.99"]
+    DSN = {"real_tune": "real, tuning (fit)", "real_eval": "real, held out", "sim_main": "simulated main", "sim_fresh": "simulated fresh"}
+    rows = []
+    for tag in ["real_tune", "real_eval", "sim_main", "sim_fresh"]:
+        for mode, lab in (("stat", "statistical"), ("calibrated", "calibrated")):
+            r = [DSN[tag], lab]
+            r += [f"{CAL[mode][l][tag]['ani'] * 100:.1f}" for l in lvls]
+            r += [f"{CAL[mode][l][tag]['af'] * 100:.1f}" for l in lvls]
+            r += [f"{CAL[mode]['0.95'][tag]['halfwidth_ani_med']:.2f}", f"{CAL[mode]['0.95'][tag]['halfwidth_af_med']:.2f}"]
+            rows.append(r)
+        if tag != "sim_fresh":
+            rows.append("_")
+    tbl("tab_ci.tbl", ["l l c s s c s s c s", "^ ^ c c c c c c c c"], "l l n n n n n n n n",
+        [["data", "intervals", "ANI coverage (%)", "", "", "AF coverage (%)", "", "", "median half-width", ""],
+         ["", "", "90%", "95%", "99%", "90%", "95%", "99%", "ANI (pp)", "AF (pp)"]], rows)
+    for tag in ["real_eval", "sim_main"]:
+        for mode in ("stat", "calibrated"):
+            for l in lvls:
+                nums[f"ci_{mode}_{tag}_{l}_ani"] = CAL[mode][l][tag]["ani"]
+                nums[f"ci_{mode}_{tag}_{l}_af"] = CAL[mode][l][tag]["af"]
+            nums[f"ci_{mode}_{tag}_hw_ani"] = CAL[mode]["0.95"][tag]["halfwidth_ani_med"]
+            nums[f"ci_{mode}_{tag}_hw_af"] = CAL[mode]["0.95"][tag]["halfwidth_af_med"]
+    # statistical coverage by simulated condition family
+    grp = CAL["stat"]["0.95"]["sim_main"]["groups"]
+    fam = OrderedDict([("substitutions only, AF = 1", lambda c: c.startswith(("len", "ani"))),
+                       ("partial AF", lambda c: c.startswith("af")),
+                       ("indels", lambda c: c.startswith("indel")),
+                       ("rate heterogeneity", lambda c: c.startswith("het")),
+                       ("chimeras", lambda c: c.startswith("chimera"))])
+    rows = []
+    for name, sel in fam.items():
+        cs = [g for c, g in grp.items() if sel(c)]
+        na = sum(g["n_ani"] for g in cs)
+        nf = sum(g["n_af"] for g in cs)
+        ca = sum(g["ani"] * g["n_ani"] for g in cs) / max(1, na)
+        cf = sum(g["af"] * g["n_af"] for g in cs) / max(1, nf)
+        rows.append([name, str(len(cs)), f"{na:,}", f"{ca * 100:.1f}", f"{cf * 100:.1f}"])
+        nums[f"ci_simfam_{name.split()[0]}_ani"] = ca
+        nums[f"ci_simfam_{name.split()[0]}_af"] = cf
+    tbl("tab_ci_sim.tbl", ["l c c c c"], "l n n n n",
+        [["simulated conditions (main)", "conditions", "contigs", "ANI coverage (%)", "AF coverage (%)"]], rows)
+    # calibrated, per stratum (held-out real)
+    st = CAL["calibrated"]["0.95"]["real_eval"]["strata"]
+    IDL = ["\\(>= 99%", "97\\(en99%", "93\\(en97%", "< 93%"]
+    LNL = ["< 1 kb", "1\\(en3 kb", "\\(>= 3 kb"]
+    rows = []
+    for k in sorted(st, key=lambda x: int(x)):
+        v = st[k]
+        if v["n_af"] < 100:
+            continue
+        ia, rest = divmod(int(k), 6)
+        il, ic = divmod(rest, 2)
+        rows.append([IDL[ia], LNL[il], "full" if ic == 0 else "partial", f"{v['n_af']:,}", f"{v['ani'] * 100:.1f}",
+                     f"{v['af'] * 100:.1f}", f"{v['hw_ani']:.2f}", f"{v['hw_af']:.2f}"])
+    tbl("tab_ci_strata.tbl", ["l l l c c c c c"], "l l l n n n n n",
+        [["identity", "length", "AF", "contigs", "ANI cov. (%)", "AF cov. (%)", "ANI half-w. (pp)", "AF half-w. (pp)"]], rows)
+    # calibration figure
+    fig, axes = plt.subplots(1, 2, figsize=(6.6, 2.6))
+    xs = [90, 95, 99]
+    series = [("calibrated, real held out", "calibrated", "real_eval", COL["aif"], "s", "-"),
+              ("statistical, real held out", "stat", "real_eval", COL["skani"], "o", "--"),
+              ("statistical, simulated main", "stat", "sim_main", COL["aif_rt"], "^", "-")]
+    for ax, key, title in ((axes[0], "ani", "ANI intervals"), (axes[1], "af", "AF intervals")):
+        ax.plot([88, 100], [88, 100], color=GRID, lw=1)
+        ax.set_xlim(88, 100)
+        for lab, mode, tag, col, mk, ls in series:
+            ax.plot(xs, [CAL[mode][l][tag][key] * 100 for l in lvls], ls + mk, color=col, lw=1.6, ms=5, label=lab)
+        ax.set_xticks(xs)
+        ax.set_xlabel("nominal coverage (%)", fontsize=7.5)
+        ax.set_title(title, fontsize=8, color=INK)
+        ax.grid(True, color=GRID, lw=0.4)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_ylabel("empirical coverage (%)", fontsize=7.5)
+    axes[0].set_ylim(60, 101)
+    axes[1].set_ylim(60, 101)
+    axes[1].legend(frameon=False, fontsize=6.5, loc="lower right")
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG, "fig_calibration.eps"))
+    plt.close(fig)
+
+    # ================= v1.4: AF model grid and options =================
+    grid = tsv(os.path.join(R, "results", "af_model_grid.tsv"))
+    rows = []
+    for g in grid:
+        rows.append([g["setting"], f(float(g["real_ani_mae"]), 3), f(float(g["real_af_mae"]), 2), f(float(g["genome_ani_mae"]), 3),
+                     f(float(g["sim_ani_mae"]), 3), f(float(g["sim_af_mae"]), 2)])
+    tbl("tab_afgrid.tbl", ["l c s c c s", "^ c c c c c"], "l n n n n n",
+        [["setting (tuning sets)", "real contigs", "", "real genomes", "simulated", ""],
+         ["", "ANI MAE", "AF MAE", "ANI MAE", "ANI MAE", "AF MAE"]], rows)
+    SIMO = json.load(open(os.path.join(R, "results", "afopt_sim.json")))
+    rows = []
+    for k, lab in (("aif", "default"), ("aif_rt", "aif-RT (--rho-u 2e-5)"), ("aif_lp", "local prior (0.08, R = 3)")):
+        gk = {"aif": "aif_agg", "aif_rt": "aif_rt_agg", "aif_lp": "aif_lp_agg"}[k]
+        sk_ = {"aif": "default", "aif_rt": "aif_rt", "aif_lp": "aif_lp"}[k]
+        rows.append([lab, f(M[k]["ani_mae"], 3), f(M[k]["af_mae"], 2), f(G["all"][gk]["ani_mae"], 3), f(G["all"][gk]["af_mae"], 2),
+                     f(SIMO["bench"][sk_]["ani_macro"], 3), f(SIMO["bench"][sk_]["af_macro"], 2)])
+        nums[f"afopt_{k}"] = (M[k]["ani_mae"], M[k]["af_mae"], G["all"][gk]["ani_mae"], G["all"][gk]["af_mae"],
+                              SIMO["bench"][sk_]["ani_macro"], SIMO["bench"][sk_]["af_macro"])
+    tbl("tab_afopt.tbl", ["l c s c s c s", "^ c c c c c c"], "l n n n n n n",
+        [["held-out evaluation", "real contigs (macro)", "", "real genomes (224)", "", "simulated main", ""],
+         ["", "ANI MAE", "AF MAE", "ANI MAE", "AF MAE", "ANI MAE", "AF MAE"]], rows)
+    # trade-off figure
+    fam_style = [("default", INK, "*", True), ("switching rate", COL["skani"], "o", True), ("contig window", COL["aif"], "s", False),
+                 ("local prior", COL["aif"], "s", True), ("overdispersion", COL["aif_rt"], "^", True)]
+    short = {"default": "default", "switching rate 1e-5": "1e-5", "switching rate 2e-5 (aif-RT)": "2e-5 (RT)",
+             "switching rate 3e-5": "3e-5", "contig window 0.06": "W6", "contig window 0.08": "W8", "contig window 0.10": "W10",
+             "local prior 0.08, R=1": "L8/1", "local prior 0.08, R=3": "L8/3", "local prior 0.10, R=1": "L10/1",
+             "local prior 0.10, R=3": "L10/3", "overdispersion 1": "od", "overdispersion 1, rate 1e-5": "od+1e-5"}
+    right_labels = {"default", "switching rate 1e-5", "switching rate 2e-5 (aif-RT)", "switching rate 3e-5", "overdispersion 1",
+                    "overdispersion 1, rate 1e-5", "contig window 0.06"}
+    fig, axes = plt.subplots(1, 2, figsize=(6.6, 2.8))
+    for ax, ykey, ylab in ((axes[0], "genome_ani_mae", "genome-level ANI MAE (pp)"), (axes[1], "sim_af_mae", "simulated AF MAE (pp)")):
+        for famname, col, mk, filled in fam_style:
+            pts = [g for g in grid if g["setting"].startswith(famname)]
+            if not pts:
+                continue
+            ax.plot([float(g["real_af_mae"]) for g in pts], [float(g[ykey]) for g in pts], mk, color=col,
+                    mfc=col if filled else "white", mew=1.3, ms=7 if mk == "*" else 5.5, label=famname, linestyle="none")
+            for g in pts:
+                if ykey == "sim_af_mae" and g["setting"] not in right_labels:
+                    continue
+                ax.annotate(short.get(g["setting"], ""), (float(g["real_af_mae"]), float(g[ykey])), xytext=(3, 3),
+                            textcoords="offset points", fontsize=5.8, color=INK2)
+        ax.set_xlabel("real contig AF MAE (pp)", fontsize=7.5)
+        ax.set_ylabel(ylab, fontsize=7.5)
+        ax.grid(True, color=GRID, lw=0.4)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].legend(frameon=False, fontsize=6.3, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG, "fig_af_tradeoff.eps"))
+    plt.close(fig)
+
     with open(os.path.join(GEN, "numbers.txt"), "w") as fh:
         for k, v in nums.items():
             fh.write(f"{k}\t{v}\n")

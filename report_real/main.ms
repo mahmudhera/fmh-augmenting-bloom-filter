@@ -18,7 +18,7 @@ from the skani Benchmark Data
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Real-genome report, aif v1.3 \(em November 22, 2026
+Real-genome report, aif v1.4 \(em November 22, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -52,9 +52,16 @@ Real assemblies also exposed speed problems. Version 1.2 made the thread pipelin
 Version 1.3 then closed the single-thread gap with:
 GFNI reverse complements; vectorised 2-bit packing and bin counting; and HMM recursions restructured so that their
 reductions leave the dependency chain.
-Single-threaded, v1.3 processes the five sets in 2.81 s against skani's 3.28 s and is faster on every set
-(0.73\(en0.95\(mu skani's time). At 8 threads it takes 0.89 s against 2.66 s.
-Accuracy is unchanged: estimates move by at most 10\u\s-2\(mi6\s0\d.
+Single-threaded, v1.3 processed the five sets in 2.81 s against skani's 3.28 s, faster on every set; at 8 threads,
+0.89 s against 2.66 s. Estimates moved by at most 10\u\s-2\(mi6\s0\d.
+Version 1.4 adds per-contig confidence intervals for ANI and AF. Statistical intervals from Theorem 1 cover the
+truth at nominal rates when the model holds (96.5% at 95% on simulated substitution-only contigs).
+Intervals calibrated by stratified split-conformal prediction on the real tuning set cover 94.4% (ANI) and 94.2% (AF)
+of held-out real contigs at 95%, with median half-widths of 0.87 and 2.6 pp. They cost about 4% in run time, and aif
+still matches or beats skani single-threaded on every set (2.92 vs 3.27 s).
+We also traced aif's AF over-estimate on partially aligned contigs to two mechanisms, and tested principled
+corrections. One of them, a local identity prior, is offered as an option. Each correction trades contig AF
+against genome-level ANI, so the defaults are unchanged.
 We also report where aif errs and how the truth was audited.
 .ps \n(PS
 .vs \n(VSp
@@ -101,9 +108,16 @@ is 39 vs 4.3 pp, and paired ANI error 0.92 vs 0.49 pp.
 \f[B]Genome level.\f[R] Aggregated per-contig aif output matches ANIm best (0.190 pp MAE over 224 genomes).
 skani genome mode gives 0.237 pp and fastANI 0.247 pp. skani \f[CR]--slow\f[R] has the best genome AF (Section 4).
 .IP (5) 0.3i
-\f[B]Speed.\f[R] Single-threaded, aif v1.3 (sketch + query) processes the five sets in 2.81 s against skani's
-3.28 s, and is faster on every set. At 8 threads it takes 0.89 s against 2.66 s.
-Version 1.1 was 20\(en55% slower than skani single-threaded and did not scale with threads on these inputs (Section 7).
+\f[B]Speed.\f[R] Single-threaded, aif v1.4 (sketch + query, with intervals) processes the five sets in 2.92 s
+against skani's 3.27 s, matching or beating it on every set; at 8 threads, 0.86 s against 2.72 s. Version 1.1 was
+20\(en55% slower than skani single-threaded and did not scale with threads on these inputs (Section 7).
+.IP (6) 0.3i
+\f[B]Uncertainty.\f[R] Every estimate now has a confidence interval. Calibrated intervals cover held-out real
+contigs at the nominal rate (94.4% ANI, 94.2% AF at 95%); skani reports no uncertainty (Section 8).
+.IP (7) 0.3i
+\f[B]AF model.\f[R] Uniform identity jumps let unaligned islands be absorbed as low-identity alignment. A local
+identity prior fixes this and lowers held-out contig AF error by 13%, but raises genome-level ANI error. No
+correction we tested improves both, so the defaults are unchanged (Section 9).
 .\" =====================================================================
 .H1 "Data and ground truth"
 .H2 "Genome sets"
@@ -160,8 +174,8 @@ new version.
 skani 0.4.0 runs as \f[CR]skani dist --qi\f[R] (per-contig mode) with default parameters (c = 125), with
 \f[CR]--slow\f[R] (c = 30), and with relaxed reporting thresholds (\f[CR]-s 70 --min-af 5\f[R]; nearly identical to
 default, so omitted from most tables).
-aif runs with its v1.1 defaults. All accuracy numbers are v1.3 runs. v1.3 estimates differ from v1.1 and v1.2 by at
-most 10\u\s-2\(mi6\s0\d (Section 7.3).
+aif runs with its v1.1 defaults. All accuracy numbers are v1.4 runs. Default estimates differ from v1.1\(en1.3 by
+at most 10\u\s-2\(mi6\s0\d (Section 7.3).
 Sketch sizes are those of the earlier report (Table 3). aif uses 0.880 bits per reference base and skani 0.903.
 .TC 3
 Sketch size per reference (skani: all files of \f[CR]skani sketch\f[R]; aif: the \f[CR].aif\f[R] file).
@@ -359,7 +373,7 @@ all reported contigs).
 .TCE
 .so gen/tab_tune.tbl
 .\" =====================================================================
-.H1 "Speed and memory on real data (v1.2, v1.3)"
+.H1 "Speed and memory on real data (v1.2\(en1.4)"
 .H2 "What real assemblies exposed"
 .LP
 The simulated contigs were at most 20 kb. Draft assemblies contain contigs up to 5 Mbp, and that broke two
@@ -431,14 +445,15 @@ the B. cereus set, relative to skani, went from 1.55\(mu (v1.1) through 1.16\(mu
 (refinement, GFNI) and 1.01\(mu (packing) to 0.95\(mu (bin counting).
 .H2 "Timing"
 .LP
-Table 14 gives medians of 7 interleaved, core-pinned rounds per command.
-Single-threaded, aif v1.3 (sketch + query) is faster than skani on every set, at 0.73\(en0.95\(mu skani's time.
-The closest set is B. cereus, with its Mbp-scale contigs.
+Table 14 gives medians of 7 interleaved, core-pinned rounds per command, for v1.4 (with confidence intervals).
+Single-threaded, aif (sketch + query) takes 0.74\(en0.99\(mu skani's time. The closest set is B. cereus, with its
+Mbp-scale contigs (1.33 vs 1.34 s). v1.3, which computes no intervals, was at 0.73\(en0.95\(mu; the intervals cost
+about 4%.
 With \f[CR]--het-fine-max 16384\f[R] the ratio is 0.67\(en0.79\(mu.
-At 8 threads aif is 2.4\(en3.5\(mu faster than skani on every set.
-aif's sketch takes 16\(en41 ms per reference.
+At 8 threads aif is 2.4\(en3.6\(mu faster than skani on every set.
+aif's sketch takes 14\(en41 ms per reference.
 .TC 14
-Wall time (s) per set: skani \f[CR]dist --qi\f[R] (sketch + query) against aif v1.3 sketch + query, at 1 and 8
+Wall time (s) per set: skani \f[CR]dist --qi\f[R] (sketch + query) against aif v1.4 sketch + query, at 1 and 8
 threads. "aif fast" adds \f[CR]--het-fine-max 16384\f[R]. Peak RSS is for the query step.
 .TCE
 .so gen/tab_speed.tbl
@@ -467,6 +482,126 @@ memory-mapped input pages, which are shared page cache. The rest is per-thread H
 which holds forward, backward and emission values per 8-probe bin. Recomputing emissions in the backward pass,
 or checkpointing, would reduce it.
 .\" =====================================================================
+.H1 "Calibrated confidence intervals (v1.4)"
+.LP
+skani, fastANI and alignment-based tools report point estimates only. aif's estimators have known sampling
+distributions, so every estimate can carry an interval. Output now has six more columns:
+\f[CR]ani_lo ani_hi af_lo af_hi ani_se af_se\f[R].
+.H2 "Statistical intervals"
+.IP \(bu 0.2i
+\f[B]ANI.\f[R] The variance of the FP-corrected containment is the probe-level term (FracMinHash sampling and
+false positives) plus Theorem 1's mutation-process term. The truth users care about is this contig's realized
+identity, not the mutation rate that generated it, so the process term is conditioned on the realized number of
+substitutions. This removes the part explained by the substitution count, k\u\s-22\s0\d\(*h\u\s-22\s0\dp/((1\(mip)n), which is
+almost all of it at high identity, where k-mer survival is nearly determined by the count. The variance is
+carried to ANI by the delta method. For heterogeneous contigs, the spread of the heterogeneity-test windows
+gives a cluster-robust standard error, used when larger.
+.IP \(bu 0.2i
+\f[B]AF.\f[R] The aligned length is uncertain only where the per-probe aligned posterior is intermediate. Each
+such run is one alignment boundary whose position has the posterior as its survival function; its variance comes
+from the first two moments. The variances are summed over boundaries during refinement, at negligible cost.
+.LP
+Where the model holds, these intervals are calibrated (Table 17). On simulated substitution-only contigs (16
+conditions) they cover 96.5% (ANI) and 99.5% (AF) at nominal 95%. They fail where the model does: indels are not
+in it, and ANI coverage there falls to 62% because aif's ANI is biased low by about the indel rate.
+On real data with MUMmer truth they cover only 75% (ANI) and 82% (AF) at 95%. Real truth differs from the model
+through indels, alignment-definition differences and mosaic structure, not through sampling error.
+.TC 16
+Coverage of 90/95/99% intervals and median 95% half-widths. Statistical: \f[CR]--ci-stat\f[R]. Calibrated:
+default, fitted on the real tuning set only. Real truth is MUMmer; simulated truth is the construction values.
+.TCE
+.so gen/tab_ci.tbl
+.TC 17
+Statistical-interval coverage at nominal 95% on the simulated main benchmark, by condition family.
+.TCE
+.so gen/tab_ci_sim.tbl
+.H2 "Calibration against alignment truth"
+.LP
+To give intervals that hold against alignment truth, aif uses stratified (Mondrian) split-conformal prediction:
+.IP \(bu 0.2i
+The score is |estimate \(mi truth| / \(*s, where \(*s is the statistical SE with a small floor (0.05 pp for ANI;
+1 pp + 1/L for AF).
+.IP \(bu 0.2i
+Contigs are stratified by estimated identity (\(>= 99, 97, 93% or lower), length (< 1 kb, 1\(en3 kb, longer) and
+AF class (fully or partially aligned), giving 24 strata.
+.IP \(bu 0.2i
+On the real tuning set only, each stratum's conformal quantile at 90, 95 and 99% is the multiplier on \(*s.
+Strata with fewer than 50 contigs fall back to coarser pools.
+.LP
+The table is built into aif (\f[CR]src/ci_table.inc\f[R], from \f[CR]bench_real/calibration.py\f[R]); other
+truth definitions can supply their own table (\f[CR]--ci-table\f[R]).
+On held-out real contigs the calibrated intervals cover 89.7/94.4/98.6% (ANI) and 89.0/94.2/99.0% (AF) at
+90/95/99% (Table 16, Figure 6). Coverage holds within strata too: 88\(en98% at 95% (Table 18). The intervals are
+informative where the estimates are good. At \(>= 99% identity on contigs \(>= 3 kb, the median half-widths are
+0.44 pp for ANI and 0.54 pp for AF. Where estimates are poor, the intervals say so: below 93% identity they widen
+to several pp of ANI, and short, divergent, partially aligned contigs get AF intervals spanning [0, 1].
+On simulated data the calibrated intervals over-cover (> 99%), because alignment-definition discrepancies are
+absent there; \f[CR]--ci-stat\f[R] is the right choice when truth follows the model.
+The intervals cost about 4% in run time (Section 7.4).
+.TC 18
+Calibrated 95% intervals on held-out real contigs, by stratum (strata with \(>= 100 contigs).
+.TCE
+.so gen/tab_ci_strata.tbl
+.ne 3.0i
+.PSPIC -C figs/fig_calibration.eps 6.4i
+.FC 6
+Empirical against nominal coverage of ANI and AF intervals. Calibrated intervals on held-out real contigs lie on
+the diagonal; statistical intervals are calibrated on simulated contigs (ANI) but too narrow against alignment truth.
+.FE
+.\" =====================================================================
+.H1 "Toward a principled AF model"
+.LP
+aif's main residual weakness on real data is AF over-estimation on partially aligned, divergent contigs: +7 pp
+bias, and in the consistency analysis three set \(mu aligned-fraction cells where skani is closer.
+aif-RT (Section 6) narrows it by raising the aligned/unaligned switching rate, but costs simulated AF and
+genome-level ANI. We looked for a principled correction, chose all settings on the tuning sets only
+(Table 19, Figure 7), and evaluated once on held-out data (Table 20).
+.IP (1) 0.3i
+\f[B]Model averaging over switching rates\f[R], weighting a "stable" and a "mosaic" HMM per contig by
+marginal likelihood, with the mixing weight estimated by empirical Bayes. The fitted weight goes to 1 even on
+simulated, uniformly divergent contigs. The marginal likelihood prefers the mosaic model where no mosaic exists,
+so the emission model is misspecified and averaging cannot fix it.
+.IP (2) 0.3i
+\f[B]Identity-coupled prior.\f[R] Jumps between identity levels are uniform and about 33\(mu cheaper than
+aligned/unaligned switches. An unaligned island inside a 98%-identity region is therefore cheaply explained as
+"aligned at 85%". Restricting the aligned levels to within \(*D of the contig's dominant identity (a
+probe-weighted median over aligned-looking windows, robust to islands and conserved genes) fixes this. With
+\(*D = 0.08 it lowers real AF error from 2.62 to 2.25 pp and also improves simulated AF and ANI.
+However, it raises genome-level ANI error from 0.164 to 0.227 pp. Long divergent tracts, which alignment keeps,
+are now forced out of the aligned set, and the remaining identity is over-estimated. A local version, which takes
+the identity from \(+-R neighbouring windows, keeps long tracts and halves that cost (\(*D = 0.10, R = 1:
+0.174 pp), but its AF gain shrinks accordingly.
+.IP (3) 0.3i
+\f[B]Overdispersed emissions.\f[R] Overlapping k-mers share bases, so probe hits cluster. A beta-binomial bin
+emission with the overdispersion implied by the k-mer overlap structure should tolerate the resulting gaps. It
+improves simulated AF at the default switching rate, but worsens real ANI, AF and genome-level ANI, and does not
+let higher switching rates leave simulated contigs intact. Hit clustering in this form is not the missing piece.
+.LP
+On these data contig AF and genome-level ANI pull against each other. The regions that inflate aif's AF
+(absorbed islands) and the regions alignment counts at 85\(en90% identity (long divergent tracts) produce
+similar sparse-hit patterns near the identifiability floor. We therefore keep the defaults, which give the best
+genome-level ANI, and offer the local prior (\f[CR]--ident-window 0.08 --ident-radius 3\f[R]) for per-contig
+AF. Held out, it lowers contig AF error by 13% (2.45 to 2.14 pp macro) and genome AF error from 2.39 to 1.87 pp,
+leaves simulated accuracy unchanged, and raises genome-level ANI error to 0.251 pp, close to fastANI's 0.247 and
+above skani genome mode's 0.237. A model with positional anchors on the reference, which could check colinearity,
+is the clean way out.
+.TC 19
+AF-model settings on the tuning sets (MAE in pp; real: macro over 5 sets; genome level: aggregated aif output vs
+ANIm; simulated: macro over conditions).
+.TCE
+.so gen/tab_afgrid.tbl
+.ne 3.0i
+.PSPIC -C figs/fig_af_tradeoff.eps 6.4i
+.FC 7
+Tuning-set trade-offs. Left: real contig AF error against genome-level ANI error; no setting improves both over the
+default. Right: real contig AF error against simulated AF error. W: per-contig identity window (\(*D = 0.06\(en0.10);
+L\(*D/R: local identity prior; od: overdispersed emissions.
+.FE
+.TC 20
+Held-out evaluation of the default, aif-RT and the local identity prior.
+.TCE
+.so gen/tab_afopt.tbl
+.\" =====================================================================
 .H1 "Discussion"
 .H2 "Why the simulation results carry over"
 .LP
@@ -487,7 +622,11 @@ skani's seed chains are too sparse to report anything.
 .IP \(bu 0.2i
 \f[B]Divergent contigs (< 90% ANI).\f[R] aif over-estimates ANI by about 2.6 pp against MUMmer and sometimes
 over-calls AF. Positional anchors (theory report, designs D3/D5) would allow colinearity checks and catch
-dispersed-repeat matches.
+dispersed-repeat matches. The corrections tested in Section 9 trade contig AF against genome-level ANI.
+.IP \(bu 0.2i
+\f[B]Calibration scope.\f[R] The calibrated intervals are calibrated to MUMmer truth on these genome sets.
+Exchangeability with new data (other clades, assemblers, or truth definitions) is an assumption; the stratified
+table can be refitted (\f[CR]--ci-table\f[R]). Statistical intervals do not account for indels.
 .IP \(bu 0.2i
 \f[B]Truth.\f[R] The truth is MUMmer (blastn-audited). Alignment-based AF is itself uncertain at 85\(en90%
 identity. At 85\(en90% the tools and aligners disagree by several points.
@@ -512,11 +651,14 @@ An identity-aware switching prior, so that aif-RT's AF gain comes without its co
 Lower per-thread HMM memory, a cheaper adaptive-k search (one build per reference), and pruning of identity
 levels for the heterogeneity re-run.
 .IP 4. 0.3i
+Indel-aware statistical intervals, and conformal tables for other truth definitions (BLAST-based AF, as used for
+viral clustering).
+.IP 5. 0.3i
 A database mode (many references per query) evaluated on GTDB-scale data, as in the skani paper.
 .\" =====================================================================
 .H1 "Reproducibility"
 .CS
-make aif                                     # aif v1.3 (bin/aif); make prof: stage counters
+make aif                                     # aif v1.4 (bin/aif); make prof: stage counters
 python3 -I bench_real/select_datasets.py     # genome lists (skani-test metadata)
 bench_real/download.sh                       # NCBI datasets + skani-test MAGs
 python3 -I bench_real/prepare.py             # contigs >= 500 bp, per-set query files
@@ -526,6 +668,11 @@ python3 -I bench_real/evaluate_real.py --json data/real/results/eval_main.json
 python3 -I bench_real/genome_level.py        # skani / fastANI genome mode vs ANIm
 python3 -I bench_real/blast_audit.py         # blastn audit
 python3 -I bench_real/time_real.py 7         # timing; scaling.py v1.1=<bin> v1.3=bin/aif
+python3 -I bench_real/consistency.py aif     # per-stratum aif vs skani errors
+python3 -I bench_real/calibration.py fit     # CI table from the tuning set
+python3 -I bench_real/calibration.py evaluate  # CI coverage
+python3 -I bench_real/af_model_grid.py       # AF-model settings (tuning sets)
+python3 -I bench_real/afopt_heldout.py       # AF options, simulated held out
 python3 -I bench_real/select_tune.py         # disjoint real tuning set, then with
   REAL_DIR=data/real_tune REAL_SETS=bcereus,ecoli,mag2328,paer,saur: download, prepare,
   truth, run_tools.py aif, tune_real.py "--rho-u=1e-5,2e-5,3e-5 ..."

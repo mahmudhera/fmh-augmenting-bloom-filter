@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c c c c
+l n n n n.
+simulated conditions (main)@conditions@contigs@ANI coverage (%)@AF coverage (%)
+_
+substitutions only, AF = 1@16@1,462@96.5@99.5
+partial AF@6@600@92.7@97.2
+indels@3@300@62.0@100.0
+rate heterogeneity@2@200@96.5@98.5
+chimeras@1@100@97.0@100.0
+.TE

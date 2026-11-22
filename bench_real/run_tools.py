@@ -29,6 +29,8 @@ CONFIGS = {
     "aif_0.44_rt": ("aif", ["--budget", "0.44"], ["--rho-u", "2e-5"]),
     # speed option: no fine-binned heterogeneity re-run for contigs with > 16384 probes
     "aif_fast": ("aif", [], ["--het-fine-max", "16384"]),
+    # AF-oriented local identity prior (v1.4 option; tuned on data/real_tune)
+    "aif_lp": ("aif", [], ["--ident-window", "0.08", "--ident-radius", "3"]),
     "skani": ("skani", [], None),
     "skani_relaxed": ("skani", ["-s", "70", "--min-af", "5"], None),
     "skani_slow": ("skani", ["--slow"], None),
