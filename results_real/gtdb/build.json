@@ -1,0 +1,27 @@
+{
+ "aif_0.88": {
+  "build_s": 402.91,
+  "build_kb": 1940604,
+  "bytes": 82492502021,
+  "bases": 654714266615,
+  "refs": 199923,
+  "filter_bytes": 72005772928,
+  "screen_bytes": 10460529480,
+  "build_s_cold": 1826.85
+ },
+ "aif_0.22": {
+  "build_s": 882.09,
+  "build_kb": 1745120,
+  "bytes": 28478580293,
+  "bases": 654714266615,
+  "refs": 199923,
+  "filter_bytes": 17991851200,
+  "screen_bytes": 10460529480
+ },
+ "skani": {
+  "build_s": 648.88,
+  "build_kb": 15647868,
+  "bytes": 82726143810
+ },
+ "note": "aif_0.88 build_s: rebuilt with the genomes in the page cache (as skani and aif_0.22 ran); build_s_cold: first build from a cold disk (includes reading 181 GB). 32 threads."
+}

@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c c c c s s s s c s
+^ ^ ^ ^ c c c c c c c
+l n n n n n n n n n n.
+windows with true AF \(>= 0.9@n@MAE@r@MAE by true identity (%)@95% CI coverage
+@@@@<90@90\(en95@95\(en98@98\(en99.5@\(>=99.5@stat.@calib.
+_
+aif, 1 kb windows@833183@0.632@0.847@3.82@1.62@0.71@0.24@0.05@0.890@0.947
+aif, 3 kb windows@277199@0.547@0.969@2.72@1.61@0.75@0.21@0.03@0.777@0.944
+fastANI, 3 kb fragments@236238@0.776@0.864@2.22@1.68@1.17@0.60@0.24@\(em@\(em
+.TE

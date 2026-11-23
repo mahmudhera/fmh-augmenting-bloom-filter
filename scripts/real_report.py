@@ -605,6 +605,9 @@ def main():
     plt.close(fig)
 
     db_section(nums)
+    pareto_section(nums)
+    idmap_section(nums)
+    gtdb_section(nums)
 
     with open(os.path.join(GEN, "numbers.txt"), "w") as fh:
         for k, v in nums.items():
@@ -751,6 +754,267 @@ def db_section(nums):
     for src, dst in ((os.path.join(DB, "db_eval.json"), "db_eval.json"), (os.path.join(DB, "screen_grid.json"), "screen_grid.json"),
                      (os.path.join(R, "results", "eval_k.json"), "eval_fixed_k.json")):
         open(os.path.join(out, dst), "w").write(open(src).read())
+
+
+def pareto_section(nums):
+    """Pareto benchmark: error against sketch size and time (table 27, figure 9)."""
+    E = json.load(open(os.path.join(R, "results", "eval_pareto.json")))
+    SZ = json.load(open(os.path.join(R, "results", "pareto_sizes.json")))["bits_per_base"]
+    PT = json.load(open(os.path.join(R, "results", "pareto_time.json")))
+    SMT = json.load(open(os.path.join(R, "results", "pareto_sourmash.json")))
+    MMT = json.load(open(os.path.join(R, "results", "pareto_minimap2.json")))
+    W = E["sets"]["all_within"]
+    tkey = {"aif_b011": "aif_0.11", "aif_b022": "aif_0.22", "aif_0.44": "aif_0.44", "aif": "aif_0.88", "aif_b176": "aif_1.76",
+            "skani_c500": "skani_500", "skani_c250": "skani_250", "skani": "skani_125", "skani_c60": "skani_60", "skani_slow": "skani_30"}
+
+    def tsec(k):
+        if k in tkey:
+            return PT[tkey[k]]["median_s"]
+        if k.startswith("sm_S"):
+            return SMT[k[4:]]["time_s"]
+        if k == "minimap2":
+            return MMT["time_s"]
+        return None
+    fam = [("aif", ["aif_b011", "aif_b022", "aif_0.44", "aif", "aif_b176"], lambda k: "budget " + {"aif_b011": "0.11", "aif_b022": "0.22",
+                                                                                                    "aif_0.44": "0.44", "aif": "0.88", "aif_b176": "1.76"}[k]),
+           ("skani", ["skani_c500", "skani_c250", "skani", "skani_c60", "skani_slow"], lambda k: "c = " + {"skani_c500": "500", "skani_c250": "250",
+                                                                                                          "skani": "125", "skani_c60": "60", "skani_slow": "30"}[k]),
+           ("FracMinHash (sourmash)", ["sm_S580", "sm_S290", "sm_S145", "sm_S73", "sm_S36", "sm_S18"], lambda k: "scaled " + k[4:]),
+           ("minimap2 (alignment)", ["minimap2"], lambda k: "asm20")]
+    rows = []
+    for fname, ks, lab in fam:
+        for k in ks:
+            w = W[k]
+            t = tsec(k)
+            rows.append([fname if k == ks[0] else "", lab(k), f(SZ[k], 3 if SZ[k] < 10 else 1), f(w["coverage"], 3), f(w["ani_mae"], 3),
+                         f(w["paired_ani_mae"], 3), "\\(em" if k.startswith("sm_") else f(w["af_mae"], 2), f(t, 1) if t is not None else "\\(em"])
+            nums[f"pareto_{k}"] = (SZ[k], w["coverage"], w["ani_mae"], w["paired_ani_mae"], w["af_mae"], t)
+        rows.append("_")
+    rows = rows[:-1]
+    tbl("tab_pareto.tbl", ["l l c c c c c c"], "l l n n n n n n",
+        [["method", "setting", "bits/base", "coverage", "ANI MAE", "paired ANI", "AF MAE", "time (s)"]], rows)
+    # figure 9
+    fig, axes = plt.subplots(1, 3, figsize=(6.8, 2.5))
+    sty = [("aif", ["aif_b011", "aif_b022", "aif_0.44", "aif", "aif_b176"], COL["aif"], "o"),
+           ("skani", ["skani_c500", "skani_c250", "skani", "skani_c60", "skani_slow"], COL["skani"], "s"),
+           ("FracMinHash (sourmash)", ["sm_S580", "sm_S290", "sm_S145", "sm_S73", "sm_S36", "sm_S18"], INK2, "^"),
+           ("minimap2", ["minimap2"], "#1baf7a", "D")]
+    hs = []
+    for lab, ks, col, mk in sty:
+        x = [SZ[k] for k in ks]
+        h, = axes[0].plot(x, [W[k]["ani_mae"] for k in ks], "-" + mk, color=col, lw=1.4, ms=4)
+        hs.append((h, lab))
+        if not ks[0].startswith("sm_"):
+            axes[1].plot(x, [W[k]["af_mae"] for k in ks], "-" + mk, color=col, lw=1.4, ms=4)
+        tt = [tsec(k) for k in ks]
+        axes[2].plot(tt, [W[k]["ani_mae"] for k in ks], "-" + mk, color=col, lw=1.4, ms=4)
+    for ax in axes:
+        ax.set_xscale("log")
+        ax.grid(True, which="both", color=GRID, lw=0.4)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_xlabel("sketch / index size (bits per reference base)", fontsize=7)
+    axes[1].set_xlabel("sketch / index size (bits per reference base)", fontsize=7)
+    axes[2].set_xlabel("sketch + query time, 1 thread (s)", fontsize=7)
+    axes[0].set_ylabel("contig ANI MAE (pp)", fontsize=7.5)
+    axes[1].set_ylabel("contig AF MAE (pp)", fontsize=7.5)
+    axes[2].set_ylabel("contig ANI MAE (pp)", fontsize=7.5)
+    axes[1].set_yscale("log")
+    axes[1].set_yticks([1, 2, 3, 5, 10, 20, 30])
+    axes[1].set_yticklabels(["1", "2", "3", "5", "10", "20", "30"])
+    axes[1].minorticks_off()
+    fig.legend([h for h, _ in hs], [l for _, l in hs], loc="upper center", ncol=4, frameon=False, fontsize=6.8)
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.savefig(os.path.join(FIG, "fig_pareto.eps"))
+    plt.close(fig)
+
+
+def idmap_section(nums):
+    """Identity maps along contigs (tables 28-29, figure 10)."""
+    D = json.load(open(os.path.join(R, "results", "idmap.json")))
+    classes = ["<90", "90-95", "95-98", "98-99.5", ">=99.5"]
+    rows = []
+    for key, lab in (("aif_1000", "aif, 1 kb windows"), ("aif_3000", "aif, 3 kb windows"), ("fastani_3000", "fastANI, 3 kb fragments")):
+        d = D[key]
+        cal = D.get(key + "_cal", {}).get("all", {})
+        rows.append([lab, str(d["all"]["n"]), f(d["all"]["mae_pp"], 3), f(d["all"]["r"], 3)] +
+                    [f(d["all|" + c]["mae_pp"], 2) for c in classes] +
+                    [f(d["all"]["ci_cov"], 3) if d["all"]["ci_cov"] is not None else "\\(em", f(cal.get("ci_cov"), 3) if cal else "\\(em"])
+        nums[f"idmap_{key}"] = (d["all"]["n"], d["all"]["mae_pp"], d["all"]["r"], d["all"]["ci_cov"], cal.get("ci_cov"))
+    tbl("tab_idmap.tbl", ["l c c c c s s s s c s", "^ ^ ^ ^ c c c c c c c"], "l n n n n n n n n n n",
+        [["windows with true AF \\(>= 0.9", "n", "MAE", "r", "MAE by true identity (%)", "", "", "", "", "95% CI coverage", ""],
+         ["", "", "", "", "<90", "90\\(en95", "95\\(en98", "98\\(en99.5", "\\(>=99.5", "stat.", "calib."]], rows)
+    rows = []
+    for st in SETS + ["all"]:
+        a_, f_ = D["aif"]["islands|" + st], D["fastani"]["islands|" + st]
+        b_ = D["aif"]["bp|" + st]
+        rows.append([SSHORT.get(st, "all sets"), f(a_["true_bp"] / 1e6, 1), f(a_["precision"], 3), f(a_["recall"], 3), f(f_["precision"], 3),
+                     f(f_["recall"], 3), str(b_["n"]), str(b_["median_bp"]), f(b_["within_250"], 3), f(b_["within_500"], 3)])
+    nums["idmap_islands"] = (D["aif"]["islands|all"], D["fastani"]["islands|all"], D["aif"]["bp|all"])
+    tbl("tab_islands.tbl", ["l c c s c s c c c c", "^ ^ c c c c c c c c"], "l n n n n n n n n n",
+        [["set", "unaligned", "aif", "", "fastANI", "", "break-", "median", "within", "within"],
+         ["", "Mbp", "precision", "recall", "precision", "recall", "points", "dist. (bp)", "250 bp", "500 bp"]], rows)
+    # figure 10: identity map of one mostly aligned contig with identity variation and an island
+    Q = json.load(open(os.path.join(R, "results", "idmap_ci.json")))["1000"]
+
+    def load_set(st):
+        seg = {}
+        for line in list(open(os.path.join(R, "idmap", st, "aif_seg1000.tsv")))[1:]:
+            p = line.rstrip("\n").split("\t")
+            seg.setdefault(p[0], []).append((int(p[1]), int(p[2]), int(p[3]), float(p[4]), float(p[5]), float(p[6])))
+        return seg
+    best, bs, bset = None, -1, None
+    for st in ("ecoli", "paer"):
+        seg = load_set(st)
+        nfa = {}
+        for fn in os.listdir(os.path.join(R, "idmap", st)):
+            if fn.endswith(".fastani.tsv"):
+                for l in open(os.path.join(R, "idmap", st, fn)):
+                    nfa[l.split("\t")[0]] = nfa.get(l.split("\t")[0], 0) + 1
+        for c, v in seg.items():
+            L = v[-1][1]
+            if L < 60000 or L > 250000 or nfa.get(c, 0) < 12:
+                continue
+            al = sum(x[1] - x[0] for x in v if x[2] == 1) / L
+            isl = sum(1 for x in v if x[2] == 0 and x[1] - x[0] >= 2000)
+            ids = sorted(x[3] for x in v if x[2] == 1 and x[3] == x[3])
+            if al < 0.75 or isl < 1 or len(ids) < 20 or ids[len(ids) // 2] < 0.95:
+                continue
+            spread = ids[int(0.9 * len(ids))] - ids[int(0.1 * len(ids))]
+            sc = 100 * spread + min(isl, 3)
+            if sc > bs:
+                best, bs, bset = c, sc, st
+    c, st = best, bset
+    seg = load_set(st)[c]
+    gid = c.split("__")[0]
+    blocks = [(int(x[1]) - 1, int(x[2]), float(x[3]) / 100) for x in (l.split("\t") for l in open(os.path.join(R, "idmap", st, gid + ".coords.tsv")))
+              if x[0] == c]
+    fa = [(int(x[1]), int(x[2]), float(x[3]) / 100) for x in (l.split("\t") for l in open(os.path.join(R, "idmap", st, gid + ".fastani.tsv"))) if x[0] == c]
+    fig, ax = plt.subplots(figsize=(6.8, 2.5))
+    for a0, b0, al, ani, lo, hi in seg:
+        if not al:
+            ax.axvspan(a0 / 1e3, b0 / 1e3, color="#e8e7e3", lw=0)
+    xs, ys, lo_, hi_, tx, ty = [], [], [], [], [], []
+    for a0, b0, al, ani, lo, hi in seg:
+        w = sum(max(0, min(b0, y) - max(a0, x)) for x, y, _ in blocks)
+        tid = sum(max(0, min(b0, y) - max(a0, x)) * i for x, y, i in blocks) / w if w else float("nan")
+        if not al:  # break the lines across unaligned segments
+            for v in (xs, ys, lo_, hi_, tx, ty):
+                v.append(float("nan"))
+        if al and ani == ani:
+            k = "ge99" if ani >= 0.99 else "97-99" if ani >= 0.97 else "93-97" if ani >= 0.93 else "lt93"
+            se = max((hi - lo) / (2 * 1.959964), 1e-4)
+            xs.append((a0 + b0) / 2e3)
+            ys.append(100 * ani)
+            lo_.append(100 * max(0, ani - Q[k]["q95"] * se))
+            hi_.append(100 * min(1, ani + Q[k]["q95"] * se))
+            tx.append((a0 + b0) / 2e3)
+            ty.append(100 * tid)
+    ax.fill_between(xs, lo_, hi_, color="#c9def5", lw=0, label="aif calibrated 95% interval")
+    ax.plot(tx, ty, "-", color=INK, lw=1.0, label="MUMmer identity (same windows)")
+    ax.plot(xs, ys, "-", color=COL["aif"], lw=1.2, label="aif, 1 kb windows")
+    for a0, b0, idy in fa:
+        ax.plot([a0 / 1e3, b0 / 1e3], [100 * idy] * 2, color=COL["skani"], lw=2.0, solid_capstyle="butt")
+    ax.plot([], [], color=COL["skani"], lw=2.0, label="fastANI, 3 kb fragments")
+    ax.fill_between([], [], color="#e8e7e3", label="aif: unaligned")
+    ax.set_xlabel(f"position on contig (kb); {SSHORT[st]} draft {gid} vs its reference", fontsize=7.5)
+    ax.set_ylabel("identity (%)", fontsize=7.5)
+    allv = [v for v in ty + ys + [100 * x[2] for x in fa] if v == v]
+    ax.set_ylim(max(80, min(allv) - 1), 100.3)
+    ax.set_xlim(0, seg[-1][1] / 1e3)
+    ax.grid(True, color=GRID, lw=0.4)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    ax.legend(frameon=False, fontsize=6.3, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 1.0))
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG, "fig_idmap.eps"))
+    plt.close(fig)
+    nums["idmap_example"] = c
+
+
+def gtdb_section(nums):
+    """GTDB-scale database and contig classification (tables 27-28, 32; figure 9)."""
+    GR = os.path.join(ROOT, "data", "gtdb", "results")
+    if not os.path.exists(os.path.join(GR, "gtdb_eval.json")):
+        print("GTDB results missing; skipping")
+        return
+    E = json.load(open(os.path.join(GR, "gtdb_eval.json")))
+    B, S = E.get("build", {}), E.get("search_time", {})
+    LAB = {"aif_0.88": "aif (budget 0.88)", "aif_0.22": "aif (budget 0.22)", "skani": "skani 0.4.0"}
+    rows = []
+    for k in ("aif_0.88", "aif_0.22", "skani"):
+        b = B.get(k)
+        st = S.get(k)
+        if not b:
+            continue
+        bases = B["aif_0.88"]["bases"]
+        rows.append([LAB[k], f(b["build_s"] / 60, 1), f(b["build_kb"] / 1e6, 1), f(b["bytes"] / 1e9, 1), f(8 * b["bytes"] / bases, 3),
+                     f(st["s"] / 60, 1) if st else "\\(em", f(st["kb"] / 1e6, 1) if st else "\\(em"])
+        nums[f"gtdb_build_{k}"] = (b["build_s"], b["build_kb"], b["bytes"], 8 * b["bytes"] / bases, st["s"] if st else None, st["kb"] if st else None)
+    nums["gtdb_refs"] = (B["aif_0.88"]["refs"], B["aif_0.88"]["bases"])
+    tbl("tab_gtdb_build.tbl", ["l c c c c c c", "^ c c c c c c"], "l n n n n n n",
+        [["GTDB R232 representatives", "build", "build peak", "database", "bits per", "search", "search peak"],
+         ["", "(min)", "(GB)", "(GB)", "base", "(min)", "(GB)"]], rows)
+    rows = []
+    for k in ("aif_0.88", "aif_0.22", "skani"):
+        if k not in E["tools"]:
+            continue
+        a = E["tools"][k]["all"]
+        rows.append([LAB[k], f(a["reported"], 3), f(a["species_acc"], 3), f(a["genus_acc"], 3), f(a["species_prec"], 3),
+                     f(a["species_acc_homol"], 3), f(a["call95_sens"], 3), f(a["call95_prec"], 3), f(a["ani_mae_pp"], 3), f(a["af_mae_pp"], 2)])
+        nums[f"gtdb_{k}"] = a
+        nums[f"gtdb_{k}_ar"] = E["tools"][k]["ar"]
+    tbl("tab_gtdb_acc.tbl", ["l c c s c c c s c c", "^ ^ c c c c c c c c"], "l n n n n n n n n n",
+        [["tool", "any hit", "top hit correct", "", "species", "species,", "ANI \\(>= 95% call", "", "ANI MAE", "AF MAE"],
+         ["", "", "species", "genus", "precision", "homol.", "sens.", "prec.", "(pp)", "(pp)"]], rows)
+    # figure 9: species-level accuracy and ANI error by contig length
+    bins = ["0.5-1k", "1-2k", "2-5k", "5-20k", ">=20k"]
+    fig, axes = plt.subplots(1, 2, figsize=(6.6, 2.4))
+    sty = {"aif_0.88": (COL["aif"], "o", "-"), "aif_0.22": (COL["aif"], "o", "--"), "skani": (COL["skani"], "s", "-")}
+    for k, (col, mk, ls) in sty.items():
+        if k not in E["tools"]:
+            continue
+        d = E["tools"][k]
+        axes[0].plot(range(len(bins)), [d[b]["species_acc"] for b in bins], ls + mk, color=col, lw=1.5, ms=4, mfc=col if ls == "-" else "white",
+                     label=LAB[k])
+        axes[1].plot(range(len(bins)), [d[b]["ani_mae_pp"] for b in bins], ls + mk, color=col, lw=1.5, ms=4, mfc=col if ls == "-" else "white")
+    for ax in axes:
+        ax.set_xticks(range(len(bins)))
+        ax.set_xticklabels(["0.5\u20131", "1\u20132", "2\u20135", "5\u201320", "\u226520"])
+        ax.set_xlabel("contig length (kb)", fontsize=7.5)
+        ax.grid(True, color=GRID, lw=0.4)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_ylabel("top hit = own species", fontsize=7.5)
+    axes[1].set_ylabel("top-hit ANI MAE (pp)", fontsize=7.5)
+    axes[0].legend(frameon=False, fontsize=6.5)
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG, "fig_gtdb.eps"))
+    plt.close(fig)
+    # contamination (table 32)
+    cp = os.path.join(GR, "contam.json")
+    if os.path.exists(cp):
+        C = json.load(open(cp))
+        rows = []
+        for tool in ("aif", "skani"):
+            for rank in ("species", "genus"):
+                for rule in ("default", "strict"):
+                    r = [("aif" if tool == "aif" else "skani") if rank == "species" and rule == "default" else "", rank, rule]
+                    for lv in ("0.05", "0.1", "0.2", "all"):
+                        v = C[f"{tool}|{rank}|{rule}|{lv}"]
+                        r += [f(v["precision_bases"], 3), f(v["recall_bases"], 3)]
+                    rows.append(r)
+                    nums[f"contam_{tool}_{rank}_{rule}"] = C[f"{tool}|{rank}|{rule}|all"]
+            rows.append("_")
+        rows = rows[:-1]
+        tbl("tab_contam.tbl", ["l l l c s c s c s c s", "^ ^ ^ c c c c c c c c"], "l l l n n n n n n n n",
+            [["tool", "taxon", "rule", "5% contamination", "", "10%", "", "20%", "", "all bins", ""],
+             ["", "", "", "prec.", "recall", "prec.", "recall", "prec.", "recall", "prec.", "recall"]], rows)
+    out = os.path.join(ROOT, "results_real", "gtdb")
+    os.makedirs(out, exist_ok=True)
+    for fn in ("gtdb_eval.json", "contam.json", "build.json", "search_time.json"):
+        if os.path.exists(os.path.join(GR, fn)):
+            open(os.path.join(out, fn), "w").write(open(os.path.join(GR, fn)).read())
 
 
 if __name__ == "__main__":

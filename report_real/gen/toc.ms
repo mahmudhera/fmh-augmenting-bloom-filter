@@ -8,7 +8,7 @@
 .sp 0.25v
 \f[B]2.	Data and ground truth\f[]2
 \h'0.45i'2.1\h'|1.05i'Genome sets2
-\h'0.45i'2.2\h'|1.05i'Alignment-based truth2
+\h'0.45i'2.2\h'|1.05i'Alignment-based truth3
 \h'0.45i'2.3\h'|1.05i'Tools, budgets and metrics3
 .sp 0.25v
 \f[B]3.	Contig-level accuracy\f[]3
@@ -38,20 +38,28 @@
 .sp 0.25v
 \f[B]9.	Toward a principled AF model\f[]13
 .sp 0.25v
-\f[B]10.	Database mode (v1.5)\f[]14
+\f[B]10.	Database mode (v1.5\(en1.6)\f[]14
 \h'0.45i'10.1\h'|1.05i'Design15
 \h'0.45i'10.2\h'|1.05i'Cost of one shared k15
-\h'0.45i'10.3\h'|1.05i'Benchmark database15
+\h'0.45i'10.3\h'|1.05i'Benchmark database16
 \h'0.45i'10.4\h'|1.05i'Accuracy of the top hit16
 \h'0.45i'10.5\h'|1.05i'Screening17
 \h'0.45i'10.6\h'|1.05i'Speed and scaling17
 .sp 0.25v
-\f[B]11.	Discussion\f[]18
-\h'0.45i'11.1\h'|1.05i'Why the simulation results carry over18
-\h'0.45i'11.2\h'|1.05i'Limitations18
-\h'0.45i'11.3\h'|1.05i'Next steps19
+\f[B]11.	GTDB-scale database: contig classification\f[]18
 .sp 0.25v
-\f[B]12.	Reproducibility\f[]19
+\f[B]12.	Contamination screening of bins\f[]20
+.sp 0.25v
+\f[B]13.	Size, accuracy and time: a Pareto comparison\f[]21
+.sp 0.25v
+\f[B]14.	Identity maps along contigs\f[]22
+.sp 0.25v
+\f[B]15.	Discussion\f[]24
+\h'0.45i'15.1\h'|1.05i'Why the simulation results carry over24
+\h'0.45i'15.2\h'|1.05i'Limitations24
+\h'0.45i'15.3\h'|1.05i'Next steps24
+.sp 0.25v
+\f[B]16.	Reproducibility\f[]25
 .lc
 .ps \n(PS
 .vs \n(VSp

@@ -40,7 +40,11 @@
 // only its filter tests and the HMM; candidates come from a bit-sliced screening index.
 // Exhaustive search is byte-identical to pairwise queries against "-k K" sketches.
 //
-// Build: g++ -O3 -march=native -std=c++17 -pthread -o aif aif.cpp
+// v1.6 (GTDB scale, identity maps): gzip input; --segments writes aligned/unaligned segments and
+// windowed identity with calibrated intervals; db search adds a pre-HMM local-score filter, caps
+// screening keys per contig, and orders hits by the model's likelihood ratio.
+//
+// Build: g++ -O3 -march=native -std=c++17 -pthread -o aif aif.cpp -lz
 #include <algorithm>
 #include <cstddef>
 #include <atomic>
@@ -2558,7 +2562,7 @@ void usage() {
           "             [--screen-frac 0.015625] [--screen-bits 8] [--screen-hashes 3] [--screen-group-ratio 1.5] (screening index)\n"
           "aif db search <db.aifd> <contigs.fa> [-t threads] [-n 1 (hits per contig; 0: every candidate, any status)]\n"
           "             [--max-cand 16 (evaluated by the model)] [--prescreen K (0: off; rank K screened references by probe containment)]\n"
-          "             [--screen-z 2] [--screen-min 2] [--screen-max-keys 128] [--no-screen (every reference)] [--sort aniaf|ani|af]\n"
+          "             [--screen-z 2] [--screen-min 2] [--screen-max-keys 128] [--no-screen (every reference)] [--sort lr|aniaf|ani|af]\n"
           "             [--vmin 5 (skip the model for candidates whose local-homology score is below this; -1: off)]\n"
           "             [query options]\n"
           "output: contig reference rank <query columns> screen_count screen_keys screen_containment candidates\n"
@@ -3608,7 +3612,9 @@ int cmd_db_search(int argc, char** argv) {
   Db D;
   D.load(argv[3]);
   Params P;
-  int threads = 1, nout = 1, sort_by = 0;  // 0: ani*af, 1: ani, 2: af
+  // hit order: 3 = the model's log-likelihood ratio (default: how well a reference explains the
+  // contig's probe hits; robust to AF over-estimates on divergent hits), 0 = ani*af, 1 = ani, 2 = af
+  int threads = 1, nout = 1, sort_by = 3;
   size_t max_cand = 16, prescreen = 0, max_keys = 128;  // screening keys per contig (smallest selection hashes)
   // pre-HMM local-score filter: on the 2,005-genome benchmark the lowest score of any reported
   // hit was 9.1 (370,757 hits), and a cutoff of 5 skipped 99% of the candidates that report nothing
@@ -3634,7 +3640,7 @@ int cmd_db_search(int argc, char** argv) {
     else if (a == "--no-screen") screen = false;
     else if (a == "--sort") {
       std::string v = val();
-      sort_by = v == "ani" ? 1 : v == "af" ? 2 : v == "aniaf" ? 0 : -1;
+      sort_by = v == "ani" ? 1 : v == "af" ? 2 : v == "aniaf" ? 0 : v == "lr" ? 3 : -1;
       if (sort_by < 0) usage();
     } else if (!parse_query_opt(i, argc, argv, P, threads)) usage();
   }
@@ -3768,7 +3774,7 @@ int cmd_db_search(int argc, char** argv) {
       }
       const bool ok = std::strcmp(R.status, "ok") == 0;
       if (!ok && nout > 0) continue;
-      const double sc = !ok ? -1 : sort_by == 1 ? R.ani : sort_by == 2 ? R.af : R.ani * R.af;
+      const double sc = !ok ? -1e300 : sort_by == 1 ? R.ani : sort_by == 2 ? R.af : sort_by == 3 ? R.lr : R.ani * R.af;
       hits.push_back({R, d, cd.first, sc});
     }
     (void)nskip;

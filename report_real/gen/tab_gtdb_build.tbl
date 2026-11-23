@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c c c c c c
+^ c c c c c c
+l n n n n n n.
+GTDB R232 representatives@build@build peak@database@bits per@search@search peak
+@(min)@(GB)@(GB)@base@(min)@(GB)
+_
+aif (budget 0.88)@6.7@1.9@82.5@1.008@0.2@64.9
+aif (budget 0.22)@14.7@1.7@28.5@0.348@0.1@28.5
+skani 0.4.0@10.8@15.6@82.7@1.011@4.2@77.6
+.TE

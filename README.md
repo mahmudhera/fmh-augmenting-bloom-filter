@@ -4,7 +4,7 @@ Three reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
-3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; and the v1.5 database mode against 2,005 genomes.
+3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -44,33 +44,78 @@ islands get absorbed as low-identity alignment.
 - **Rejected:** model averaging over switching rates, and overdispersed emissions.
 - **Conclusion:** no tested correction improves both contig AF and genome ANI, so the defaults are unchanged.
 
-## Database mode (v1.5): contigs against 2,005 genomes
+## GTDB scale (v1.6): contig classification against all 199,923 GTDB R232 species representatives
+
+Database: every GTDB R232 species representative (189,801 bacterial + 10,122 archaeal genomes, 655 Gbp; read
+from the release's gzip files). Queries: 23,561 contigs >= 500 bp of 294 held-out GTDB non-representative draft
+genomes from 294 species (15 archaeal); each query's own species representative is in the database. Truth:
+GTDB taxonomy, and MUMmer for top-hit ANI/AF (72,135 contig-reference pairs).
+
+| | skani 0.4.0 | **aif** (budget 0.88) | aif (budget 0.22) |
+|---|---|---|---|
+| database size (GB; bits / reference base) | 82.7 (1.011) | 82.5 (1.008) | 28.5 (0.348) |
+| build, 32 threads, genomes in page cache (min; peak GB) | 10.8; 15.6 | **6.7; 1.9** | 14.7; 1.7 |
+| search, 23,561 contigs, 16 threads, warm (s) | 252 | **11.5** | 7.4 |
+| contigs with a hit | 71.6% | **93.5%** | 93.1% |
+| top hit = query's species / genus | 61.6% / 68.9% | **78.3% / 88.5%** | 77.8% / 88.1% |
+| species, contigs homologous to their own representative | 72.1% | **91.4%** | 90.9% |
+| species calls at top-hit ANI >= 95%: sensitivity / precision | 60.7% / 87.2% | **76.6% / 86.4%** | 75.8% / 86.2% |
+| species accuracy, 0.5-1 / 1-2 / 5-20 / >=20 kb contigs | 2.6 / 18.5 / 75.7 / 90.4% | **45.7 / 62.6 / 83.1 / 92.5%** | 44.9 / 61.8 / 82.9 / 92.3% |
+| top-hit ANI MAE / AF MAE (pp) | 0.63 / 3.42 | **0.49 / 2.58** | 0.58 / 3.84 |
+
+Contamination screening (simulated bins: each query genome plus 5/10/20% of another's contigs, 861 bins; contig
+flagged when its top-hit genus differs from the bin's majority): aif flags 90.8% of contaminant contigs (75.5% of
+those of 0.5-2 kb) at 75% precision, and 98.8% of contaminant bases at 95% precision; skani flags 67.8% of
+contigs (13.3% of 0.5-2 kb) at 81% precision, and 97.6% of bases at 93% precision. Calibrated intervals cover 91.5% (ANI) / 91.9% (AF)
+on GTDB's diverse taxa (95% nominal; calibrated on five bacterial species).
+
+## Database mode (v1.5-1.6): contigs against 2,005 genomes
 
 `aif db build` puts many references in one memory-mapped file with one k (20) and one tier layout. A contig is then
 hashed once, and each candidate reference costs only its filter tests and the HMM. Candidates come from a
-bit-sliced (COBS-style) screening index at 0.155 bits/base. Exhaustive search (`--no-screen`) is byte-identical
-to pairwise `aif query` against `-k 20` sketches on all 33,464 real contigs.
+bit-sliced (COBS-style) screening index at 0.155 bits/base; v1.6 adds a pre-HMM local-score filter (output
+unchanged), caps screening keys per contig at 128, and orders hits by the model's likelihood ratio.
+Exhaustive search (`--no-screen`) is byte-identical to pairwise `aif query` against `-k 20` sketches.
 
 Benchmark database: the 5 pairwise references, 100 RefSeq complete genomes each of E. coli, S. aureus,
 P. aeruginosa and the B. cereus group, and 1,600 other RefSeq reference genomes (8.62 Gbp). All query
 assemblies are excluded. Queries are the 33,464 within-species contigs; truth is MUMmer for every
-(contig, reference) pair among each tool's top 3 hits (145,591 pairs). Pooled over the 26,084 homologous contigs:
+(contig, reference) pair among the tools' top 3 hits. Pooled over the 26,084 homologous contigs (aif v1.6):
 
 | | skani search | skani dist (2,005 FASTA) | **aif db search** | aif, size-matched DB |
 |---|---|---|---|---|
 | database (bits / reference base) | 0.896 | (FASTA) | 1.035 | 0.895 |
 | homologous contigs with a hit | 77.0% | 94.5% | **99.9%** | 99.9% |
-| top-hit ANI MAE (pp) | 0.513 | 0.690 | **0.321** | 0.330 |
-| paired top-hit ANI MAE vs aif (pp) | 0.513 vs 0.256 | 0.690 vs 0.297 | | |
-| top-hit AF MAE (pp) | 3.03 | 4.15 | **1.30** | 1.38 |
-| top hit is the best reference | 77.2% | 73.9% | **90.0%** | 89.8% |
-| regret, true ANI x AF (pp) | 1.94 | 2.35 | **0.20** | 0.20 |
-| search time, 33,464 contigs, 1 / 8 threads (s) | 264.5 / 37.9 (`--keep-refs` 83.8 / 15.9) | - / 118.5 | **34.9 / 5.2** | |
-| peak memory, 8 threads (GB) | 1.32 (1.87) | 1.62 | 2.01 | |
+| top-hit ANI MAE (pp) | 0.513 | 0.690 | **0.310** | 0.320 |
+| paired top-hit ANI MAE vs aif (pp) | 0.513 vs 0.246 | 0.690 vs 0.286 | | |
+| top-hit AF MAE (pp) | 3.03 | 4.15 | **1.12** | 1.22 |
+| top hit is the best reference | 78.3% | 74.9% | **88.9%** | 88.8% |
+| regret, true ANI x AF / true ANI (pp) | 1.81 / 0.15 | 2.24 / 0.25 | **0.28 / 0.06** | 0.27 / 0.06 |
+| search time, 33,464 contigs, 1 / 8 threads (s) | 264.5 / 37.9 (`--keep-refs` 83.8 / 15.9) | - / 118.5 | **32.9 / 4.4** | |
+| peak memory, 8 threads (GB) | 1.32 (1.87) | 1.62 | 1.77 | |
 
-Calibrated intervals keep 93.8% (ANI) / 94.1% (AF) coverage at 95% in database mode. Screening misses cost
-0.015 pp of regret against exhaustive search (screening recall 96.2%). From 405 to 2,005 genomes aif's search
-time grows 1.3x. skani builds its database faster (3.0 vs 10.9 s at 8 threads) and uses less memory.
+Calibrated intervals keep 94.0% (ANI) / 94.5% (AF) coverage at 95% in database mode; screening recall against
+exhaustive search is 97.5%.
+
+## Pareto sweep (v1.6): sketch size vs accuracy vs time, real sets, pooled within-species
+
+| method | bits / base | ANI MAE (pp) | AF MAE (pp) | sketch + query, 1 thread (s) |
+|---|---|---|---|---|
+| **aif**, budget 0.11 / 0.22 / 0.44 / 0.88 / 1.76 | 0.11-1.76 | 0.67 / 0.62 / 0.56 / 0.50 / 0.46 | 6.3 / 4.9 / 3.6 / 2.6 / 1.7 | 1.4 / 1.6 / 2.0 / 2.9 / 5.0 |
+| skani, c = 500 / 250 / 125 / 60 / 30 | 0.26-3.27 | 0.84 / 0.74 / 0.68 / 0.63 / 0.61 | 26.9 / 15.4 / 9.4 / 6.0 / 4.3 | 2.4 / 2.7 / 3.2 / 4.4 / 7.1 |
+| exact FracMinHash (sourmash), scaled 580 ... 18 | 0.11-3.56 | 0.97 ... 0.71 | (no AF) | 21-184 |
+| minimap2 asm20 (alignment) | 27.4 (index) | 0.23 | 1.78 | 622 |
+
+Exact FracMinHash at 32x aif's smallest sketch is still less accurate than it (the bits-per-sample theorem).
+
+## Identity maps (v1.6): `--segments`
+
+`aif query ... --segments FILE` (and `aif db search`) writes aligned/unaligned segments tiling each contig and
+windowed identity (`--seg-window 1000`) with calibrated 95% intervals. Against MUMmer (224 genomes; window truth
+from alignment differences): 3 kb window identity MAE 0.55 pp (fastANI fragments 0.78 pp; r = 0.97 vs 0.86;
+0.035 vs 0.235 pp at >= 99.5% identity, fastANI better below 90%); 1 kb windows 0.63 pp; calibrated window
+intervals cover 94.7% (1 kb) / 94.4% (3 kb) of held-out windows; unaligned islands found at 97% precision, 81%
+recall (fastANI 56% / 51%); breakpoints within a median 171 bp (92% within 500 bp).
 
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
@@ -141,6 +186,7 @@ Simulated-set timings are in `results/main/*_v12.tsv` and `*_v13.tsv`.
 * **v1.1 speed**: 2-bit packing and AVX-512 k-mer selection, gather-based Bloom tests, a binned single-precision HMM with exact per-probe refinement around alignment boundaries, mmap input, vectorised sketch insertion, and `-t N` threads with ordered output.
 * **v1.2/v1.3**: windowed probing of long contigs, a streaming multithreaded pipeline, latency-optimised HMM recursions, GFNI/AVX-512 packing and reverse complements (see above); `make prof` builds a per-stage cycle-counter binary.
 * **v1.5**: database mode (`aif db build/search/info`): shared-k two-stage probing, bit-sliced screening index, memory-mapped database, lazily built per-reference estimators, top-n hits per contig.
+* **v1.6**: gzip input; `--segments` identity maps (aligned/unaligned segments, windowed identity with calibrated intervals); database search scaled to GTDB (pre-HMM local-score filter, capped screening keys, vectorised candidate scan, parallel build sizing), hits ordered by likelihood ratio.
 * **v1.4**: per-contig confidence intervals (statistical, or conformal-calibrated from the table in `src/ci_table.inc`, refit with `bench_real/calibration.py fit`); optional local identity prior (`--ident-window`) and overdispersed emissions (`--overdisp`).
 
 ```
@@ -150,6 +196,7 @@ bin/aif query ref.aif contigs.fa -t 8 > out.tsv  # contig ani af theta probes hi
                                                 #   ani_lo ani_hi af_lo af_hi ani_se af_se   (95% intervals; --ci-level, --ci-stat)
 bin/aif db build --list refs.txt -o refs.aifd -t 8   # refs.txt: "path [name]" per line; -k 20 --budget 0.88
 bin/aif db search refs.aifd contigs.fa -t 8 -n 5 > hits.tsv  # contig reference rank <query columns> screen_count ...
+bin/aif query ref.aif contigs.fa --segments seg.tsv   # + segments / windowed identity map (contig start end aligned ani ani_lo ani_hi probes hits)
 bin/aif db info refs.aifd --refs
 ```
 
@@ -163,7 +210,9 @@ bench/                         simulated benchmark: download_genomes.sh, make_sc
 bench_real/                    real genomes: select_datasets.py, select_tune.py, download.sh, prepare.py, truth.py (MUMmer),
                                run_tools.py, evaluate_real.py, genome_level.py, blast_audit.py, tune_real.py,
                                time_real.py, scaling.py, consistency.py, calibration.py, af_model_grid.py, afopt_heldout.py,
-                               database mode: db_select.py, db_download.sh, db_bench.py, db_screen_eval.py
+                               database mode: db_select.py, db_download.sh, db_bench.py, db_screen_eval.py;
+                               GTDB: gtdb_download.sh, gtdb_select.py, gtdb_prepare.py, gtdb_bench.py, gtdb_contam.py;
+                               pareto_sourmash.py, pareto_minimap2.py, pareto_time.py; idmap.py
 results/, results_real/        committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
@@ -194,6 +243,13 @@ python3 -I bench_real/consistency.py aif && python3 -I bench_real/calibration.py
 python3 -I bench_real/af_model_grid.py && python3 -I bench_real/afopt_heldout.py
 python3 -I bench_real/db_select.py && bench_real/db_download.sh      # database mode
 for s in build search truth time evaluate; do python3 -I bench_real/db_bench.py $s; done
+bench_real/gtdb_download.sh && python3 -I bench_real/gtdb_select.py   # then NCBI datasets download of the queries
+python3 -I bench_real/gtdb_prepare.py && for s in list build search truth evaluate; do python3 -I bench_real/gtdb_bench.py $s; done
+python3 -I bench_real/gtdb_contam.py
+python3 -I bench_real/run_tools.py aif_b011 aif_b022 aif_b176 skani_c60 skani_c250 skani_c500
+<python with sourmash> -I bench_real/pareto_sourmash.py; python3 -I bench_real/pareto_minimap2.py; python3 -I bench_real/pareto_time.py
+python3 -I bench_real/idmap.py run; REAL_DIR=data/real_tune python3 -I bench_real/idmap.py run
+REAL_DIR=data/real_tune python3 -I bench_real/idmap.py calibrate; python3 -I bench_real/idmap.py evaluate
 python3 scripts/real_report.py && report_real/build.sh
 ```
 

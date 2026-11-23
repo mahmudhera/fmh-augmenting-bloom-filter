@@ -1,0 +1,22 @@
+{
+ "bits_per_base": {
+  "skani_c500": 0.257,
+  "skani_c250": 0.45,
+  "skani": 0.835,
+  "skani_c60": 1.666,
+  "skani_slow": 3.265,
+  "aif_b011": 0.11,
+  "aif_b022": 0.22,
+  "aif_0.44": 0.44,
+  "aif": 0.88,
+  "aif_b176": 1.76,
+  "sm_S580": 0.1103448275862069,
+  "sm_S290": 0.2206896551724138,
+  "sm_S145": 0.4413793103448276,
+  "sm_S73": 0.8767123287671232,
+  "sm_S36": 1.7777777777777777,
+  "sm_S18": 3.5555555555555554,
+  "minimap2": 27.41195798627656
+ },
+ "note": "skani: --separate-sketches .sketch bytes of the 5 references (21.61 Mbp); sourmash: 64 bits per hash / scaled; aif: budget; minimap2: asm20 .mmi index"
+}

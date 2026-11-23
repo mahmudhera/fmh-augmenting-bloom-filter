@@ -18,7 +18,7 @@ from the skani Benchmark Data
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Real-genome report, aif v1.5 \(em November 22, 2026
+Real-genome report, aif v1.6 \(em November 23, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -32,44 +32,27 @@ Experiments and typesetting by Claude (Anthropic) for the project owner
 .ad b
 .ps 10
 .vs 12.4p
-The earlier benchmark used contigs simulated from four reference genomes. Here aif is tested on real genome pairs.
-The data are 240 real assemblies with 35,362 contigs of at least 500 bp (1.13 Gbp), drawn from the data sets of the
-skani paper. They are the B. cereus group (D2) and E. coli (D3) draft assemblies, metagenome-assembled genomes of
-species bin 2328, GC-extreme P. aeruginosa and S. aureus drafts, and cross-genus negative controls.
-The ground truth is MUMmer alignment of every contig to its reference.
-No aif parameter was tuned on these data. At equal sketch size (0.88 vs 0.90 bits per reference base) aif is better
-than skani 0.4.0 on every set, for both ANI and AF.
-Pooled over the 33,464 within-species contigs, aif reports 99.2% of homologous contigs (skani 90.1%).
-Its ANI mean absolute error is 0.50 pp (skani 0.68 pp), or 0.39 vs 0.68 pp on the 23,488 contigs that every
-configuration reports. Its AF error is 2.63 pp (skani 9.35 pp).
-aif also beats skani's 3.8\(mu larger \f[CR]--slow\f[R] preset on every set. At half its budget, aif still beats
-skani's default in pooled ANI (0.56 vs 0.68 pp) and in AF on every set.
-On 500\(en1000 bp contigs aif reports 95% of homologous contigs, against 23% for skani, with an AF error of 4.3 vs 39 pp.
-Aggregating aif's contig estimates also gives the most accurate genome-level ANI against ANIm (0.19 pp vs 0.24 pp for
-skani and 0.25 pp for fastANI).
-One setting change, chosen on a disjoint real tuning set (aif-RT), lowers the held-out AF error to 1.85 pp.
-Real assemblies also exposed speed problems. Version 1.2 made the thread pipeline scale on Mbp-scale contigs.
-Version 1.3 then closed the single-thread gap with:
-GFNI reverse complements; vectorised 2-bit packing and bin counting; and HMM recursions restructured so that their
-reductions leave the dependency chain.
-Single-threaded, v1.3 processed the five sets in 2.81 s against skani's 3.28 s, faster on every set; at 8 threads,
-0.89 s against 2.66 s. Estimates moved by at most 10\u\s-2\(mi6\s0\d.
-Version 1.4 adds per-contig confidence intervals for ANI and AF. Statistical intervals from Theorem 1 cover the
-truth at nominal rates when the model holds (96.5% at 95% on simulated substitution-only contigs).
-Intervals calibrated by stratified split-conformal prediction on the real tuning set cover 94.4% (ANI) and 94.2% (AF)
-of held-out real contigs at 95%, with median half-widths of 0.87 and 2.6 pp. They cost about 4% in run time, and aif
-still matches or beats skani single-threaded on every set (2.92 vs 3.27 s).
-We also traced aif's AF over-estimate on partially aligned contigs to two mechanisms, and tested principled
-corrections. One of them, a local identity prior, is offered as an option. Each correction trades contig AF
-against genome-level ANI, so the defaults are unchanged.
-Version 1.5 adds a database mode. All references share one k, so a contig is hashed once and each candidate
-reference costs only its filter tests and the HMM. A bit-sliced screening index chooses the candidates, and an
-exhaustive search is byte-identical to pairwise queries. Against 2,005 complete genomes (8.6 Gbp), aif reports
-99.9% of homologous contigs, against 77% for skani search and 95% for skani dist. Its top-hit ANI error is
-0.32 pp (skani 0.51 and 0.69 pp), its AF error 1.3 pp (3.0 and 4.2 pp), and its top hit is the best reference for
-90% of contigs (77% and 74%). At 8 threads it searches 33,464 contigs in 5.2 s, against 37.9 s for skani search.
-Its database is 1.04 bits per base against skani's 0.90, and a size-matched aif database is as accurate.
-We also report where aif errs and how the truth was audited.
+We test aif on real genome pairs: 240 assemblies with 35,362 contigs of at least 500 bp (1.13 Gbp) from the
+skani paper's data sets, namely B. cereus group and E. coli drafts, MAGs of species bin 2328, P. aeruginosa and
+S. aureus drafts, and negative controls. The truth is MUMmer alignment, and no aif parameter was tuned on these
+data. At equal sketch size (0.88 vs 0.90 bits per reference base) aif beats skani 0.4.0 on every set. Pooled
+over 33,464 within-species contigs, it reports 99.2% of homologous contigs (skani 90.1%), with 0.50 vs 0.68 pp
+ANI error and 2.6 vs 9.4 pp AF error. On 0.5\(en1 kb contigs it reports 95% against 23%. Aggregated, its contig
+estimates give the most accurate genome-level ANI (0.19 pp; skani 0.24, fastANI 0.25).
+Speed work (v1.2\(en1.3) makes aif faster than skani single-threaded. Calibrated per-contig intervals (v1.4)
+cover 94% of held-out contigs at 95%.
+A database mode (v1.5\(en1.6) shares one k across references, so each contig is hashed once and each candidate
+costs only filter tests and the HMM. Against 2,005 genomes, aif's top-hit errors are 0.31 pp ANI and 1.1 pp AF,
+against 0.51/3.0 pp for skani search, and it is 8\(mu faster.
+Against all 199,923 GTDB R232 species representatives (655 Gbp), aif builds an 82.5 GB database in 6.7 min
+(skani: 82.7 GB, 10.8 min) and classifies the contigs of 294 held-out genomes in 11.5 s (skani: 252 s). Its top
+hit has the right species for 78% of contigs and the right genus for 89% (skani 62% and 69%). It is more
+accurate at every contig length, and flags 91% of contaminant contigs in simulated bins (skani 68%).
+Across sketch sizes from 0.11 to 3.6 bits per base aif is on the Pareto front. Exact FracMinHash containment at
+32\(mu the size is less accurate than aif's smallest sketch, as the bits-per-sample theorem predicts.
+aif also reports identity maps along contigs. These are more accurate than fastANI's fragment identities
+(0.55 vs 0.78 pp at 3 kb), with calibrated window intervals, and they find unaligned islands at 97% precision and
+81% recall. We also report where aif errs, notably AF over-estimates on divergent partial contigs.
 .ps \n(PS
 .vs \n(VSp
 .in 0
@@ -126,10 +109,24 @@ contigs at the nominal rate (94.4% ANI, 94.2% AF at 95%); skani reports no uncer
 identity prior fixes this and lowers held-out contig AF error by 13%, but raises genome-level ANI error. No
 correction we tested improves both, so the defaults are unchanged (Section 9).
 .IP (8) 0.3i
-\f[B]Database mode.\f[R] Against 2,005 genomes, aif's top hit has 0.32 pp ANI and 1.3 pp AF error, against
+\f[B]Database mode.\f[R] Against 2,005 genomes, aif's top hit has 0.31 pp ANI and 1.1 pp AF error, against
 0.51 / 3.0 pp for skani search and 0.69 / 4.2 pp for skani dist. aif covers 99.9% of homologous contigs
-(77% and 95%), and is 7\(mu faster than skani search, 3\(mu faster than its \f[CR]--keep-refs\f[R] mode. It uses
-more memory (2.0 vs 1.3 GB) and a 16% larger database; a size-matched database is as accurate (Section 10).
+(77% and 95%), and is 8\(mu faster than skani search, 3.6\(mu faster than its \f[CR]--keep-refs\f[R] mode. It uses
+somewhat more memory (1.8 vs 1.3 GB) and a 16% larger database; a size-matched database is as accurate (Section 10).
+.IP (9) 0.3i
+\f[B]GTDB scale.\f[R] Against all 199,923 GTDB R232 representatives, aif classifies contigs of held-out genomes
+to the right species 78% of the time (skani 62%), genus 89% (69%), and 22\(mu faster, with an equal-size
+database. With an equal species-calling rule (ANI \(>= 95%) it calls 77% of contigs correctly at 86% precision,
+against 61% at 87% for skani (Section 11). Contaminant contigs in simulated bins are flagged at genus level
+for 91% (skani 68%, Section 12).
+.IP (10) 0.3i
+\f[B]Size\(enaccuracy front.\f[R] Across sketch sizes from 0.11 to 3.6 bits per base, aif is more accurate than
+skani and exact FracMinHash at every size, and faster up to 0.88 bits per base. Alignment (minimap2) is more
+accurate still, with a 31\(mu larger index and 210\(mu the run time (Section 13).
+.IP (11) 0.3i
+\f[B]Identity maps.\f[R] aif's segmentation gives windowed identity along contigs (0.55 pp error at 3 kb; fastANI
+0.78 pp), calibrated window intervals (94.4\(en94.7% coverage), unaligned islands (97% precision, 81% recall) and
+breakpoints (median 171 bp) (Section 14).
 .\" =====================================================================
 .H1 "Data and ground truth"
 .H2 "Genome sets"
@@ -614,7 +611,7 @@ Held-out evaluation of the default, aif-RT and the local identity prior.
 .TCE
 .so gen/tab_afopt.tbl
 .\" =====================================================================
-.H1 "Database mode (v1.5)"
+.H1 "Database mode (v1.5\(en1.6)"
 .LP
 Earlier sections give every query a single reference. In practice contigs are often searched against thousands of
 references, as with skani's \f[CR]search\f[R] command. Version 1.5 adds \f[CR]aif db build\f[R],
@@ -641,7 +638,21 @@ Binomial(n, f), with c \(>= 2.
 Candidates are ranked by FP-corrected screening containment, (c/n \(mi f)/(1 \(mi f), and the best 16 are run
 through the full model.
 Ranking by z instead favours references with a low f on long contigs and loses 4\(en5 points of recall (Table 25).
-The output is the top n hits per contig, ordered by ANI\(muAF (or by ANI or AF).
+Long contigs use their 128 keys of smallest selection hash. This is a consistent subsample, so containment stays
+unbiased, and it changed the top hit of 0.9% of contigs.
+.IP \(bu 0.2i
+\f[B]Pre-HMM filter (v1.6).\f[R] A two-state Viterbi score is computed for candidates without a clear global
+hit excess (z < 4). It uses the HMM's emission log-ratios at eight identity levels and its switching
+penalties, and costs a fraction of the HMM. A candidate scoring below 5 nats skips the HMM.
+On the 2,005-genome benchmark no reported hit among 370,757 scored below 9.1, and 99% of the candidates that
+report nothing were skipped. Output is identical; the main saving is estimator memory at GTDB scale.
+.IP \(bu 0.2i
+\f[B]Hit order (v1.6).\f[R] Hits are ordered by the model's log-likelihood ratio, i.e. how well each
+reference explains the contig's probe hits (alternatives: ANI\(muAF, ANI, AF). Ordering by ANI\(muAF
+lets aif's AF over-estimate on divergent hits outrank a closer reference. On GTDB, a 111 kb contig at
+99.9% ANI and 0.90 AF to its own species lost to another species at 93.1% ANI and 0.99 AF. The likelihood
+ratio lowers the top-hit ANI and AF errors and the ANI-only regret below (v1.5, ordered by ANI\(muAF:
+0.32 pp, 1.30 pp, 0.10 pp), at a small cost in the ANI\(muAF regret (0.20 \(-> 0.28 pp).
 .IP \(bu 0.2i
 \f[B]Lazy, memory-mapped.\f[R] The database file is memory-mapped, so a reference's filters are paged in on first
 use. Per-reference estimators are built on first use and share their distance tables.
@@ -686,7 +697,7 @@ Database construction at 8 threads. Size is the database file(s); bits/base is p
 .so gen/tab_db_build.tbl
 .H2 "Accuracy of the top hit"
 .LP
-For every contig we take the top hit of each tool. The aif top hit is ordered by ANI\(muAF; skani's is its
+For every contig we take the top hit of each tool. The aif top hit is the first by likelihood ratio; skani's is its
 highest-ANI hit. We also take the top three hits of each tool and the exhaustive aif best hit.
 Every such (contig, reference) pair is aligned with MUMmer, exactly as in Section 2.2. That gives 145,591 pairs
 over 580 references.
@@ -697,14 +708,14 @@ references aligned over at least half the contig, minus the true ANI of the top 
 .LP
 Results are in Tables 23 and 24. aif's database search reports 99.9% of homologous contigs, against 77.0%
 for \f[CR]skani search\f[R] and 94.5% for \f[CR]skani dist\f[R].
-Its top-hit ANI error is 0.32 pp, against 0.51 and 0.69 pp. On the contigs both tools report, it is 0.26 vs
-0.51 pp (search) and 0.30 vs 0.69 pp (dist).
-AF error is 1.30 pp against 3.03 and 4.15 pp; counting unreported contigs as AF 0, it is 1.36 against 23.6 and
+Its top-hit ANI error is 0.31 pp, against 0.51 and 0.69 pp. On the contigs both tools report, it is 0.25 vs
+0.51 pp (search) and 0.29 vs 0.69 pp (dist).
+AF error is 1.12 pp against 3.03 and 4.15 pp; counting unreported contigs as AF 0, it is 1.19 against 23.6 and
 8.7 pp.
-aif's top hit is the best reference for 90.0% of contigs (skani 77.2% and 73.9%). Its regret is 0.20 pp
-of ANI\(muAF, against 1.94 and 2.35 pp. On the ANI-only criterion the regret is 0.10 pp, against 0.15 and 0.24 pp.
-The size-matched database is almost as accurate: 0.33 pp ANI and 1.38 pp AF.
-The calibrated intervals keep their coverage in database mode, 93.8% (ANI) and 94.1% (AF) at 95%, although the
+aif's top hit is the best reference for 88.9% of contigs (skani 78.3% and 74.9%). Its regret is 0.28 pp
+of ANI\(muAF, against 1.81 and 2.24 pp. On the ANI-only criterion the regret is 0.06 pp, against 0.15 and 0.25 pp.
+The size-matched database is almost as accurate: 0.32 pp ANI and 1.22 pp AF.
+The calibrated intervals keep their coverage in database mode, 94.0% (ANI) and 94.5% (AF) at 95%, although the
 references differ from the pairwise ones they were calibrated on.
 .TC 23
 Top-hit accuracy against the 2,005-genome database, pooled over the 26,084 homologous contigs of the five sets
@@ -719,10 +730,10 @@ report; regret in pp of ANI\(muAF.
 .so gen/tab_db_sets.tbl
 .H2 "Screening"
 .LP
-Screening recall is the fraction of contigs whose exhaustive best hit (by estimated ANI\(muAF) is also the
-screened top hit, or scores within 0.001 of it. It is 96.2% at the default setting (Table 25).
-The misses cost little: exhaustive search lowers the pooled regret only from 0.20 to 0.18 pp, and leaves ANI and
-AF error unchanged (Table 23). Most misses are in the B. cereus group, where many references are similarly
+Screening recall is the fraction of contigs whose exhaustive best hit is also the screened top hit, or scores
+within 0.001 of it. It is 97.5% with the v1.6 defaults. The grid in Table 25 was measured in v1.5, with
+ANI\(muAF ordering and no key cap. The misses cost little: exhaustive search lowers the pooled regret only from
+0.28 to 0.27 pp, and leaves ANI and AF error unchanged (Table 23). Most misses are in the B. cereus group, where many references are similarly
 close mosaics. There, one reference has a higher identity over part of the contig and another a lower identity
 over all of it. Containment and ANI\(muAF rank these two differently.
 Table 25 compares screening densities. Doubling the screening fraction (0.31 bits/base) raises recall by
@@ -736,20 +747,18 @@ Screening configurations on the 2,005-genome database (5 sets, 8 threads; recall
 .so gen/tab_db_screen.tbl
 .H2 "Speed and scaling"
 .LP
-aif searches the 33,464 contigs against the 2,005 genomes in 5.2 s at 8 threads and in 34.9 s on one thread
-(Table 26, Figure 8). \f[CR]skani search\f[R] takes 37.9 and 264.5 s (7.3\(en7.6\(mu slower).
-With \f[CR]--keep-refs\f[R], which keeps passing reference sketches in memory, it takes 15.9 and 83.8 s
-(2.4\(en3.1\(mu slower).
+With the v1.6 defaults, aif searches the 33,464 contigs against the 2,005 genomes in 4.4 s at 8 threads and in
+32.9 s on one thread (Table 26, Figure 8). \f[CR]skani search\f[R] takes 37.9 and 264.5 s (8.0\(en8.6\(mu
+slower). With \f[CR]--keep-refs\f[R], which keeps passing reference sketches in memory, it takes 15.9 and
+83.8 s (2.5\(en3.6\(mu slower).
 \f[CR]skani dist\f[R], which also sketches the references on every run, takes 118.5 s at 8 threads.
-From 405 to 2,005 genomes (5\(mu the references), aif's time grows 1.3\(mu. Screening is linear in the
-number of reference groups, and noise candidates are drawn from a larger pool.
-skani search's time grows 1.1\(mu over the same range.
+From 405 to 2,005 genomes (5\(mu the references), aif's time grows 1.1\(mu, as does skani search's.
+In v1.5 aif's time grew 1.3\(mu (5.2 s at 2,005 genomes), because noise candidates went through the HMM.
 .LP
-Memory is aif's weak point: 2.0 GB at 8 threads against 1.3 GB (skani search) and 1.9 GB
+aif uses more memory: 1.8 GB at 8 threads against 1.3 GB (skani search) and 1.9 GB
 (\f[CR]--keep-refs\f[R]). The peak counts the touched pages of the memory-mapped database (1.1 GB) and the
-per-reference estimators. These take about 0.35 MB each and are built for nearly every reference, because
-weak noise candidates eventually reach most of them. A cheaper rejection of noise candidates before the HMM,
-and estimators shared between references with equal filter error rates, would lower both time and memory.
+per-reference estimators, about 0.35 MB each. The pre-HMM filter builds estimators only for references that
+pass it: 748 rather than 2,002 of the 2,005 (v1.5: 2.0 GB peak).
 .TC 26
 Search time (s) and peak memory (GB, 8 threads) for the 33,464 contigs of the five sets against the nested
 databases (warm page cache; skani dist sketches the references in every run).
@@ -760,6 +769,224 @@ databases (warm page cache; skani dist sketches the references in every run).
 .FC 8
 Database search time (left; solid, filled: 8 threads; dashed, open: 1 thread, measured for the smallest and
 largest database) and peak memory (right, 8 threads) against database size.
+.FE
+.\" =====================================================================
+.H1 "GTDB-scale database: contig classification"
+.LP
+The database is all 199,923 species representatives of GTDB release R232 (April 2026): 189,801
+bacterial and 10,122 archaeal genomes, 655 Gbp. They come from the release tarball (192 GB, MD5-verified),
+and aif reads the gzip files directly (v1.6).
+.LP
+\f[B]Queries.\f[R] The queries are 294 GTDB non-representative genomes from 294 distinct species, 15 of them
+archaeal (\f[CR]bench_real/gtdb_select.py\f[R], seed 2611). Each is an NCBI draft assembly (contig or
+scaffold level, not metagenome-derived) with CheckM2 completeness \(>= 95% and contamination \(<= 2%. Six
+further genomes, ENA submissions, are not served by NCBI datasets and were dropped. The 23,561 contigs of at
+least 500 bp (1.32 Gbp) are classified one by one.
+Each query's own species representative is in the database, and the query genome itself is not.
+.LP
+\f[B]Truth.\f[R] A contig's top hit is correct at species (genus) level when the hit's GTDB species (genus)
+is the query genome's. Top-hit ANI and AF are scored against MUMmer, as in Section 10, for every
+(contig, reference) pair among each tool's top three hits and the contig's own species representative.
+Contigs that align to their own species representative over at least 20% of their length form the
+"homologous" subset. The others are plasmids, mobile elements and accessory regions, whose best match may
+legitimately lie in another species.
+.LP
+\f[B]Tools.\f[R]
+.IP \(bu 0.2i
+aif at budget 0.88: default screening, hits ordered by the model's likelihood ratio;
+.IP \(bu 0.2i
+a smaller aif database, at filter budget 0.22;
+.IP \(bu 0.2i
+skani 0.4.0: \f[CR]skani sketch\f[R], then \f[CR]skani search --qi\f[R], with hits ordered by ANI.
+.LP
+Builds use 32 threads; searches use 16 threads, with the database in the page cache.
+.LP
+\f[B]Build and size (Table 27).\f[R] The aif database is 82.5 GB, 1.008 bits per base: 72.0 GB of filters
+and 10.5 GB of screening index. skani's is 82.7 GB, 1.011 bits per base. With the genomes in the page cache,
+aif builds it in 6.7 min with 1.9 GB of memory, against 10.8 min and 15.6 GB for skani. From a cold disk
+aif's first build took 30 min, mostly reading 181 GB of gzip files. The 0.22-budget aif database is 28.5 GB
+(0.348 bits per base), and its screening index is 37% of it.
+.LP
+\f[B]Search.\f[R] With the databases in the page cache, aif searches the 23,561 contigs (1.32 Gbp) against the 199,923
+genomes in 11.5 s at 16 threads, and in 7.4 s with the 0.22 database. skani search takes 252 s, 22\(en34\(mu
+longer. The first runs, with parts of the databases on disk, took 13\(en77 s for aif and 852 s for skani.
+Peak resident memory is 65 GB for aif and 78 GB for skani. For aif it is almost all touched pages of the
+memory-mapped database file, which the page cache shares. The 19,726 estimators built (one per reference that
+passed the pre-HMM filter) add about 7 GB.
+.LP
+\f[B]Classification (Table 28, Figure 9).\f[R]
+.IP \(bu 0.2i
+\f[B]Coverage and accuracy.\f[R] aif finds a hit for 93.5% of contigs, skani for 71.6%. aif's top hit has the
+query's species for 78.3% of all contigs and its genus for 88.5%; skani's for 61.6% and 68.9%.
+.IP \(bu 0.2i
+\f[B]Homologous contigs.\f[R] On contigs that align to their own species representative, aif's top hit is the
+right species for 91.4% and skani's for 72.1%.
+.IP \(bu 0.2i
+\f[B]By length.\f[R] aif is more accurate at every contig length: 45.7 vs 2.6% at 0.5\(en1 kb,
+62.6 vs 18.5% at 1\(en2 kb, 83.1 vs 75.7% at 5\(en20 kb, and 92.5 vs 90.4% at \(>= 20 kb.
+.IP \(bu 0.2i
+\f[B]Equal calling rule.\f[R] Species calls are made only when the top-hit ANI is \(>= 95%, GTDB's species
+boundary. Under this rule aif calls 76.6% of contigs correctly at 86.4% precision, and skani 60.7% at 87.2%.
+.IP \(bu 0.2i
+\f[B]Archaea.\f[R] On the 1,015 archaeal contigs, aif's species accuracy is 87.4% against 68.6%.
+.IP \(bu 0.2i
+\f[B]ANI and AF.\f[R] Against MUMmer, aif's top-hit ANI error is 0.49 pp and skani's 0.63 pp, over a larger set
+of contigs for aif. AF error is 2.58 vs 3.42 pp.
+.IP \(bu 0.2i
+\f[B]Smaller database.\f[R] The 0.22-budget database, a third of skani's size, still classifies 77.8% of
+contigs to species (88.1% to genus), with 0.58 pp ANI error.
+.LP
+\f[B]Interval coverage under shift.\f[R] The calibrated intervals cover 91.5% (ANI) and 91.9% (AF) of top-hit
+pairs here, against 95% nominal. They were calibrated on five bacterial species, and these queries span the
+whole tree, so the gap measures distribution shift. Refitting on a taxonomically broad tuning set
+(\f[CR]--ci-table\f[R]) is the remedy.
+.LP
+\f[B]Where species assignment fails.\f[R] For 300 contigs whose own representative was not among the reported
+hits, aif's candidate list was examined. In 245 the representative was not a candidate at all. These were
+mostly short contigs whose screening containment is tied (0.87\(en1.0) across many genomes, such as conserved
+and mobile elements, or contigs about equally distant from many references. Neither a larger candidate list
+nor taxonomy alone can resolve them, and they account for most of the gap between all contigs (78.3%) and
+homologous ones (91.4%).
+.TC 27
+Building and searching the GTDB R232 database (199,923 genomes, 655 Gbp; build: 32 threads; search: the
+23,561 query contigs, 16 threads). Peak memory of the search includes the memory-mapped database pages.
+.TCE
+.so gen/tab_gtdb_build.tbl
+.TC 28
+Contig classification against GTDB R232 (correct: the top hit's GTDB species or genus is the query's;
+precision: among contigs with a hit; homol.: contigs aligning to their own species representative; ANI \(>= 95% call:
+species assigned only when the top-hit ANI is \(>= 95% (sensitivity over all contigs, precision over calls);
+ANI/AF: top hit against MUMmer).
+.TCE
+.so gen/tab_gtdb_acc.tbl
+.ne 2.8i
+.PSPIC -C figs/fig_gtdb.eps 6.4i
+.FC 9
+Species-level classification accuracy (left) and top-hit ANI error (right) against contig length,
+GTDB R232.
+.FE
+.\" =====================================================================
+.H1 "Contamination screening of bins"
+.LP
+Every contig was classified on its own, so contaminated bins can be assembled after the fact
+(\f[CR]bench_real/gtdb_contam.py\f[R]). For each of the 294 query genomes (the host) and each contamination
+level (5, 10 and 20% of host bases), contigs of one other random query genome are added until the level is
+reached, skipping contigs that would overshoot it by more than 25%: 861 bins (hosts whose contaminant has no
+small-enough contig are skipped). The bin's taxon is the base-weighted majority of its contigs' top-hit taxa. A contig is
+flagged when its top hit has another species, or with the genus rule another genus. Contigs without a hit
+are left unflagged, or flagged under the strict rule.
+.LP
+The genus rule gives the best precision for both tools (Table 29). Pooled over the three levels, aif flags
+98.8% of contaminant bases at 95.1% precision, and skani 97.6% at 92.9%. By contig count aif flags 90.8% of
+contaminant contigs at 75.3% precision, and skani 67.8% at 81.2%. On 0.5\(en2 kb contaminant contigs the recall is 75.5% against 13.3%:
+skani reports nothing for most short contigs, so they cannot be flagged. Their bases are few, which is why the
+base-level recalls are close. Flagging every contig without a hit (strict rule) recovers almost all contaminant
+contigs for both tools, at a large cost in precision. The species rule flags host contigs whose best match lies
+in another species (conserved or mobile elements), and its precision is lower for both tools (aif 76%,
+skani 71% by bases).
+.TC 29
+Contaminant detection in 861 simulated bins: precision and recall of contaminant bases, by contamination
+level (taxon: species or genus rule; strict: contigs without a hit are flagged too).
+.TCE
+.so gen/tab_contam.tbl
+.\" =====================================================================
+.H1 "Size, accuracy and time: a Pareto comparison"
+.LP
+The earlier comparisons use one sketch size per tool. Here each method is swept across sizes on the five
+real sets (pairwise; pooled within-species contigs; time is sketch plus query on one thread):
+.IP \(bu 0.2i
+\f[B]aif\f[R] at budgets 0.11\(en1.76 bits per reference base;
+.IP \(bu 0.2i
+\f[B]skani\f[R] at compression factors c = 500 to 30, measured at 0.26\(en3.27 bits per base;
+.IP \(bu 0.2i
+\f[B]exact FracMinHash\f[R]: containment ANI with sourmash 4.8 (k = 21), at scaled values 580 to 18.
+Hashes are stored at 64 bits each, so this spans 0.11\(en3.56 bits per base; sourmash estimates no AF;
+.IP \(bu 0.2i
+\f[B]alignment\f[R] with minimap2 (asm20 preset, identity from the gap-compressed divergence) as the
+accuracy ceiling.
+.LP
+Results are in Table 30 and Figure 10.
+.IP (1) 0.3i
+\f[B]aif is on the front at every size.\f[R] At 0.22 bits/base its ANI error (0.62 pp) is below
+skani's default at 0.84 bits/base (0.68 pp). At 0.44 bits/base (0.56 pp) it beats skani
+\f[CR]--slow\f[R] at 3.27 bits/base (0.61 pp), with 7.4\(mu less space. At 0.44 bits/base its AF error
+(3.6 pp) is below skani's at every size tested (4.3 pp at best).
+.IP (2) 0.3i
+\f[B]Filtered samples beat exact samples.\f[R] Exact FracMinHash at 0.88 bits/base has an ANI error of 0.77 pp,
+worse than aif at 0.11 bits/base (0.67 pp). Even at 3.56 bits/base, 32\(mu aif's smallest sketch, it reaches
+only 0.71 pp. This is the bits-per-sample principle (Theorem 3) on real data: at equal space, many
+samples stored with 0.5\(en10% false positives carry more information than fewer samples stored exactly.
+Containment alone cannot separate AF from ANI (Proposition 3), and sourmash reports no AF.
+.IP (3) 0.3i
+\f[B]Speed.\f[R] Up to 0.88 bits/base aif is also the fastest: 1.35\(en2.91 s for the five sets, against
+2.42\(en3.22 s for skani at comparable sizes. sourmash (Python driving Rust) takes 21\(en184 s.
+.IP (4) 0.3i
+\f[B]Alignment.\f[R] minimap2 reaches 0.23 pp ANI and 1.78 pp AF error. Its index is 27 bits/base (31\(mu aif's
+default sketch) and its run time 622 s (210\(mu aif's). At 1.76 bits/base aif's AF error (1.73 pp) matches
+minimap2's, and its ANI error is twice as high.
+.ne 4.0i
+.TC 30
+Pairwise accuracy against sketch (or index) size and time on the real sets (pooled within-species
+contigs; MAE in pp; paired: contigs that every configuration reports; time: sketch + query of the five
+sets, 1 thread, median of 3).
+.TCE
+.so gen/tab_pareto.tbl
+.ne 3.0i
+.PSPIC -C figs/fig_pareto.eps 6.6i
+.FC 10
+Error against sketch size (left, middle) and against time (right). Sketch size is bits per reference base:
+aif budget, skani sketch files, 64 bits per sourmash hash, minimap2 index. sourmash has no AF estimate.
+.FE
+.\" =====================================================================
+.H1 "Identity maps along contigs"
+.LP
+aif's HMM segments each contig, and v1.6 exposes the segmentation. With \f[CR]--segments FILE\f[R],
+\f[CR]aif query\f[R] and \f[CR]aif db search\f[R] write aligned and unaligned segments that tile each contig.
+Each aligned run is split into windows of about 1 kb (\f[CR]--seg-window\f[R]), and each window gets an
+FP-corrected identity with a 95% interval. No other sketch tool reports positions. The closest comparator
+is fastANI's \f[CR]--visualize\f[R], which lists the identity of each mapped 3 kb fragment.
+.LP
+\f[B]Truth.\f[R] Each query genome is aligned to its reference with MUMmer, as in Section 2.2. A window's true
+identity is 1 \(mi (substitutions + indel bases in the window) / (aligned bases in the window), from
+\f[CR]show-snps\f[R]. Alignment-block identity would average over whole blocks, often tens of kb long.
+A base is unaligned when no alignment covers it. Windows are scored when at least 90% of their bases align.
+.LP
+\f[B]Intervals.\f[R] Statistical intervals (Theorem 1 with the delta method) cover 89% of held-out 1 kb
+windows and 78% of 3 kb windows. Split-conformal multipliers, fitted on the real tuning set by window size and
+estimated identity, give 94.7% and 94.4% at 95%. They are built into aif; \f[CR]--seg-ci-stat\f[R] reports
+the statistical intervals.
+.LP
+\f[B]Results\f[R] (Tables 31\(en32, Figure 11; 224 genomes, 833,183 windows of 1 kb):
+.IP \(bu 0.2i
+\f[B]Window identity.\f[R] At fastANI's 3 kb resolution, aif's error is 0.55 pp against fastANI's 0.78 pp, and its
+correlation with the truth is 0.97 against 0.86. aif is better above 90% identity, by up to 7\(mu at
+\(>= 99.5% (0.035 vs 0.235 pp). fastANI is better below 90% (2.2 vs 2.7 pp), where aif's detection floor
+biases identity upward. At 1 kb aif's error is 0.63 pp.
+.IP \(bu 0.2i
+\f[B]Islands.\f[R] Of 139 Mbp of unaligned sequence on reported contigs, aif's unaligned segments recover 81% at
+97% precision. fastANI's unmapped fragments recover 51% at 56% precision.
+.IP \(bu 0.2i
+\f[B]Breakpoints.\f[R] Across 67,853 aligned/unaligned boundaries, the median distance to aif's nearest
+segment boundary is 171 bp, and 92% are within 500 bp. The median is 59\(en70 bp on E. coli and
+P. aeruginosa, against fastANI's 3 kb fragments.
+.LP
+Recall is lowest on the B. cereus group (73%). There, 85\(en90% regions sit between "aligned at low identity"
+and "unaligned", the same ambiguity as in the AF model (Section 9).
+.TC 31
+Window identity against MUMmer (windows with true AF \(>= 0.9; MAE in pp, r: Pearson correlation; 95% CI
+coverage of aif's statistical and calibrated window intervals on held-out data).
+.TCE
+.so gen/tab_idmap.tbl
+.TC 32
+Unaligned islands (per base, on contigs each tool reports) and aligned/unaligned breakpoints (aif).
+.TCE
+.so gen/tab_islands.tbl
+.ne 3.0i
+.PSPIC -C figs/fig_idmap.eps 6.6i
+.FC 11
+Identity map of a 162 kb P. aeruginosa draft contig (the P. paraeruginosa-like strain, 93.6% genome ANIm)
+against PAO1: aif's 1 kb windows with calibrated 95% intervals, MUMmer identity of the same windows,
+fastANI's 3 kb fragments, and aif's unaligned segments (shaded).
 .FE
 .\" =====================================================================
 .H1 "Discussion"
@@ -791,10 +1018,12 @@ table can be refitted (\f[CR]--ci-table\f[R]). Statistical intervals do not acco
 \f[B]Truth.\f[R] The truth is MUMmer (blastn-audited). Alignment-based AF is itself uncertain at 85\(en90%
 identity. At 85\(en90% the tools and aligners disagree by several points.
 .IP \(bu 0.2i
-\f[B]Database scale.\f[R] Database mode is tested on 2,005 genomes, not GTDB scale (tens of thousands). The
-screening index is linear in the number of references per screening key. An inverted index or a reference
-clustering step would be needed beyond about 10\u5\d references. The database uses one k (20), which costs a little
-accuracy against adaptive k. Genome-to-genome screening, skani's other use case, is not tested.
+\f[B]Database scale.\f[R] At 200,000 references each screening key reads about 1,200 random cache lines.
+This is affordable with at most 128 keys per contig, but the cost grows linearly with the database; an inverted
+index or reference clusters would be needed well beyond GTDB. Searches assume the database fits in the page
+cache (82.5 GB for GTDB at the default budget). The database uses one k (20), which costs a little accuracy
+against adaptive k. Interval coverage drops to 92% on GTDB's diverse taxa (calibration covers five bacterial
+species). Genome-to-genome screening, skani's other use case, is not tested.
 .IP \(bu 0.2i
 \f[B]Genome level.\f[R] skani \f[CR]--slow\f[R] gives better genome-level AF; aif's per-contig AF over-estimate
 carries into the aggregate.
@@ -816,12 +1045,15 @@ levels for the heterogeneity re-run.
 Indel-aware statistical intervals, and conformal tables for other truth definitions (BLAST-based AF, as used for
 viral clustering).
 .IP 5. 0.3i
-Database mode at GTDB scale: an inverted screening index or reference clusters, and per-k preparation so that
-references keep their adaptive k.
+Beyond GTDB scale: an inverted screening index or reference clusters, and per-k preparation so that references
+keep their adaptive k. A taxonomically broad calibration set for the intervals.
+.IP 6. 0.3i
+Application studies on the new outputs: identity maps across a pangenome (recombination tracts and islands),
+and contamination screening of real MAG catalogues against GTDB.
 .\" =====================================================================
 .H1 "Reproducibility"
 .CS
-make aif                                     # aif v1.5 (bin/aif); make prof: stage counters
+make aif                                     # aif v1.6 (bin/aif; zlib); make prof: stage counters
 python3 -I bench_real/select_datasets.py     # genome lists (skani-test metadata)
 bench_real/download.sh                       # NCBI datasets + skani-test MAGs
 python3 -I bench_real/prepare.py             # contigs >= 500 bp, per-set query files
@@ -839,6 +1071,14 @@ python3 -I bench_real/afopt_heldout.py       # AF options, simulated held out
 python3 -I bench_real/db_select.py; bench_real/db_download.sh   # 2,005-genome database (NCBI datasets)
 python3 -I bench_real/db_bench.py build      # then: search, truth, time, evaluate (database mode)
 python3 -I bench_real/db_screen_eval.py <dirs>   # screening recall of search variants vs exhaustive
+bench_real/gtdb_download.sh                  # GTDB R232 representatives (parallel ranges, MD5)
+python3 -I bench_real/gtdb_select.py; (NCBI datasets download); python3 -I bench_real/gtdb_prepare.py
+python3 -I bench_real/gtdb_bench.py list     # then: build, search, truth, evaluate
+python3 -I bench_real/gtdb_contam.py         # contamination screening of simulated bins
+python3 -I bench_real/run_tools.py aif_b011 aif_b022 aif_b176 skani_c60 skani_c250 skani_c500
+<sourmash python> -I bench_real/pareto_sourmash.py; python3 -I bench_real/pareto_minimap2.py
+python3 -I bench_real/pareto_time.py         # Pareto timing
+python3 -I bench_real/idmap.py run; REAL_DIR=data/real_tune ... run, calibrate; idmap.py evaluate
 python3 -I bench_real/select_tune.py         # disjoint real tuning set, then with
   REAL_DIR=data/real_tune REAL_SETS=bcereus,ecoli,mag2328,paer,saur: download, prepare,
   truth, run_tools.py aif, tune_real.py "--rho-u=1e-5,2e-5,3e-5 ..."

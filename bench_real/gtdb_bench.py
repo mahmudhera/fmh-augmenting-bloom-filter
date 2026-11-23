@@ -111,6 +111,10 @@ def search():
     for key, cmd in runs:
         if key in out:
             continue
+        # warm the page cache with the database first (every tool is timed with its database cached)
+        dbp = os.path.join(G, "skani_db") if key == "skani" else os.path.join(G, "aif", f"gtdb_{key[4:]}.aifd")
+        for f in ([os.path.join(dbp, x) for x in os.listdir(dbp)] if os.path.isdir(dbp) else [dbp]):
+            subprocess.run(["cat", f], stdout=subprocess.DEVNULL, check=True)
         o = os.path.join(RES, key + ".tsv")
         if key == "skani":
             cmd = cmd + ["-o", o]
@@ -266,7 +270,14 @@ def evaluate():
             ef = [abs(r["af"] - r["t_af"]) for r in rep if "t_af" in r]
             ca = [r["ci_a"] for r in rep if r.get("ci_a") is not None]
             cf = [r["ci_f"] for r in rep if r.get("ci_f") is not None]
+            c95 = [r for r in rep if r["ani"] >= 0.95]
+            c95f = [r for r in rep if r["ani"] >= 0.95 and r["af"] >= 0.5]
             return {"n": n, "reported": len(rep) / max(1, n), "species_acc": sum(r["sp"] for r in rs) / max(1, n),
+                    # species calls only when the top hit has ANI >= 95% (GTDB's species boundary), optionally AF >= 0.5
+                    "call95_rate": len(c95) / max(1, n), "call95_sens": sum(r["sp"] for r in c95) / max(1, n),
+                    "call95_prec": sum(r["sp"] for r in c95) / max(1, len(c95)),
+                    "call95af_rate": len(c95f) / max(1, n), "call95af_sens": sum(r["sp"] for r in c95f) / max(1, n),
+                    "call95af_prec": sum(r["sp"] for r in c95f) / max(1, len(c95f)),
                     "genus_acc": sum(r["gen"] for r in rs) / max(1, n),
                     "species_prec": sum(r["sp"] for r in rep) / max(1, len(rep)),
                     "n_homol": len(hom), "species_acc_homol": sum(r["sp"] for r in hom) / max(1, len(hom)),
@@ -283,13 +294,13 @@ def evaluate():
             res[f[:-5]] = json.load(open(p))
     json.dump(res, open(os.path.join(RES, "gtdb_eval.json"), "w"), indent=1)
     keys = ["all", "bac", "ar"] + [x[2] for x in LB]
-    print(f"{'tool':10s} {'subset':8s} {'n':>6s} {'rep':>6s} {'sp acc':>7s} {'gen acc':>7s} {'sp prec':>7s} {'sp|hom':>7s} {'ANI MAE':>8s} {'AF MAE':>7s} {'CI A/F':>11s}")
+    print(f"{'tool':10s} {'subset':8s} {'n':>6s} {'rep':>6s} {'sp acc':>7s} {'gen acc':>7s} {'sp prec':>7s} {'sp|hom':>7s} {'ANI MAE':>8s} {'AF MAE':>7s} {'CI A/F':>11s} {'c95 sens/prec':>14s}")
     for name, d in res["tools"].items():
         for k in keys:
             s = d[k]
             ci = f"{s['ci_cov_ani']:.3f}/{s['ci_cov_af']:.3f}" if s["ci_cov_ani"] is not None else "-"
             print(f"{name:10s} {k:8s} {s['n']:6d} {s['reported']:6.3f} {s['species_acc']:7.3f} {s['genus_acc']:7.3f} {s['species_prec']:7.3f} "
-                  f"{s['species_acc_homol']:7.3f} {s['ani_mae_pp']:8.3f} {s['af_mae_pp']:7.2f} {ci:>11s}")
+                  f"{s['species_acc_homol']:7.3f} {s['ani_mae_pp']:8.3f} {s['af_mae_pp']:7.2f} {ci:>11s} {s['call95_sens']:6.3f}/{s['call95_prec']:6.3f}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,21 @@
+{
+ "aif_0.88": {
+  "s": 11.5,
+  "kb": 64923888,
+  "threads": 16,
+  "first_run_s": 13.44
+ },
+ "aif_0.22": {
+  "s": 7.37,
+  "kb": 28485024,
+  "threads": 16,
+  "first_run_s": 77.21
+ },
+ "skani": {
+  "s": 252.23,
+  "kb": 77608388,
+  "threads": 16,
+  "first_run_s": 851.94
+ },
+ "note": "warm page cache (database read just before; aif: second of two back-to-back runs); 16 threads; first_run_s: the first measurement (database partly on disk). Peak memory includes memory-mapped database pages."
+}

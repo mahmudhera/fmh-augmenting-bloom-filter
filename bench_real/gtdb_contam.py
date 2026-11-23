@@ -4,7 +4,8 @@
 Every contig was classified on its own (gtdb_bench.py search), so bins can be assembled after the
 fact. For each of the 294 query genomes (host) and each contamination level (5, 10, 20% of host
 bases), a bin is the host's contigs plus contigs of one other random query genome (contaminant),
-added in random order until the level is reached (seed 7). The bin's taxon is the base-weighted
+added in random order until the level is reached, skipping contigs that would overshoot it by more than
+25% (seed 7); hosts whose contaminant has no small-enough contig are skipped. The bin's taxon is the base-weighted
 majority of its contigs' top-hit taxa; a contig is flagged when its top hit has another taxon
 (species or genus rule). Contigs without a hit are not flagged ("unknown"); the "strict" rule also
 flags them. Precision and recall of contaminant bases and contigs, overall and by contig length.
@@ -42,11 +43,15 @@ def main():
             cont = by_g[c][:]
             rng.shuffle(cont)
             add, tot = [], 0
-            for x in cont:
+            for x in cont:  # contigs that keep the bin within 1.25x the target level (no overshoot by one huge contig)
                 if tot >= lvl * hb:
                     break
+                if tot + x[1] > 1.25 * lvl * hb:
+                    continue
                 add.append(x)
                 tot += x[1]
+            if not add:
+                continue
             bins.append((lvl, h, c, by_g[h], add))
     res = {}
     for tname, H in tools.items():
@@ -90,7 +95,9 @@ def main():
                            "recall_by_length": {k: v["tp"] / max(1, v["tp"] + v["fn"]) for k, v in bylen.items()},
                            "precision_by_length": {k: v["tp"] / max(1, v["tp"] + v["fp"]) for k, v in bylen.items()}}
                     res[f"{tname}|{rank}|{rule}|{lvl}"] = out
+    res["n_bins"] = {str(l): sum(1 for b in bins if b[0] == l) for l in LEVELS}
     json.dump(res, open(os.path.join(gb.RES, "contam.json"), "w"), indent=1)
+    print("bins per level:", res["n_bins"])
     for k, v in res.items():
         if k.endswith("|all"):
             print(f"{k:32s} bases P={v['precision_bases']:.3f} R={v['recall_bases']:.3f} | contigs P={v['precision_contigs']:.3f} "

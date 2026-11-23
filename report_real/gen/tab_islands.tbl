@@ -1,0 +1,15 @@
+.TS
+center box tab(@);
+l c c s c s c c c c
+^ ^ c c c c c c c c
+l n n n n n n n n n.
+set@unaligned@aif@fastANI@break-@median@within@within
+@Mbp@precision@recall@precision@recall@points@dist. (bp)@250 bp@500 bp
+_
+B. cereus@74.8@0.950@0.726@0.667@0.565@45735@213@0.558@0.913
+E. coli@36.4@0.987@0.916@0.410@0.389@13240@59@0.749@0.942
+MAGs 2328@6.9@0.988@0.827@0.803@0.727@3364@140@0.638@0.934
+P. aerug.@18.0@0.989@0.941@0.415@0.410@3844@70@0.719@0.920
+S. aureus@3.0@0.982@0.784@0.500@0.510@1670@162@0.615@0.925
+all sets@139.1@0.969@0.810@0.563@0.506@67853@171@0.610@0.920
+.TE
