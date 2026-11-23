@@ -1,6 +1,9 @@
 # FracMinHash + Bloom filters for ANI / AF on short contigs
 
-Four reports:
+**Start here:** [`aif_method_and_results.pdf`](aif_method_and_results.pdf) (12 pages): the method and every result so far,
+with pointers to the detailed reports below.
+
+Four detailed reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
@@ -240,7 +243,8 @@ results/, results_real/,       committed summaries: evaluations (JSON), predicti
 results_viral/
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
-report_real/, report_viral/
+report_real/, report_viral/,
+report_overview/
 data/  (git-ignored)           genomes, assemblies, generated contigs, raw run outputs; regenerate with the scripts
 ```
 
@@ -282,6 +286,7 @@ python3 scripts/real_report.py && report_real/build.sh
 bench_real/viral_download.sh && for s in prepare blast prepare_tune; do python3 -I bench_real/viral_bench.py $s; done
 python3 -I bench_real/viral_bench.py blast tune && for s in tune tools evaluate; do python3 -I bench_real/viral_bench.py $s; done
 /usr/bin/python3 scripts/viral_report.py && report_viral/build.sh
+/usr/bin/python3 scripts/overview_report.py && report_overview/build.sh   # method-and-results overview
 ```
 
 The scripts expect skani at the path in `bench/run_skani.sh` (override with `SKANI=...`), plus numpy and matplotlib for the Python parts.

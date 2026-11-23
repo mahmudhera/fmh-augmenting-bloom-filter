@@ -1,0 +1,22 @@
+.TS
+center box tab(@);
+l l c l c
+l l n l n.
+experiment@metric@aif@comparator@value
+_
+simulated contigs (2,800)@ANI / AF MAE (pp)@0.36 / 0.39@skani@1.12 / 7.43
+real contigs, pairwise@ANI / AF MAE (pp)@0.50 / 2.63@skani@0.68 / 9.35
+@coverage (homologous)@0.992@skani@0.901
+exact FracMinHash, 0.88 bits/base@ANI MAE (pp)@0.50@sourmash@0.77
+alignment (27 bits/base)@ANI / AF MAE (pp)@0.50 / 2.63@minimap2@0.23 / 1.78
+2,005-genome DB@top-hit ANI / AF MAE@0.31 / 1.12@skani search@0.51 / 3.03
+2,005-genome DB, fresh@top-hit ANI / AF MAE@0.23 / 0.77@skani search@0.41 / 2.26
+GTDB, query set 1@species / genus@0.783 / 0.885@skani@0.616 / 0.689
+GTDB, fresh set 2@species / genus@0.786 / 0.901@skani@0.658 / 0.732
+GTDB search, 16 thr@wall time (s)@11.5@skani@252
+contamination (genus rule)@recall / precision@0.908 / 0.753@skani@0.678 / 0.812
+identity maps, 3 kb@identity MAE (pp)@0.55@fastANI@0.78
+unaligned islands@precision / recall@0.969 / 0.810@fastANI@0.563 / 0.506
+vOTUs, INPHARED / GPD@edge F1 (aif: AF \(>= 88%)@0.938 / 0.902@skani small@0.917 / 0.857
+@@@vclust@0.970 / 0.948
+.TE
