@@ -1071,6 +1071,7 @@ struct Params {
   double overdisp = 0.0;       // scale of the k-mer-overlap overdispersion of aligned bin counts (0 = binomial)
   double ci_level = 0.95;      // two-sided level of the reported intervals (0.90, 0.95 or 0.99 calibrated)
   bool ci_stat = false;        // intervals from the statistical SE alone (normal quantile), no calibration
+  double af_min_ident = 0.0;   // report AF over regions aligned at identity >= this (0 = all aligned regions)
   std::string ci_table;        // file with a calibration table (default: built in, from the real tuning set)
   double grid_step = 0.005;  // ANI spacing of aligned levels
   double floor_frac = 2.0;   // flag below_floor if this much aligned mass is on the 2 lowest levels (>1 = off)
@@ -1122,6 +1123,7 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   double se_pooled = 0;                 // statistical SE of the pooled ANI (for the heterogeneous CI)
   std::vector<double> cxs, cas;         // scratch for the AF interval
   double afvar = 0;                     // AF boundary variance (bp^2), accumulated by refine()
+  double al_mass = 0, alt_mass = 0;     // aligned posterior mass, and the part at identity >= af_min_ident
   std::vector<uint8_t> refined;         // per bin: per-probe posteriors available in ap
   std::vector<double> ap;               // per-probe aligned posterior (refined bins only)
   std::vector<float> rfa, rfu, rb, rw;  // refinement scratch
@@ -2037,12 +2039,15 @@ struct Estimator {
     ll += std::log(zprod);
     double pm_num = 0, pm_den = 0, low = 0;
     const size_t nlow = std::min<size_t>(2, m);
+    const float tau = (float)P.af_min_ident;
+    if (!fine) W.al_mass = W.alt_mass = 0;
     auto post = [&](size_t bi, const float* fa, float fu, const float* ba, float bub) {
-      float pu = fu * bub, tot = pu, num = 0, lw = 0;
+      float pu = fu * bub, tot = pu, num = 0, lw = 0, hi = 0;
       for (size_t j = 0; j < SP; ++j) {
         float g = fa[j] * ba[j];
         tot += g;
         num += g * gaf[j];
+        hi += gaf[j] >= tau ? g : 0.0f;
       }
       for (size_t j = m - nlow; j < m; ++j) lw += fa[j] * ba[j];
       if (!(tot > 0)) {  // degenerate (underflow): treat the bin as unaligned
@@ -2051,7 +2056,11 @@ struct Estimator {
       }
       double it = 1.0 / (double)tot, al = 1.0 - (double)pu * it;
       double cnt = (double)(W.bfirst[bi + 1] - W.bfirst[bi]);
-      if (!fine) W.ab[bi] = al;  // per-bin posteriors are not used after the fine re-run
+      if (!fine) {
+        W.ab[bi] = al;  // per-bin posteriors are not used after the fine re-run
+        W.al_mass += cnt * al;
+        W.alt_mass += cnt * (double)hi * it;
+      }
       pm_num += cnt * (double)num * it;
       pm_den += cnt * al;
       low += cnt * (double)lw * it;
@@ -2291,7 +2300,8 @@ struct Estimator {
     PSTAMP(1);
     const size_t nb = W.bstart.size();
     double ll = 0, pm_ani = NAN, low_frac = 0, fast_lr = 0;
-    const bool fast = all_aligned(W, fast_lr);
+    // (the fast path skips the HMM; the identity-thresholded AF needs its level posteriors)
+    const bool fast = P.af_min_ident <= 0 && all_aligned(W, fast_lr);
     if (fast) {  // confidently aligned everywhere: the posterior is ~1 in every bin
       W.ab.assign(nb, 1.0);
       R.lr = fast_lr;
@@ -2360,6 +2370,13 @@ struct Estimator {
     R.theta = th;
     R.aligned_probes = neff;
     R.af = std::min(1.0, std::max(0.0, (Sx + (double)(k - 1) * segs) / (double)L));
+    // identity-thresholded AF: the aligned fraction scaled by the share of aligned posterior mass at
+    // identity levels >= af_min_ident (what seed-based aligners such as megablast can align)
+    double af_rho = 1.0;
+    if (P.af_min_ident > 0 && W.al_mass > 0) {
+      af_rho = std::min(1.0, W.alt_mass / W.al_mass);
+      R.af *= af_rho;
+    }
     const double nk_aligned = std::max(1.0, R.af * L - (k - 1));
     if (th <= 0) {
       R.status = "no_homology";
@@ -2375,6 +2392,7 @@ struct Estimator {
     }
     ani_ci_pooled(R, W, th, var, nk_aligned);
     af_ci(R, W, L);
+    if (af_rho < 1.0 && R.af_se == R.af_se) R.af_se *= af_rho;
     W.hw.clear();
     // pass 2: heterogeneity test over windows (whole bins) of confidently aligned bins
     const double bproc = std::max(th, 1e-6) * Bcoef(1 - ani_pooled, k);
@@ -2550,6 +2568,7 @@ void usage() {
           "          [--lr-min 10] [--het 0|1|2 (1)] [--window 1000] [--het-z 3] [--grid-step 0.005]\n"
           "          [--floor-frac 2] [--no-bias-correct]\n"
           "          intervals: [--ci-level 0.95 (0.90/0.95/0.99)] [--ci-stat (statistical SE only)] [--ci-table FILE]\n"
+          "          [--af-min-ident T (AF over regions aligned at identity >= T, e.g. to match megablast-based AF; 0: off)]\n"
           "          AF model options: [--ident-window D (0: off) --ident-radius 3] (local identity prior)\n"
           "                            [--overdisp L (0: off)] (overdispersed bin emissions, experimental)\n"
           "          [--segments FILE --seg-window 1000 --seg-ci-stat] (aligned/unaligned segments and windowed identity map\n"
@@ -2557,7 +2576,8 @@ void usage() {
           "output: contig ani af theta probes hits aligned_probes status lr het low_frac ani_lo ani_hi af_lo af_hi ani_se af_se\n"
           "aif info <ref.aif>\n"
           "database mode (one k and tier layout for all references; results equal pairwise query with -k K sketches):\n"
-          "aif db build -o <db.aifd> [refs.fa ...] [--list refs.txt (path [name] per line)] [-k 20] [-t threads]\n"
+          "aif db build -o <db.aifd> [refs.fa ...] [--list refs.txt (path [name] per line)] [-i (each FASTA record is a reference)]\n"
+          "             [-k 20] [-t threads]\n"
           "             [--budget 0.88] [--tiers 0.005:0.6,0.1:0.4] [--max-hashes 6]\n"
           "             [--screen-frac 0.015625] [--screen-bits 8] [--screen-hashes 3] [--screen-group-ratio 1.5] (screening index)\n"
           "aif db search <db.aifd> <contigs.fa> [-t threads] [-n 1 (hits per contig; 0: every candidate, any status)]\n"
@@ -2613,6 +2633,7 @@ bool parse_query_opt(int& i, int argc, char** argv, Params& P, int& threads) {
   else if (a == "--overdisp") P.overdisp = std::max(0.0, atof(argv[++i]));
   else if (a == "--ci-level") P.ci_level = std::min(0.9999, std::max(0.5, atof(argv[++i])));
   else if (a == "--ci-stat") P.ci_stat = true;
+  else if (a == "--af-min-ident") P.af_min_ident = std::max(0.0, std::min(1.0, atof(argv[++i])));
   else if (a == "--ci-table") P.ci_table = argv[++i];
   else if (a == "--grid-step") P.grid_step = atof(argv[++i]);
   else if (a == "--floor-frac") P.floor_frac = atof(argv[++i]);
@@ -2985,8 +3006,10 @@ int cmd_db_build(int argc, char** argv) {
   struct RefIn {
     std::string path, name;
     uint64_t fsize = 0;
+    std::string seq;  // --individual: the record's sequence (in memory)
   };
   std::vector<RefIn> in;
+  bool individual = false;
   for (int i = 3; i < argc; ++i) {
     std::string a = argv[i];
     auto val = [&]() -> const char* {
@@ -3004,8 +3027,9 @@ int cmd_db_build(int argc, char** argv) {
     else if (a == "--screen-bits") scr_bits = atof(val());
     else if (a == "--screen-hashes") scr_h = (uint32_t)std::max(1, std::min(8, atoi(val())));
     else if (a == "--screen-group-ratio") grp_ratio = std::max(1.0, atof(val()));
+    else if (a == "-i" || a == "--individual") individual = true;
     else if (!a.empty() && a[0] == '-') usage();
-    else in.push_back({a, "", 0});
+    else in.push_back({a, "", 0, ""});
   }
   if (!list.empty()) {
     FILE* f = fopen(list.c_str(), "r");
@@ -3016,19 +3040,31 @@ int cmd_db_build(int argc, char** argv) {
       while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
       if (l.empty() || l[0] == '#') continue;
       size_t tab = l.find_first_of("\t ");
-      if (tab == std::string::npos) in.push_back({l, "", 0});
-      else in.push_back({l.substr(0, tab), l.substr(l.find_first_not_of("\t ", tab)), 0});
+      if (tab == std::string::npos) in.push_back({l, "", 0, ""});
+      else in.push_back({l.substr(0, tab), l.substr(l.find_first_not_of("\t ", tab)), 0, ""});
     }
     fclose(f);
   }
   if (out.empty() || in.empty() || k < 5 || k > 31) usage();
   auto spec = parse_tiers(tiers);
+  if (individual) {  // every FASTA record is a reference (named by its record), held in memory
+    std::vector<RefIn> recs;
+    for (auto& r : in) {
+      Fasta fa(r.path.c_str());
+      std::string name, seq;
+      while (fa.next(name, seq)) {
+        recs.push_back({r.path, name, (uint64_t)seq.size(), seq});
+      }
+    }
+    in.swap(recs);
+  }
   {  // sizes (in parallel: on a cold disk the per-file reads dominate) and default names
     std::atomic<size_t> nx{0};
     std::vector<std::string> err(in.size());
     auto sizer = [&]() {
       for (size_t i; (i = nx.fetch_add(1)) < in.size();) {
         RefIn& r = in[i];
+        if (individual) continue;  // sizes and names known
         struct stat st;
         if (stat(r.path.c_str(), &st) != 0) {
           err[i] = "cannot stat " + r.path;
@@ -3127,11 +3163,17 @@ int cmd_db_build(int argc, char** argv) {
         try {
           std::vector<Packed> packs;
           {
-            Fasta fa(in[g0 + d].path.c_str());
-            std::string name, seq;
-            while (fa.next(name, seq)) {
+            if (individual) {
               packs.emplace_back();
-              pack_seq((const uint8_t*)seq.data(), seq.size(), k, packs.back());
+              pack_seq((const uint8_t*)in[g0 + d].seq.data(), in[g0 + d].seq.size(), k, packs.back());
+              std::string().swap(in[g0 + d].seq);
+            } else {
+              Fasta fa(in[g0 + d].path.c_str());
+              std::string name, seq;
+              while (fa.next(name, seq)) {
+                packs.emplace_back();
+                pack_seq((const uint8_t*)seq.data(), seq.size(), k, packs.back());
+              }
             }
           }
           gs[d] = build_sketch(packs, k, budget, spec, 1000000, max_hashes);  // also sets badk for k
