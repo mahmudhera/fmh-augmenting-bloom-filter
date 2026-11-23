@@ -9,22 +9,24 @@ import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 G = os.path.join(ROOT, "data", "gtdb")
+SET = os.environ.get("GTDB_SET", "")
 
 
 def main():
-    Q = list(csv.DictReader(open(os.path.join(G, "meta", "queries.tsv")), delimiter="\t"))
-    os.makedirs(os.path.join(G, "queries"), exist_ok=True)
-    fo = open(os.path.join(G, "queries", "contigs.fa"), "w")
-    mo = open(os.path.join(G, "meta", "query_contigs.tsv"), "w")
+    Q = list(csv.DictReader(open(os.path.join(G, "meta", f"queries{SET}.tsv")), delimiter="\t"))
+    qd = os.path.join(G, f"queries{SET}")
+    os.makedirs(qd, exist_ok=True)
+    fo = open(os.path.join(qd, "contigs.fa"), "w")
+    mo = open(os.path.join(G, "meta", f"query_contigs{SET}.tsv"), "w")
     mo.write("contig\tgid\taccession\tspecies\tgenus\trepresentative\tdomain\tlength\n")
     ng = nc = nb = 0
     for i, q in enumerate(Q):
-        fs = glob.glob(os.path.join(G, "qraw", "ncbi_dataset", "data", q["ncbi_accession"], "*.fna"))
+        fs = glob.glob(os.path.join(G, f"qraw{SET}", "ncbi_dataset", "data", q["ncbi_accession"], "*.fna"))
         if not fs:
             continue
         gid = f"gq{i:03d}"
-        os.makedirs(os.path.join(G, "queries", "genomes"), exist_ok=True)
-        go = open(os.path.join(G, "queries", "genomes", gid + ".fa"), "w")
+        os.makedirs(os.path.join(qd, "genomes"), exist_ok=True)
+        go = open(os.path.join(qd, "genomes", gid + ".fa"), "w")
         seqs, name, buf = [], None, []
         for line in open(fs[0]):
             if line.startswith(">"):

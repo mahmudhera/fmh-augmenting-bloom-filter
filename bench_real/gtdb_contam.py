@@ -28,7 +28,7 @@ LB = [(500, 2000, "0.5-2k"), (2000, 10000, "2-10k"), (10000, 10 ** 12, ">=10k")]
 
 def main():
     TX = gb.taxonomy()
-    meta = list(csv.DictReader(open(os.path.join(G, "meta", "query_contigs.tsv")), delimiter="\t"))
+    meta = list(csv.DictReader(open(os.path.join(G, "meta", f"query_contigs{gb.SET}.tsv")), delimiter="\t"))
     by_g = {}
     for m in meta:
         by_g.setdefault(m["gid"], []).append((m["contig"], int(m["length"])))

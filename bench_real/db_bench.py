@@ -27,11 +27,15 @@ from multiprocessing import Pool
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 B = os.path.join(ROOT, "data", "db")
-RES = os.path.join(B, "results")
+# DB_QUERY_DIR / DB_SETS / DB_RES select another query set (e.g. the fresh validation set data/real_fresh)
+RES = os.environ.get("DB_RES", os.path.join(B, "results"))
+QDIR = os.environ.get("DB_QUERY_DIR", os.path.join(ROOT, "data", "real"))
 AIF = os.environ.get("AIF", os.path.join(ROOT, "bin", "aif"))
 SKANI = os.environ.get("SKANI", "/home/mrahmanh/miniconda3/envs/meta-co-assembler-env/bin/skani")
 MUMMER = os.environ.get("MUMMER", os.path.join(ROOT, "data", "envs", "mummer", "bin"))
 SETS = [("bcereus", "BA52G"), ("ecoli", "MG1655"), ("mag2328", "REFMAG"), ("paer", "PAO1"), ("saur", "NCTC8325")]
+if os.environ.get("DB_SETS"):
+    SETS = [x for x in SETS if x[0] in os.environ["DB_SETS"].split(",")]
 SIZES = [0, 400, 800, 1600]  # background genomes added to the 405 references + near neighbours
 TOP = 3
 
@@ -69,7 +73,7 @@ def dir_bytes(d):
 
 
 def queries():
-    return [(s, os.path.join(ROOT, "data", "real", "sets", s, f"{r}.contigs.fa")) for s, r in SETS]
+    return [(s, os.path.join(QDIR, "sets", s, f"{r}.contigs.fa")) for s, r in SETS]
 
 
 def all_queries():
@@ -314,7 +318,7 @@ def evaluate():
     for s, q in queries():
         own = dict(SETS)[s]
         T0 = {r["contig"]: (float(r["true_af"]), float(r["true_ani"]), int(r["length"]))
-              for r in csv.DictReader(open(os.path.join(ROOT, "data", "real", "sets", s, "truth.tsv")), delimiter="\t")}
+              for r in csv.DictReader(open(os.path.join(QDIR, "sets", s, "truth.tsv")), delimiter="\t")}
         A = load_aif(os.path.join(RES, "aif", s + ".tsv"))
         A2 = load_aif(os.path.join(RES, "aif_b074", s + ".tsv"))
         X = load_aif(os.path.join(RES, "aif_exh", s + ".tsv"))

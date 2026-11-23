@@ -26,14 +26,15 @@ from multiprocessing import Pool
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 G = os.path.join(ROOT, "data", "gtdb")
-RES = os.path.join(G, "results")
+SET = os.environ.get("GTDB_SET", "")  # "" = first query set; "2" = fresh validation set (frozen defaults)
+RES = os.path.join(G, f"results{SET}")
 AIF = os.environ.get("AIF", os.path.join(ROOT, "bin", "aif"))
 SKANI = os.environ.get("SKANI", "/home/mrahmanh/miniconda3/envs/meta-co-assembler-env/bin/skani")
 MUMMER = os.environ.get("MUMMER", os.path.join(ROOT, "data", "envs", "mummer", "bin"))
 THREADS = int(os.environ.get("THREADS", "48"))
 BUDGETS = ["0.88", "0.22"]
 TOP = 3
-Q = os.path.join(G, "queries", "contigs.fa")
+Q = os.path.join(G, f"queries{SET}", "contigs.fa")
 
 
 def timed(cmd, out=None, err=None):
@@ -182,7 +183,7 @@ def truth():
         for c, hs in H.items():
             for h in hs[:TOP]:
                 pairs.setdefault(h[0], set()).add(c)
-    meta = {r["contig"]: r for r in csv.DictReader(open(os.path.join(G, "meta", "query_contigs.tsv")), delimiter="\t")}
+    meta = {r["contig"]: r for r in csv.DictReader(open(os.path.join(G, "meta", f"query_contigs{SET}.tsv")), delimiter="\t")}
     for c, m in meta.items():  # the query's own species representative, always
         pairs.setdefault(m["representative"][3:], set()).add(c)
     tp = os.path.join(RES, "truth_pairs.tsv")
@@ -228,7 +229,7 @@ def truth():
 
 def evaluate():
     TX = taxonomy()
-    meta = {r["contig"]: r for r in csv.DictReader(open(os.path.join(G, "meta", "query_contigs.tsv")), delimiter="\t")}
+    meta = {r["contig"]: r for r in csv.DictReader(open(os.path.join(G, "meta", f"query_contigs{SET}.tsv")), delimiter="\t")}
     TR = {}
     tp = os.path.join(RES, "truth_pairs.tsv")
     if os.path.exists(tp):

@@ -54,12 +54,14 @@
 .sp 0.25v
 \f[B]14.	Identity maps along contigs\f[]22
 .sp 0.25v
-\f[B]15.	Discussion\f[]24
-\h'0.45i'15.1\h'|1.05i'Why the simulation results carry over24
-\h'0.45i'15.2\h'|1.05i'Limitations24
-\h'0.45i'15.3\h'|1.05i'Next steps24
+\f[B]15.	Validation of the frozen defaults on fresh queries\f[]24
 .sp 0.25v
-\f[B]16.	Reproducibility\f[]25
+\f[B]16.	Discussion\f[]25
+\h'0.45i'16.1\h'|1.05i'Why the simulation results carry over25
+\h'0.45i'16.2\h'|1.05i'Limitations25
+\h'0.45i'16.3\h'|1.05i'Next steps26
+.sp 0.25v
+\f[B]17.	Reproducibility\f[]26
 .lc
 .ps \n(PS
 .vs \n(VSp

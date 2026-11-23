@@ -52,7 +52,8 @@ Across sketch sizes from 0.11 to 3.6 bits per base aif is on the Pareto front. E
 32\(mu the size is less accurate than aif's smallest sketch, as the bits-per-sample theorem predicts.
 aif also reports identity maps along contigs. These are more accurate than fastANI's fragment identities
 (0.55 vs 0.78 pp at 3 kb), with calibrated window intervals, and they find unaligned islands at 97% precision and
-81% recall. We also report where aif errs, notably AF over-estimates on divergent partial contigs.
+81% recall. Database defaults were frozen and re-validated on fresh queries and unseen species, with
+unchanged conclusions. We also report where aif errs, notably AF over-estimates on divergent partial contigs.
 .ps \n(PS
 .vs \n(VSp
 .in 0
@@ -127,6 +128,10 @@ accurate still, with a 31\(mu larger index and 210\(mu the run time (Section 13)
 \f[B]Identity maps.\f[R] aif's segmentation gives windowed identity along contigs (0.55 pp error at 3 kb; fastANI
 0.78 pp), calibrated window intervals (94.4\(en94.7% coverage), unaligned islands (97% precision, 81% recall) and
 breakpoints (median 171 bp) (Section 14).
+.IP (12) 0.3i
+\f[B]Held-out confirmation.\f[R] With the database defaults frozen, fresh query sets reproduce every conclusion: on
+80 new drafts against 2,005 genomes (ANI 0.23 vs 0.41 pp for skani search), and on 298 genomes of 300 unseen GTDB
+species (species accuracy 78.6% vs 65.8%) (Section 15).
 .\" =====================================================================
 .H1 "Data and ground truth"
 .H2 "Genome sets"
@@ -988,6 +993,63 @@ Identity map of a 162 kb P. aeruginosa draft contig (the P. paraeruginosa-like s
 against PAO1: aif's 1 kb windows with calibrated 95% intervals, MUMmer identity of the same windows,
 fastANI's 3 kb fragments, and aif's unaligned segments (shaded).
 .FE
+.\" =====================================================================
+.H1 "Validation of the frozen defaults on fresh queries"
+.LP
+Several database-mode defaults were chosen while looking at the results reported above:
+.IP \(bu 0.2i
+the screening configuration (1/64 \(mu 8 bits \(mu 3 hashes, containment ranking, 16 candidates), on the
+2,005-genome benchmark (Table 25);
+.IP \(bu 0.2i
+the pre-HMM filter cutoff (\f[CR]--vmin 5\f[R]) and the 128-key cap, on the same benchmark;
+.IP \(bu 0.2i
+hit ordering by likelihood ratio, after inspecting the GTDB results (Section 10.1).
+.LP
+Other choices were made properly on separate data: the shared k (planned before the database benchmark), the
+interval calibration (real tuning set), the identity-map multipliers (tuning set) and \f[CR]--af-min-ident\f[R]
+(viral report, tuning set). The defaults that were not were therefore frozen
+(git tag \f[CR]v1.6-freeze\f[R], binary MD5 \f[CR]be055d32\f[R]). Two fresh query sets were then drawn and
+scored once:
+.IP \(bu 0.2i
+\f[B]Database benchmark, fresh queries\f[R] (\f[CR]bench_real/select_fresh.py\f[R], seed 4242). There are 80 new
+draft assemblies: 24 B. cereus group (D2, including the only 2 unused drafts at 85\(en90% ANIm), 24 E. coli (D3),
+and 16 each of P. aeruginosa and S. aureus. All are disjoint from the evaluation, tuning and database genomes.
+They give 9,617 contigs, 7,088 of them homologous to their pairwise reference, searched against the same
+2,005-genome database.
+.IP \(bu 0.2i
+\f[B]GTDB, query set 2\f[R] (\f[CR]GTDB_SET=2\f[R], seed 4611). There are 298 non-representative genomes (15 archaeal)
+from 300 species not used in set 1, giving 19,555 contigs (1.33 Gbp), searched against the same GTDB R232
+database.
+.LP
+\f[B]Results\f[R] (Tables 33\(en34). Every conclusion holds.
+.IP \(bu 0.2i
+\f[B]Database benchmark.\f[R] On the fresh queries aif reports 99.9% of homologous contigs (skani search 80.2%,
+dist 92.4%). Its top-hit errors are 0.23 pp ANI and 0.77 pp AF, against 0.41 / 2.26 pp (search) and
+0.52 / 2.93 pp (dist). On paired contigs the ANI error is 0.17 vs 0.41 pp (search) and 0.19 vs 0.52 pp (dist).
+Its ANI regret is 0.08 pp (skani 0.20 and 0.27), and its top hit is the best reference for 84.9% of contigs
+(66.3% and 62.4%). Screening recall is 98.0%, and interval coverage 95.0% (ANI) and 95.8% (AF).
+.IP \(bu 0.2i
+\f[B]GTDB.\f[R] On set 2 aif's top hit has the right species for 78.6% of contigs (set 1: 78.3%) and the right
+genus for 90.1% (88.5%); skani's for 65.8% and 73.2%. aif is again more accurate at every contig length:
+40.7 vs 2.9% at 0.5\(en1 kb, and 93.6 vs 91.9% at \(>= 20 kb. Under the ANI \(>= 95% calling rule it
+calls 76.6% correctly at 85.8% precision (skani 64.7% at 88.4%). Top-hit errors are 0.49 pp ANI and 2.32 pp AF
+(skani 0.63, 3.28). Its margin over skani is somewhat smaller than on set 1 (12.8 vs 16.7 points of species
+accuracy). Searches took 12.8 s (aif) and 212 s (skani).
+.IP \(bu 0.2i
+\f[B]Contamination.\f[R] In the bins simulated from set 2 (genus rule), aif flags 93.0% of contaminant contigs
+(skani 70.3%), and 98.2% of contaminant bases at 97.0% precision (skani 97.4% at 95.0%).
+.LP
+The tuned defaults were therefore not fitted to the benchmark queries: on unseen genomes and unseen species
+they give the same results, or slightly better.
+.TC 33
+2,005-genome database: original queries (Section 10, 26,084 homologous contigs) and fresh queries (7,088),
+frozen defaults (MAE and regret in pp; best: fraction whose top hit is the best evaluated reference).
+.TCE
+.so gen/tab_fresh_db.tbl
+.TC 34
+GTDB R232: query set 1 (Section 11) and the fresh set 2 (disjoint species), frozen defaults.
+.TCE
+.so gen/tab_fresh_gtdb.tbl
 .\" =====================================================================
 .H1 "Discussion"
 .H2 "Why the simulation results carry over"

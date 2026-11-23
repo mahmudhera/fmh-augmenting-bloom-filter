@@ -70,6 +70,13 @@ those of 0.5-2 kb) at 75% precision, and 98.8% of contaminant bases at 95% preci
 contigs (13.3% of 0.5-2 kb) at 81% precision, and 97.6% of bases at 93% precision. Calibrated intervals cover 91.5% (ANI) / 91.9% (AF)
 on GTDB's diverse taxa (95% nominal; calibrated on five bacterial species).
 
+**Held-out confirmation (frozen defaults, git tag `v1.6-freeze`).** Database-mode defaults chosen while looking at
+the benchmarks (screening setup, pre-HMM filter, key cap, likelihood-ratio hit order) were frozen and re-tested
+on fresh queries: GTDB query set 2 (298 genomes from 300 unseen species, 19,555 contigs): aif species / genus
+accuracy 78.6% / 90.1% (skani 65.8% / 73.2%), ANI>=95% calls 76.6% at 85.8% precision (skani 64.7% at 88.4%),
+search 12.8 s vs 212 s; 80 fresh drafts against the 2,005-genome database: top-hit ANI / AF MAE 0.23 / 0.77 pp
+(skani search 0.41 / 2.26, dist 0.52 / 2.93), coverage 99.9% (80.2%, 92.4%). Report Section 15.
+
 ## Database mode (v1.5-1.6): contigs against 2,005 genomes
 
 `aif db build` puts many references in one memory-mapped file with one k (20) and one tier layout. A contig is then
@@ -263,6 +270,10 @@ for s in build search truth time evaluate; do python3 -I bench_real/db_bench.py 
 bench_real/gtdb_download.sh && python3 -I bench_real/gtdb_select.py   # then NCBI datasets download of the queries
 python3 -I bench_real/gtdb_prepare.py && for s in list build search truth evaluate; do python3 -I bench_real/gtdb_bench.py $s; done
 python3 -I bench_real/gtdb_contam.py
+python3 -I bench_real/select_fresh.py; REAL_DIR=data/real_fresh bench_real/download.sh   # fresh validation queries
+REAL_DIR=data/real_fresh python3 -I bench_real/prepare.py; REAL_DIR=data/real_fresh REAL_SETS=bcereus,ecoli,paer,saur python3 -I bench_real/truth.py
+DB_QUERY_DIR=data/real_fresh DB_SETS=bcereus,ecoli,paer,saur DB_RES=data/db/results_fresh python3 -I bench_real/db_bench.py search  # + truth, evaluate
+GTDB_SET=2 python3 -I bench_real/gtdb_select.py   # + download, gtdb_prepare.py, gtdb_bench.py search/truth/evaluate, gtdb_contam.py
 python3 -I bench_real/run_tools.py aif_b011 aif_b022 aif_b176 skani_c60 skani_c250 skani_c500
 <python with sourmash> -I bench_real/pareto_sourmash.py; python3 -I bench_real/pareto_minimap2.py; python3 -I bench_real/pareto_time.py
 python3 -I bench_real/idmap.py run; REAL_DIR=data/real_tune python3 -I bench_real/idmap.py run

@@ -608,6 +608,7 @@ def main():
     pareto_section(nums)
     idmap_section(nums)
     gtdb_section(nums)
+    fresh_section(nums)
 
     with open(os.path.join(GEN, "numbers.txt"), "w") as fh:
         for k, v in nums.items():
@@ -1015,6 +1016,62 @@ def gtdb_section(nums):
     for fn in ("gtdb_eval.json", "contam.json", "build.json", "search_time.json"):
         if os.path.exists(os.path.join(GR, fn)):
             open(os.path.join(out, fn), "w").write(open(os.path.join(GR, fn)).read())
+
+
+def fresh_section(nums):
+    """Validation of the frozen v1.6 defaults on fresh query sets (tables 33-34)."""
+    DBF = os.path.join(ROOT, "data", "db", "results_fresh", "db_eval.json")
+    G2 = os.path.join(ROOT, "data", "gtdb", "results2", "gtdb_eval.json")
+    if not (os.path.exists(DBF) and os.path.exists(G2)):
+        print("fresh validation results missing; skipping")
+        return
+    E0 = json.load(open(os.path.join(ROOT, "data", "db", "results", "db_eval.json")))["pooled"]
+    E1 = json.load(open(DBF))["pooled"]
+    rows = []
+    for k, lab in (("aif", "aif db search"), ("aif_b074", "aif, size-matched"), ("aif_exhaustive", "aif, exhaustive"),
+                   ("skani", "skani search"), ("skani_dist", "skani dist")):
+        r0, r1 = E0[k], E1[k]
+        rows.append([lab, f(r0["coverage"], 3), f(r1["coverage"], 3), f(r0["ani_mae_pp"], 3), f(r1["ani_mae_pp"], 3), f(r0["af_mae_pp"], 2),
+                     f(r1["af_mae_pp"], 2), f(r0["regret_ani_pp"], 3), f(r1["regret_ani_pp"], 3), f(r0["top1_best"], 3), f(r1["top1_best"], 3)])
+        nums[f"fresh_db_{k}"] = (r1["coverage"], r1["ani_mae_pp"], r1["af_mae_pp"], r1["regret_ani_pp"], r1["top1_best"], r1["regret_pp"],
+                                 r1.get("ci_cov_ani"), r1.get("ci_cov_af"), r1["n_hom"])
+    nums["fresh_db_paired"] = (E1["paired"], E1["paired_dist"], E1["screen_recall"])
+    tbl("tab_fresh_db.tbl", ["l c s c s c s c s c s", "^ c c c c c c c c c c"], "l n n n n n n n n n n",
+        [["2,005-genome database", "coverage", "", "ANI MAE", "", "AF MAE", "", "ANI regret", "", "top hit best", ""],
+         ["", "orig.", "fresh", "orig.", "fresh", "orig.", "fresh", "orig.", "fresh", "orig.", "fresh"]], rows)
+    G0 = json.load(open(os.path.join(ROOT, "data", "gtdb", "results", "gtdb_eval.json")))["tools"]
+    G1 = json.load(open(G2))["tools"]
+    rows = []
+    LAB = {"aif_0.88": "aif (budget 0.88)", "aif_0.22": "aif (budget 0.22)", "skani": "skani"}
+    for k in ("aif_0.88", "aif_0.22", "skani"):
+        a0, a1 = G0[k]["all"], G1[k]["all"]
+        pair = lambda key, d=3: f"{f(a0[key], d)} / {f(a1[key], d)}"  # noqa: E731
+        rows.append([LAB[k], pair("species_acc"), pair("genus_acc"), pair("call95_sens"), pair("call95_prec"), pair("ani_mae_pp"),
+                     pair("af_mae_pp", 2)])
+        nums[f"fresh_gtdb_{k}"] = a1
+        nums[f"fresh_gtdb_{k}_ar"] = G1[k]["ar"]
+    tbl("tab_fresh_gtdb.tbl", ["l c c c c c c", "^ c c c c c c"], "l c c c c c c",
+        [["GTDB R232", "species", "genus", "\\(>= 95% call", "\\(>= 95% call", "ANI MAE", "AF MAE"],
+         ["(set 1 / set 2)", "correct", "correct", "sensitivity", "precision", "(pp)", "(pp)"]], rows)
+    for k in ("aif_0.88", "skani"):
+        bins = ["0.5-1k", "1-2k", "2-5k", "5-20k", ">=20k"]
+        nums[f"fresh_gtdb_bylen_{k}"] = [round(G1[k][b]["species_acc"], 3) for b in bins]
+    cp = os.path.join(ROOT, "data", "gtdb", "results2", "contam.json")
+    if os.path.exists(cp):
+        C = json.load(open(cp))
+        nums["fresh_contam"] = {t: C[f"{t}|genus|default|all"] for t in ("aif", "skani")}
+    S2 = os.path.join(ROOT, "data", "gtdb", "results2", "search_time.json")
+    if os.path.exists(S2):
+        nums["fresh_gtdb_time"] = json.load(open(S2))
+    out = os.path.join(ROOT, "results_real", "fresh")
+    os.makedirs(out, exist_ok=True)
+    for src, dst in ((DBF, "db_eval_fresh.json"), (G2, "gtdb_eval_set2.json"), (cp, "contam_set2.json"), (S2, "gtdb_search_time_set2.json")):
+        if os.path.exists(src):
+            open(os.path.join(out, dst), "w").write(open(src).read())
+    for fn in ("queries2.tsv", "query_contigs2.tsv"):
+        open(os.path.join(out, "gtdb_" + fn), "w").write(open(os.path.join(ROOT, "data", "gtdb", "meta", fn)).read())
+    for s_ in ("bcereus", "ecoli", "paer", "saur"):
+        open(os.path.join(out, f"real_fresh_{s_}.tsv"), "w").write(open(os.path.join(ROOT, "data", "real_fresh", "lists", s_ + ".tsv")).read())
 
 
 if __name__ == "__main__":
