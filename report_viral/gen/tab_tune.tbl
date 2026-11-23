@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c c c c c
+^ c c c c c
+l n n n n n.
+--af-min-ident@AF MAE@AF MAE@edge@edge@edge
+@near thresholds@all pairs@precision@recall@F1
+_
+off@5.53@6.46@0.877@0.997@0.9333
+0.86@5.18@6.18@0.878@0.997@0.9338
+0.88 (chosen)@2.22@7.50@0.901@0.987@0.9420
+0.90@4.79@12.98@0.932@0.956@0.9439
+0.92@8.69@18.14@0.971@0.875@0.9204
+.TE

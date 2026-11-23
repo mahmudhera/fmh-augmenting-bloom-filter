@@ -1,0 +1,11 @@
+.TS
+center box tab(@);
+l c c c c c c c c c
+^ ^ ^ ^ ^ c c c c c
+l n n n n n n n n n.
+data set@sequences@Mbp@median@BLAST@pairs@vOTU@vOTUs@multi-member@BLAST
+@@@(kb)@pairs@\(>= 80% ANI@edges@@vOTUs@(s, 56 thr)
+_
+INPHARED@10,000@600@44.9@458,248@141,173@55,751@5,633@1,153@139
+GPD@10,000@374@31.0@285,489@62,239@8,311@8,276@764@39
+.TE

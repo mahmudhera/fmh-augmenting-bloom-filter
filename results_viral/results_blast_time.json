@@ -1,0 +1,20 @@
+{
+ "gpd": {
+  "makeblastdb_s": 2.46,
+  "blastn_s": 39.0,
+  "blastn_kb": 5585736,
+  "threads": 56
+ },
+ "inphared": {
+  "makeblastdb_s": 3.55,
+  "blastn_s": 138.6,
+  "blastn_kb": 6045516,
+  "threads": 56
+ },
+ "tune": {
+  "makeblastdb_s": 1.06,
+  "blastn_s": 16.16,
+  "blastn_kb": 5249252,
+  "threads": 56
+ }
+}

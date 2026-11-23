@@ -1,0 +1,20 @@
+.TS
+center box tab(@);
+l l c c c c c
+^ ^ c c c c c
+l l n n n n n.
+data set@tool@index / prefilter@search / align@total@peak memory@database
+@@(s)@(s)@(s)@(GB)@(MB)
+_
+INPHARED@aif (default AF)@2.2@5.8@8.0@2.06@77
+@aif (AF at identity \(>= 88%)@2.2@5.6@7.7@2.06@77
+@skani@\(em@3.1@3.1@0.15@\(em
+@skani --small-genomes@\(em@4.0@4.0@0.42@\(em
+@vclust (alignment)@25.7@48.5@74.2@4.59@\(em
+_
+GPD@aif (default AF)@1.9@3.0@4.9@1.94@48
+@aif (AF at identity \(>= 88%)@1.9@2.9@4.8@1.95@48
+@skani@\(em@2.4@2.4@0.08@\(em
+@skani --small-genomes@\(em@1.7@1.7@0.29@\(em
+@vclust (alignment)@18.2@16.9@35.1@4.03@\(em
+.TE

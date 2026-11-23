@@ -1,0 +1,66 @@
+{
+ "gpd": {
+  "aif_build": [
+   1.87,
+   444540
+  ],
+  "aif_search": [
+   3.03,
+   1943912
+  ],
+  "aif_db_bytes": 48212547,
+  "aif_t_search": [
+   2.93,
+   1945784
+  ],
+  "af_min_ident": "0.88",
+  "skani": [
+   2.42,
+   78252
+  ],
+  "skani_small": [
+   1.72,
+   288776
+  ],
+  "vclust_prefilter": [
+   18.18,
+   4033236
+  ],
+  "vclust_align": [
+   16.91,
+   853996
+  ]
+ },
+ "inphared": {
+  "aif_build": [
+   2.16,
+   688128
+  ],
+  "aif_search": [
+   5.81,
+   2056744
+  ],
+  "aif_db_bytes": 77368400,
+  "aif_t_search": [
+   5.57,
+   2058664
+  ],
+  "af_min_ident": "0.88",
+  "skani": [
+   3.11,
+   146536
+  ],
+  "skani_small": [
+   4.02,
+   419304
+  ],
+  "vclust_prefilter": [
+   25.67,
+   4590096
+  ],
+  "vclust_align": [
+   48.49,
+   2050280
+  ]
+ }
+}

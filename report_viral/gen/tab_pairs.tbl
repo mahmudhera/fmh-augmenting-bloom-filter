@@ -1,0 +1,20 @@
+.TS
+center box tab(@);
+l l c s s c s s
+^ ^ c c c c c c
+l l n n n n n n.
+data set@tool@pairs \(>= 80% ANI, AF \(>= 0.1@near the thresholds
+@@reported@ANI MAE@AF MAE@reported@ANI MAE@AF MAE
+_
+INPHARED@aif (default AF)@0.897@1.11@6.61@0.968@0.569@6.32
+@aif (AF at identity \(>= 88%)@0.897@1.11@6.66@0.968@0.569@2.46
+@skani@0.885@1.11@11.03@0.999@0.995@6.89
+@skani --small-genomes@0.950@1.09@3.47@0.999@0.893@2.40
+@vclust (alignment)@0.999@0.83@2.07@1.000@0.335@0.96
+_
+GPD@aif (default AF)@0.775@1.88@8.55@1.000@0.625@7.21
+@aif (AF at identity \(>= 88%)@0.775@1.89@7.93@1.000@0.625@3.22
+@skani@0.622@1.86@10.50@0.995@1.099@6.50
+@skani --small-genomes@0.788@1.77@4.89@1.000@0.941@3.05
+@vclust (alignment)@0.989@2.54@4.65@1.000@0.551@1.48
+.TE

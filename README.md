@@ -1,10 +1,11 @@
 # FracMinHash + Bloom filters for ANI / AF on short contigs
 
-Three reports:
+Four reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
 3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening.
+4. **Viral clustering**: [`aif_viral_clustering_report.pdf`](aif_viral_clustering_report.pdf) (8 pages). vOTU clustering (95% ANI over 85% AF) of 2 x 10,000 phage genomes/contigs (INPHARED, Gut Phage Database) against BLAST/CheckV truth, vs skani and vclust.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -117,6 +118,20 @@ from alignment differences): 3 kb window identity MAE 0.55 pp (fastANI fragments
 intervals cover 94.7% (1 kb) / 94.4% (3 kb) of held-out windows; unaligned islands found at 97% precision, 81%
 recall (fastANI 56% / 51%); breakpoints within a median 171 bp (92% within 500 bp).
 
+## Viral clustering (vOTUs; 10,000 sequences per data set; truth: BLAST megablast + CheckV anicalc/aniclust)
+
+| INPHARED / GPD | vOTU-edge F1 | ARI vs BLAST vOTUs | near-threshold ANI / AF MAE (pp) | all-vs-all time, 16 thr (s) |
+|---|---|---|---|---|
+| aif (default AF) | 0.926 / 0.861 | 0.891 / 0.775 | 0.57 / 6.3 ; 0.63 / 7.2 | 8.0 / 4.9 |
+| **aif `--af-min-ident 0.88`** | **0.938 / 0.902** | **0.896 / 0.807** | 0.57 / 2.5 ; 0.63 / 3.2 | 7.7 / 4.8 |
+| skani | 0.915 / 0.833 | 0.888 / 0.723 | 0.99 / 6.9 ; 1.10 / 6.5 | 3.1 / 2.4 |
+| skani `--small-genomes` | 0.917 / 0.857 | 0.890 / 0.750 | 0.89 / 2.4 ; 0.94 / 3.0 | 4.0 / 1.7 |
+| vclust (alignment) | 0.970 / 0.948 | 0.937 / 0.893 | 0.34 / 1.0 ; 0.55 / 1.5 | 74 / 35 |
+
+aif's default AF counts divergent homologous stretches that megablast does not align (the vOTU convention);
+`--af-min-ident T` reports the AF at identity >= T (T = 0.88 chosen on a disjoint tuning set). Best among the
+sketch tools; vclust's alignment is closest to BLAST at ~10x aif's time. `aif db build -i` makes every FASTA record a reference.
+
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
 | | skani 0.4.0 (default) | **aif v1.1** |
@@ -186,7 +201,7 @@ Simulated-set timings are in `results/main/*_v12.tsv` and `*_v13.tsv`.
 * **v1.1 speed**: 2-bit packing and AVX-512 k-mer selection, gather-based Bloom tests, a binned single-precision HMM with exact per-probe refinement around alignment boundaries, mmap input, vectorised sketch insertion, and `-t N` threads with ordered output.
 * **v1.2/v1.3**: windowed probing of long contigs, a streaming multithreaded pipeline, latency-optimised HMM recursions, GFNI/AVX-512 packing and reverse complements (see above); `make prof` builds a per-stage cycle-counter binary.
 * **v1.5**: database mode (`aif db build/search/info`): shared-k two-stage probing, bit-sliced screening index, memory-mapped database, lazily built per-reference estimators, top-n hits per contig.
-* **v1.6**: gzip input; `--segments` identity maps (aligned/unaligned segments, windowed identity with calibrated intervals); database search scaled to GTDB (pre-HMM local-score filter, capped screening keys, vectorised candidate scan, parallel build sizing), hits ordered by likelihood ratio.
+* **v1.6**: `db build -i` (each FASTA record a reference); `--af-min-ident` (identity-thresholded AF, e.g. for BLAST-convention vOTU AF); gzip input; `--segments` identity maps (aligned/unaligned segments, windowed identity with calibrated intervals); database search scaled to GTDB (pre-HMM local-score filter, capped screening keys, vectorised candidate scan, parallel build sizing), hits ordered by likelihood ratio.
 * **v1.4**: per-contig confidence intervals (statistical, or conformal-calibrated from the table in `src/ci_table.inc`, refit with `bench_real/calibration.py fit`); optional local identity prior (`--ident-window`) and overdispersed emissions (`--overdisp`).
 
 ```
@@ -212,11 +227,13 @@ bench_real/                    real genomes: select_datasets.py, select_tune.py,
                                time_real.py, scaling.py, consistency.py, calibration.py, af_model_grid.py, afopt_heldout.py,
                                database mode: db_select.py, db_download.sh, db_bench.py, db_screen_eval.py;
                                GTDB: gtdb_download.sh, gtdb_select.py, gtdb_prepare.py, gtdb_bench.py, gtdb_contam.py;
-                               pareto_sourmash.py, pareto_minimap2.py, pareto_time.py; idmap.py
-results/, results_real/        committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
+                               pareto_sourmash.py, pareto_minimap2.py, pareto_time.py; idmap.py;
+                               viral clustering: viral_download.sh, viral_bench.py
+results/, results_real/,       committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
+results_viral/
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
-report_real/
+report_real/, report_viral/
 data/  (git-ignored)           genomes, assemblies, generated contigs, raw run outputs; regenerate with the scripts
 ```
 
@@ -251,6 +268,9 @@ python3 -I bench_real/run_tools.py aif_b011 aif_b022 aif_b176 skani_c60 skani_c2
 python3 -I bench_real/idmap.py run; REAL_DIR=data/real_tune python3 -I bench_real/idmap.py run
 REAL_DIR=data/real_tune python3 -I bench_real/idmap.py calibrate; python3 -I bench_real/idmap.py evaluate
 python3 scripts/real_report.py && report_real/build.sh
+bench_real/viral_download.sh && for s in prepare blast prepare_tune; do python3 -I bench_real/viral_bench.py $s; done
+python3 -I bench_real/viral_bench.py blast tune && for s in tune tools evaluate; do python3 -I bench_real/viral_bench.py $s; done
+/usr/bin/python3 scripts/viral_report.py && report_viral/build.sh
 ```
 
 The scripts expect skani at the path in `bench/run_skani.sh` (override with `SKANI=...`), plus numpy and matplotlib for the Python parts.
