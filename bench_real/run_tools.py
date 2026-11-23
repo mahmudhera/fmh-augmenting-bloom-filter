@@ -34,6 +34,13 @@ CONFIGS = {
     # fixed k = 20 (the database-mode default: one k shared by all references)
     "aif_k20": ("aif", ["-k", "20"], []),
     "aif_k19": ("aif", ["-k", "19"], []),
+    # Pareto sweep (sketch size): aif budgets and skani compression factors
+    "aif_b011": ("aif", ["--budget", "0.11"], []),
+    "aif_b022": ("aif", ["--budget", "0.22"], []),
+    "aif_b176": ("aif", ["--budget", "1.76"], []),
+    "skani_c60": ("skani", ["-c", "60"], None),
+    "skani_c250": ("skani", ["-c", "250"], None),
+    "skani_c500": ("skani", ["-c", "500"], None),
     "skani": ("skani", [], None),
     "skani_relaxed": ("skani", ["-s", "70", "--min-af", "5"], None),
     "skani_slow": ("skani", ["--slow"], None),

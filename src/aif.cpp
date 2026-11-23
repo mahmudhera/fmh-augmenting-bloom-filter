@@ -65,6 +65,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <zlib.h>
 #if defined(__x86_64__)
 #include <immintrin.h>
 #endif
@@ -109,6 +110,7 @@ class Fasta {
   size_t map_len = 0, mpos = 0, released = 0;
   int fd = -1;
   FILE* f = nullptr;
+  gzFile gz = nullptr;  // gzip-compressed input
   std::vector<char> buf;
   size_t beg = 0, end = 0;
   bool eof = false;
@@ -123,7 +125,14 @@ class Fasta {
       beg = 0;
     }
     if (end == buf.size()) buf.resize(buf.size() * 2);
-    size_t got = fread(buf.data() + end, 1, buf.size() - end, f);
+    size_t got;
+    if (gz) {
+      const int r = gzread(gz, buf.data() + end, (unsigned)std::min<size_t>(buf.size() - end, 1u << 30));
+      if (r < 0) throw std::runtime_error("gzip read error");
+      got = (size_t)r;
+    } else {
+      got = fread(buf.data() + end, 1, buf.size() - end, f);
+    }
     if (got == 0) eof = true;
     end += got;
     return got > 0;
@@ -157,6 +166,17 @@ class Fasta {
   explicit Fasta(const char* path) {
     fd = open(path, O_RDONLY);
     struct stat st;
+    unsigned char magic[2] = {0, 0};
+    if (fd >= 0 && fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_size >= 2 && pread(fd, magic, 2, 0) == 2 &&
+        magic[0] == 0x1f && magic[1] == 0x8b) {  // gzip: buffered reading through zlib
+      close(fd);
+      fd = -1;
+      buf.resize(1 << 22);
+      gz = gzopen(path, "rb");
+      if (!gz) throw std::runtime_error(std::string("cannot open ") + path);
+      gzbuffer(gz, 1 << 20);
+      return;
+    }
     if (fd >= 0 && fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0) {
       void* p = mmap(nullptr, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
       if (p != MAP_FAILED) {
@@ -176,6 +196,7 @@ class Fasta {
     if (map) munmap((void*)map, map_len);
     if (fd >= 0) close(fd);
     if (f) fclose(f);
+    if (gz) gzclose(gz);
   }
   bool next_mapped(std::string& name, std::string& seq, bool append);
   // memory-mapped input only: the next record as a name and a raw span [b, e) of the map
@@ -1108,6 +1129,10 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   std::vector<uint32_t> pbh;        // Bloom block hash (high 32 bits) per probe
   std::vector<uint64_t> ph2;        // bit-position hash per probe
   std::vector<uint64_t> skey;       // screening keys of the contig (block hashes)
+  std::vector<uint64_t> skh;        // their selection hashes (for capping the number of keys)
+  std::vector<float> psw;           // per-probe switching cost (local-score filter)
+  bool want_seg = false;            // keep per-probe aligned posteriors for segments()
+  std::vector<float> pa;            // per-probe aligned posterior (main pass)
   std::vector<uint16_t> scnt16;     // screening counts (per group, short-term)
   std::vector<uint32_t> scnt;       // screening counts per reference
   std::vector<std::pair<float, uint32_t>> cand;  // (screening containment, reference)
@@ -2320,6 +2345,11 @@ struct Estimator {
       if (bi + 1 < nb) Sx += 0.5 * (alast(bi) + afirst(bi + 1)) * (double)(W.bstart[bi + 1] - W.blast[bi]);
     }
     Sx += alast(nb - 1) * (double)(nstarts - 1 - W.blast[nb - 1]);
+    if (W.want_seg) {
+      W.pa.resize(pr.size());
+      for (size_t bi = 0; bi < nb; ++bi)
+        for (uint32_t i = W.bfirst[bi]; i < W.bfirst[bi + 1]; ++i) W.pa[i] = (float)(W.refined[bi] ? W.ap[i] : ab[bi]);
+    }
     double var = 0;
     const double th0 = combine(N, Y, 0.3);
     const double th = combine(N, Y, th0, &var);
@@ -2402,6 +2432,91 @@ struct Estimator {
     PSTAMP(6);
     return R;
   }
+
+  // Segments and identity map of a contig with a reported estimate (requires W.want_seg during
+  // estimate_probed): maximal runs of probes with aligned posterior > 0.5 (aligned) or <= 0.5
+  // (unaligned) tile the contig, boundaries halfway between the flanking probes. Aligned runs are
+  // split into windows of about win bases, each with its FP-corrected containment, ANI and a
+  // statistical 95% interval (delta method on Theorem 1's variance). Rows: prefix, start, end
+  // (0-based, half-open), aligned, ani, ani_lo, ani_hi, probes, hits.
+  // split-conformal 95 percent multipliers of the window intervals, fitted on the real tuning set
+  // (bench_real/idmap.py calibrate): [window 1 kb, 3 kb][estimated ANI >= 0.99, 0.97-0.99, 0.93-0.97, < 0.93]
+  static constexpr double SEG_Q[2][4] = {{2.6187, 3.1523, 4.4475, 3.3788}, {3.3400, 5.0861, 5.8977, 4.5768}};
+  void segments(const Work& W, size_t L, int win, const std::string& prefix, std::string& out, bool ci_stat = false) const {
+    const std::vector<Probe>& pr = W.pr;
+    const size_t m = pr.size();
+    if (m == 0 || W.pa.size() != m) return;
+    const int k = sk.k;
+    char buf[256];
+    auto emit = [&](size_t b, size_t e, int al, double ani, double lo, double hi, size_t np, size_t nh) {
+      int n = snprintf(buf, sizeof buf, "\t%zu\t%zu\t%d\t%.6f\t%.6f\t%.6f\t%zu\t%zu\n", b, e, al, ani, lo, hi, np, nh);
+      out.append(prefix);
+      out.append(buf, (size_t)n);
+    };
+    auto cut = [&](size_t i) -> size_t {  // boundary between probe i-1 and probe i
+      if (i == 0) return 0;
+      if (i >= m) return L;
+      return ((size_t)pr[i - 1].pos + k + (size_t)pr[i].pos) / 2;
+    };
+    size_t i = 0;
+    while (i < m) {
+      const bool al = W.pa[i] > 0.5f;
+      size_t j = i;
+      while (j < m && (W.pa[j] > 0.5f) == al) ++j;
+      const size_t b = cut(i), e = cut(j);
+      if (!al) {
+        size_t nh = 0;
+        for (size_t q = i; q < j; ++q) nh += pr[q].hit;
+        emit(b, e, 0, NAN, NAN, NAN, j - i, nh);
+      } else {  // windows of ~win bases inside the aligned run
+        const size_t span = e - b, nwin = std::max<size_t>(1, (span + (size_t)win / 2) / (size_t)std::max(1, win));
+        size_t q = i;
+        for (size_t w = 0; w < nwin; ++w) {
+          const size_t wb = b + span * w / nwin, we = b + span * (w + 1) / nwin;
+          double N[MAXT] = {0}, Y[MAXT] = {0};
+          size_t np = 0, nh = 0;
+          while (q < j && (size_t)pr[q].pos + k <= we + k / 2) {
+            N[pr[q].tier] += 1;
+            Y[pr[q].tier] += pr[q].hit;
+            ++np;
+            nh += pr[q].hit;
+            ++q;
+          }
+          if (w + 1 == nwin)
+            while (q < j) {
+              N[pr[q].tier] += 1;
+              Y[pr[q].tier] += pr[q].hit;
+              ++np;
+              nh += pr[q].hit;
+              ++q;
+            }
+          double ani = NAN, lo = NAN, hi = NAN;
+          if (np >= 3) {
+            double v = 0;
+            const double th0 = combine(N, Y, 0.3);
+            const double th = combine(N, Y, std::max(th0, 1e-3), &v);
+            if (th > 0) {
+              const double nk = std::max(1.0, (double)(we - wb) - (k - 1));
+              ani = ani_from_theta(th, v, nk);
+              const double se = std::sqrt(std::max(v + th * Bcoef(1 - ani, k) / nk, 0.0)) * ani / (k * th);
+              lo = std::max(0.0, ani - 1.959964 * se);
+              hi = std::min(1.0, ani + 1.959964 * se);
+              if (!ci_stat) {  // calibrated: conformal multiplier on the (clipped) statistical SE
+                const int wi = win <= 1732 ? 0 : 1, ci = ani >= 0.99 ? 0 : ani >= 0.97 ? 1 : ani >= 0.93 ? 2 : 3;
+                const double se2 = std::max((hi - lo) / (2 * 1.959964), 1e-4);
+                lo = std::max(0.0, ani - SEG_Q[wi][ci] * se2);
+                hi = std::min(1.0, ani + SEG_Q[wi][ci] * se2);
+              }
+            } else {
+              ani = lo = hi = 0;
+            }
+          }
+          emit(wb, we, 1, ani, lo, hi, np, nh);
+        }
+      }
+      i = j;
+    }
+  }
 };
 
 double composition_sf2(const std::vector<Packed>& packs) {
@@ -2433,6 +2548,8 @@ void usage() {
           "          intervals: [--ci-level 0.95 (0.90/0.95/0.99)] [--ci-stat (statistical SE only)] [--ci-table FILE]\n"
           "          AF model options: [--ident-window D (0: off) --ident-radius 3] (local identity prior)\n"
           "                            [--overdisp L (0: off)] (overdispersed bin emissions, experimental)\n"
+          "          [--segments FILE --seg-window 1000 --seg-ci-stat] (aligned/unaligned segments and windowed identity map\n"
+          "           per contig, with calibrated 95%% window intervals; --seg-ci-stat: statistical intervals)\n"
           "output: contig ani af theta probes hits aligned_probes status lr het low_frac ani_lo ani_hi af_lo af_hi ani_se af_se\n"
           "aif info <ref.aif>\n"
           "database mode (one k and tier layout for all references; results equal pairwise query with -k K sketches):\n"
@@ -2441,7 +2558,8 @@ void usage() {
           "             [--screen-frac 0.015625] [--screen-bits 8] [--screen-hashes 3] [--screen-group-ratio 1.5] (screening index)\n"
           "aif db search <db.aifd> <contigs.fa> [-t threads] [-n 1 (hits per contig; 0: every candidate, any status)]\n"
           "             [--max-cand 16 (evaluated by the model)] [--prescreen K (0: off; rank K screened references by probe containment)]\n"
-          "             [--screen-z 2] [--screen-min 2] [--no-screen (every reference)] [--sort aniaf|ani|af]\n"
+          "             [--screen-z 2] [--screen-min 2] [--screen-max-keys 128] [--no-screen (every reference)] [--sort aniaf|ani|af]\n"
+          "             [--vmin 5 (skip the model for candidates whose local-homology score is below this; -1: off)]\n"
           "             [query options]\n"
           "output: contig reference rank <query columns> screen_count screen_keys screen_containment candidates\n"
           "aif db info <db.aifd> [--refs]\n");
@@ -2464,6 +2582,9 @@ void format_result(std::string& out, const std::string& name, const Result& r, c
 }
 
 // query options shared by "query" and "db search"; returns false if argv[i] is not one
+std::string g_seg_path;  // --segments: per-contig segments / identity-map windows (query and db search)
+int g_seg_win = 1000;
+bool g_seg_ci_stat = false;  // statistical window intervals only (no calibration)
 bool parse_query_opt(int& i, int argc, char** argv, Params& P, int& threads) {
   (void)argc;
   std::string a = argv[i];
@@ -2492,26 +2613,35 @@ bool parse_query_opt(int& i, int argc, char** argv, Params& P, int& threads) {
   else if (a == "--grid-step") P.grid_step = atof(argv[++i]);
   else if (a == "--floor-frac") P.floor_frac = atof(argv[++i]);
   else if (a == "--no-bias-correct") P.bias_correct = false;
+  else if (a == "--segments") g_seg_path = argv[++i];
+  else if (a == "--seg-window") g_seg_win = std::max(100, atoi(argv[++i]));
+  else if (a == "--seg-ci-stat") g_seg_ci_stat = true;
   else return false;
   return true;
 }
 
-// Runs proc(name, seq, Work&, out) over every record of fa and prints the outputs in input
-// order: single-threaded, or the multi-threaded streaming pipeline described below.
+// Runs proc(name, seq, Work&, out, out2) over every record of fa and prints the outputs in input
+// order (out to stdout, out2 to f2 when given): single-threaded, or the multi-threaded streaming
+// pipeline described below.
 template <class Proc>
-void run_pipeline(Fasta& fa, int threads, Proc proc) {
-  std::string out;
+void run_pipeline(Fasta& fa, int threads, FILE* f2, Proc proc) {
+  std::string out, out2;
   if (threads == 1) {
     Work W;
     std::string name, seq;
     while (fa.next(name, seq)) {
-      proc(name, std::string_view(seq), W, out);
+      proc(name, std::string_view(seq), W, out, out2);
       if (out.size() > (1 << 20)) {
         fwrite(out.data(), 1, out.size(), stdout);
         out.clear();
       }
+      if (out2.size() > (1 << 20)) {
+        if (f2) fwrite(out2.data(), 1, out2.size(), f2);
+        out2.clear();
+      }
     }
     fwrite(out.data(), 1, out.size(), stdout);
+    if (f2) fwrite(out2.data(), 1, out2.size(), f2);
     prof_report();
     return;
   }
@@ -2528,7 +2658,7 @@ void run_pipeline(Fasta& fa, int threads, Proc proc) {
     std::string data;
     std::vector<size_t> off{0};
     std::vector<std::pair<const char*, const char*>> spans;
-    std::string out;
+    std::string out, out2;
   };
   const bool mapped = fa.mapped();
   std::vector<std::string> sbuf(threads);
@@ -2560,11 +2690,11 @@ void run_pipeline(Fasta& fa, int threads, Proc proc) {
           for (size_t i = 0; i < c->spans.size(); ++i) {
             sbuf[t].clear();
             append_stripped(sbuf[t], c->spans[i].first, c->spans[i].second);
-            proc(c->names[i], std::string_view(sbuf[t]), works[t], c->out);
+            proc(c->names[i], std::string_view(sbuf[t]), works[t], c->out, c->out2);
           }
         } else {
           for (size_t i = 0; i + 1 < c->off.size(); ++i)
-            proc(c->names[i], std::string_view(c->data.data() + c->off[i], c->off[i + 1] - c->off[i]), works[t], c->out);
+            proc(c->names[i], std::string_view(c->data.data() + c->off[i], c->off[i + 1] - c->off[i]), works[t], c->out, c->out2);
         }
         {
           std::lock_guard<std::mutex> lk(mu);
@@ -2586,6 +2716,7 @@ void run_pipeline(Fasta& fa, int threads, Proc proc) {
         done.erase(next);
       }
       fwrite(c->out.data(), 1, c->out.size(), stdout);
+      if (f2) fwrite(c->out2.data(), 1, c->out2.size(), f2);
       // chunks are written in input order, so every mapped page before this chunk's end is done
       if (mapped && !c->spans.empty()) fa.release_upto(c->spans.back().second);
       {
@@ -2613,6 +2744,7 @@ void run_pipeline(Fasta& fa, int threads, Proc proc) {
       c->off.assign(1, 0);
       c->spans.clear();
       c->out.clear();
+      c->out2.clear();
       if (c->data.capacity() > 2 * CHUNK_BASES) std::string().swap(c->data);  // drop a long contig's buffer
     } else {
       c = std::make_unique<Chunk>();
@@ -2887,16 +3019,40 @@ int cmd_db_build(int argc, char** argv) {
   }
   if (out.empty() || in.empty() || k < 5 || k > 31) usage();
   auto spec = parse_tiers(tiers);
-  for (auto& r : in) {
-    struct stat st;
-    if (stat(r.path.c_str(), &st) != 0) throw std::runtime_error("cannot stat " + r.path);
-    r.fsize = (uint64_t)st.st_size;
-    if (r.name.empty()) {
-      std::string b = r.path.substr(r.path.find_last_of('/') + 1);
-      for (const char* ext : {".gz", ".fasta", ".fna", ".fa", ".fas", ".ffn"})
-        if (b.size() > strlen(ext) && b.compare(b.size() - strlen(ext), strlen(ext), ext) == 0) b.resize(b.size() - strlen(ext));
-      r.name = b;
-    }
+  {  // sizes (in parallel: on a cold disk the per-file reads dominate) and default names
+    std::atomic<size_t> nx{0};
+    std::vector<std::string> err(in.size());
+    auto sizer = [&]() {
+      for (size_t i; (i = nx.fetch_add(1)) < in.size();) {
+        RefIn& r = in[i];
+        struct stat st;
+        if (stat(r.path.c_str(), &st) != 0) {
+          err[i] = "cannot stat " + r.path;
+          continue;
+        }
+        r.fsize = (uint64_t)st.st_size;
+        // gzip: the uncompressed size from the trailer (ISIZE, exact below 4 GiB), else 4x the file
+        int fd = open(r.path.c_str(), O_RDONLY);
+        unsigned char m[2] = {0, 0}, z[4];
+        if (fd >= 0 && st.st_size >= 18 && pread(fd, m, 2, 0) == 2 && m[0] == 0x1f && m[1] == 0x8b) {
+          uint64_t isz = 0;
+          if (pread(fd, z, 4, st.st_size - 4) == 4) isz = (uint64_t)z[0] | ((uint64_t)z[1] << 8) | ((uint64_t)z[2] << 16) | ((uint64_t)z[3] << 24);
+          r.fsize = isz > r.fsize ? isz : 4 * r.fsize;
+        }
+        if (fd >= 0) close(fd);
+        if (r.name.empty()) {
+          std::string bn = r.path.substr(r.path.find_last_of('/') + 1);
+          for (const char* ext : {".gz", ".fasta", ".fna", ".fa", ".fas", ".ffn"})
+            if (bn.size() > strlen(ext) && bn.compare(bn.size() - strlen(ext), strlen(ext), ext) == 0) bn.resize(bn.size() - strlen(ext));
+          r.name = bn;
+        }
+      }
+    };
+    std::vector<std::thread> pool;
+    for (int t = 0; t < std::max(threads, 16); ++t) pool.emplace_back(sizer);
+    for (auto& th : pool) th.join();
+    for (auto& e : err)
+      if (!e.empty()) throw std::runtime_error(e);
   }
   // references sorted by size: a screening group's columns then have similar fill
   std::stable_sort(in.begin(), in.end(), [](const RefIn& a, const RefIn& b) { return a.fsize < b.fsize; });
@@ -3109,6 +3265,7 @@ void db_prepare_window(const Db& D, const uint8_t* s, size_t L, uint32_t off, Wo
     W.ph2.resize(base + m);
     size_t ns = W.skey.size();
     W.skey.resize(ns + m);
+    W.skh.resize(ns + m);
     const long long* wbase64 = (const long long*)W.pk.w.data();
     const uint64_t kmask = (k == 32) ? ~0ULL : ((1ULL << (2 * k)) - 1);
     alignas(64) static const uint8_t BSW[64] = {7,  6,  5,  4,  3,  2,  1,  0,  15, 14, 13, 12, 11, 10, 9,  8,
@@ -3143,6 +3300,7 @@ void db_prepare_window(const Db& D, const uint8_t* s, size_t L, uint32_t off, Wo
       _mm512_mask_storeu_epi64(W.ph2.data() + base + j, tail, h2);
       const __mmask8 ms = _mm512_cmplt_epu64_mask(hs, vscr) & tail;
       _mm512_mask_compressstoreu_epi64(W.skey.data() + ns, ms, bh);
+      _mm512_mask_compressstoreu_epi64(W.skh.data() + ns, ms, hs);
       ns += (size_t)__builtin_popcount((unsigned)ms);
       // Probe {pos + off, tier, hit = 0} as one 64-bit lane
       const __m512i pv = _mm512_mask_or_epi64(_mm512_add_epi64(pos, voff), m1, _mm512_add_epi64(pos, voff), tierb);
@@ -3150,6 +3308,7 @@ void db_prepare_window(const Db& D, const uint8_t* s, size_t L, uint32_t off, Wo
       (void)lane;
     }
     W.skey.resize(ns);
+    W.skh.resize(ns);
     return;
   }
 #endif
@@ -3170,7 +3329,10 @@ void db_prepare_window(const Db& D, const uint8_t* s, size_t L, uint32_t off, Wo
     W.pbh[base + j] = (uint32_t)(bh >> 32);
     W.ph2[base + j] = fmix64(bh ^ SEED_BIT);
     W.pr[base + j] = {W.kpos[j] + off, (uint8_t)t, 0};
-    if (hs < D.h_scr) W.skey.push_back(bh);
+    if (hs < D.h_scr) {
+      W.skey.push_back(bh);
+      W.skh.push_back(hs);
+    }
   }
 }
 
@@ -3179,6 +3341,7 @@ void db_prepare(const Db& D, std::string_view seq, Work& W) {
   W.pbh.clear();
   W.ph2.clear();
   W.skey.clear();
+  W.skh.clear();
   const size_t L = seq.size();
   if (L < (size_t)D.k) return;
   const size_t nst = L - D.k + 1;
@@ -3188,10 +3351,12 @@ void db_prepare(const Db& D, std::string_view seq, Work& W) {
   }
 }
 
-// filter tests of the prepared probes against one reference: sets W.pr[i].hit
-void db_hits(const Sketch& R, Work& W) {
+// filter tests of the prepared probes against one reference: sets W.pr[i].hit; adds the hits of
+// each tier to hits[] when given
+void db_hits(const Sketch& R, Work& W, uint64_t* hits = nullptr) {
   const size_t m = W.pr.size();
   const int T = (int)R.tiers.size();
+  uint64_t hc[MAXT] = {0};
 #ifdef AIF_AVX512
   if (T <= 2) {
     const Tier& t0 = R.tiers[0];
@@ -3225,7 +3390,11 @@ void db_hits(const Sketch& R, Work& W) {
       const __mmask8 hit = _mm512_test_epi64_mask(acc, one) & tail;
       pv = _mm512_or_si512(_mm512_and_si512(pv, hitclr), _mm512_maskz_mov_epi64(hit, hitb));
       _mm512_mask_storeu_epi64(prw + j, tail, pv);
+      hc[T - 1] += (uint64_t)__builtin_popcount((unsigned)(hit & m1));
+      hc[0] += (uint64_t)__builtin_popcount((unsigned)(hit & ~m1));
     }
+    if (hits)
+      for (int t = 0; t < T; ++t) hits[t] = hc[t];
     return;
   }
 #endif
@@ -3233,7 +3402,10 @@ void db_hits(const Sketch& R, Work& W) {
     const Tier& t = R.tiers[W.pr[j].tier];
     const uint64_t* blk = t.data() + (((uint64_t)W.pbh[j] * t.nblocks) >> 32) * 8;
     W.pr[j].hit = t.contains_h2(blk, W.ph2[j]);
+    hc[W.pr[j].tier] += W.pr[j].hit;
   }
+  if (hits)
+    for (int t = 0; t < T; ++t) hits[t] = hc[t];
 }
 
 // hits per tier of the prepared probes against one reference, without storing them (candidate
@@ -3295,23 +3467,27 @@ double db_containment(const Sketch& R, const Work& W, const size_t* ntier) {
   return den > 0 ? num / den : 0.0;
 }
 
-// screening counts of the contig's keys for every reference into W.scnt
-void db_screen(const Db& D, Work& W) {
-  const size_t nr = D.refs.size(), ns = W.skey.size();
-  W.scnt.assign(nr, 0);
-  if (!ns) return;
-  W.scnt16.resize(DB_GROUP);
+// screening counts of the contig's keys for every reference into W.scnt16 (one count per
+// reference). Contigs with more than max_keys keys use the max_keys keys of smallest selection
+// hash (a consistent subsample: containment estimates stay unbiased; long contigs have signal to
+// spare). Returns the number of keys used.
+size_t db_screen(const Db& D, Work& W, size_t max_keys) {
+  const size_t nr = D.refs.size();
+  size_t ns = W.skey.size();
+  if (ns > max_keys) {
+    std::vector<std::pair<uint64_t, uint64_t>> kh(ns);
+    for (size_t i = 0; i < ns; ++i) kh[i] = {W.skh[i], W.skey[i]};
+    std::nth_element(kh.begin(), kh.begin() + (max_keys - 1), kh.end());
+    for (size_t i = 0; i < max_keys; ++i) W.skey[i] = kh[i].second;
+    ns = max_keys;
+  }
+  W.scnt16.assign(nr + 64, 0);
+  if (!ns) return 0;
   const uint32_t H = D.scr_h;
   for (const DbGroup& g : D.groups) {
     const uint64_t* rows = D.rows_of(g);
     const size_t words = g.words();
-    uint16_t* c16 = W.scnt16.data();
-    std::fill(c16, c16 + DB_GROUP, 0);
-    auto flush = [&]() {
-      for (uint32_t d = 0; d < g.nd; ++d) W.scnt[g.d0 + d] += c16[d];
-      std::fill(c16, c16 + DB_GROUP, 0);
-    };
-    size_t pend = 0;
+    uint16_t* c16 = W.scnt16.data() + g.d0;
     const size_t PF = 8;
     for (size_t i = 0; i < std::min(ns, PF); ++i) {
       const uint64_t gk = fmix64(W.skey[i] ^ SEED_SCR);
@@ -3345,13 +3521,58 @@ void db_screen(const Db& D, Work& W) {
       for (size_t q = 0; q < words; ++q)
         for (uint64_t x = b[q]; x; x &= x - 1) ++c16[q * 64 + __builtin_ctzll(x)];
 #endif
-      if (++pend == 65535) {
-        flush();
-        pend = 0;
-      }
     }
-    flush();
   }
+  return ns;
+}
+
+// Local-homology score of the prepared probes against one reference (hits set by db_hits): the
+// best path of a two-state (unaligned / aligned at identity a) model, maximised over a few
+// identity levels, as a log-likelihood ratio against "all unaligned". Probe scores are the HMM's
+// emission log-ratios; switches cost the HMM's switching probability over the probe gap; starting
+// and ending aligned is free. A cheap stand-in for the HMM's likelihood ratio, used to skip the
+// model for candidates that cannot reach it (calibrated empirically, see db_bench.py).
+// per-probe switching cost (log switch probability over the gap to the previous probe, relative
+// to staying); reference-independent, computed once per contig
+void db_switch_costs(Work& W, double rho_u) {
+  W.psw.resize(W.pr.size());
+  uint32_t prev = W.pr.empty() ? 0 : W.pr[0].pos;
+  for (size_t i = 0; i < W.pr.size(); ++i) {
+    const double d = (double)(W.pr[i].pos - prev) + 1.0;
+    prev = W.pr[i].pos;
+    W.psw[i] = (float)(std::log(-std::expm1(-rho_u * d)) + rho_u * d);
+  }
+}
+
+double db_vscore(const Sketch& R, const Work& W) {
+  static const double LEV[8] = {0.995, 0.98, 0.96, 0.93, 0.90, 0.87, 0.84, 0.81};
+  const int T = (int)R.tiers.size(), k = R.k;
+  const double sg = R.sigma_used();
+  alignas(32) float S[2 * MAXT][8];  // score per probe kind (2 * tier + hit) and level
+  for (int j = 0; j < 8; ++j) {
+    const double th = std::pow(LEV[j], k);
+    for (int t = 0; t < T; ++t) {
+      const double e = R.tiers[t].eps + sg - R.tiers[t].eps * sg;
+      S[2 * t][j] = (float)std::log(1 - th);
+      S[2 * t + 1][j] = (float)std::log((th + (1 - th) * e) / e);
+    }
+  }
+  alignas(32) float vu[8] = {0}, va[8] = {0};
+  const Probe* pr = W.pr.data();
+  const float* sw = W.psw.data();
+  for (size_t i = 0, m = W.pr.size(); i < m; ++i) {
+    const float* sc = S[2 * pr[i].tier + pr[i].hit];
+    const float c = sw[i];
+    for (int j = 0; j < 8; ++j) {
+      const float nu = std::max(vu[j], va[j] + c);
+      const float na = std::max(va[j], vu[j] + c) + sc[j];
+      vu[j] = nu;
+      va[j] = na;
+    }
+  }
+  float best = 0;
+  for (int j = 0; j < 8; ++j) best = std::max(best, std::max(vu[j], va[j]));
+  return best;
 }
 
 // Lazily constructed estimators, one per reference (shared by all threads; construction is
@@ -3388,7 +3609,11 @@ int cmd_db_search(int argc, char** argv) {
   D.load(argv[3]);
   Params P;
   int threads = 1, nout = 1, sort_by = 0;  // 0: ani*af, 1: ani, 2: af
-  size_t max_cand = 16, prescreen = 0;
+  size_t max_cand = 16, prescreen = 0, max_keys = 128;  // screening keys per contig (smallest selection hashes)
+  // pre-HMM local-score filter: on the 2,005-genome benchmark the lowest score of any reported
+  // hit was 9.1 (370,757 hits), and a cutoff of 5 skipped 99% of the candidates that report nothing
+  double vmin = 5.0;
+  bool vreport = false;
   double zmin = 2.0;
   uint32_t cmin = 2;
   bool screen = true;
@@ -3401,6 +3626,9 @@ int cmd_db_search(int argc, char** argv) {
     if (a == "-n") nout = std::max(0, atoi(val()));
     else if (a == "--max-cand") max_cand = (size_t)std::max(1, atoi(val()));
     else if (a == "--prescreen") prescreen = (size_t)std::max(0, atoi(val()));
+    else if (a == "--screen-max-keys") max_keys = (size_t)std::min(65535, std::max(16, atoi(val())));
+    else if (a == "--vmin") vmin = atof(val());
+    else if (a == "--vreport") vreport = true;
     else if (a == "--screen-z") zmin = atof(val());
     else if (a == "--screen-min") cmin = (uint32_t)std::max(0, atoi(val()));
     else if (a == "--no-screen") screen = false;
@@ -3425,22 +3653,41 @@ int cmd_db_search(int argc, char** argv) {
     float z;
     double score;
   };
-  run_pipeline(fa, threads, [&](const std::string& name, std::string_view seq, Work& W, std::string& out) {
+  FILE* fseg = nullptr;
+  if (!g_seg_path.empty()) {
+    fseg = fopen(g_seg_path.c_str(), "w");
+    if (!fseg) throw std::runtime_error("cannot write " + g_seg_path);
+    fputs("contig\treference\tstart\tend\taligned\tani\tani_lo\tani_hi\tprobes\thits\n", fseg);
+  }
+  run_pipeline(fa, threads, fseg, [&](const std::string& name, std::string_view seq, Work& W, std::string& out, std::string& out2) {
     thread_local std::vector<Hit> hits;
+    W.want_seg = false;
     hits.clear();
     db_prepare(D, seq, W);
-    const size_t ns = W.skey.size();
+    size_t ns = W.skey.size();
     W.cand.clear();
     if (screen) {
-      db_screen(D, W);
-      for (uint32_t d = 0; d < nr; ++d) {
-        const uint32_t c = W.scnt[d];
+      ns = db_screen(D, W, max_keys);
+      const uint16_t* cnt = W.scnt16.data();
+      const uint16_t c0 = (uint16_t)std::max<uint32_t>(1, cmin);
+      for (uint32_t d0 = 0; d0 < nr; d0 += 32) {
+#ifdef AIF_AVX512
+        uint32_t msk = (uint32_t)_mm512_cmpge_epu16_mask(_mm512_loadu_si512((const void*)(cnt + d0)), _mm512_set1_epi16((short)c0));
+        if (nr - d0 < 32) msk &= (1u << (nr - d0)) - 1;
+#else
+        uint32_t msk = 0;
+        for (uint32_t q = 0; q < 32 && d0 + q < nr; ++q) msk |= (uint32_t)(cnt[d0 + q] >= c0) << q;
+#endif
+        for (; msk; msk &= msk - 1) {
+        const uint32_t d = d0 + (uint32_t)__builtin_ctz(msk);
+        const uint32_t c = cnt[d];
         if (c < cmin || c == 0) continue;
         const double f = D.scr_f[d], mu = (double)ns * f, sd = std::sqrt(std::max((double)ns * f * (1 - f), 1e-12));
         const double z = ((double)c - mu) / sd;
         // significance by z; ranking by the FP-corrected screening containment (z would favour
         // references with a low screening FPR on long contigs)
         if (z >= zmin) W.cand.emplace_back((float)(((double)c / (double)ns - f) / (1 - f)), d);
+        }
       }
       auto better = [](const std::pair<float, uint32_t>& a, const std::pair<float, uint32_t>& b) {
         return a.first != b.first ? a.first > b.first : a.second < b.second;
@@ -3467,19 +3714,65 @@ int cmd_db_search(int argc, char** argv) {
         for (auto& cd : W.cand2) W.cand.emplace_back(zof[cd.second], cd.second);
       }
     } else {
-      W.scnt.assign(nr, 0);
+      W.scnt16.assign(nr + 64, 0);
       for (uint32_t d = 0; d < nr; ++d) W.cand.emplace_back(0.0f, d);
     }
+    size_t nskip = 0;
+    bool have_sw = false;
+    size_t ntier[MAXT] = {0};
+    for (const Probe& p : W.pr) ++ntier[p.tier];
     for (auto& cd : W.cand) {
       const uint32_t d = cd.second;
+      uint64_t hc[MAXT] = {0};
+      db_hits(D.refs[d], W, hc);
+      double vs = 0;
+      // the local score is computed only for candidates without a clear global hit excess (z < 4)
+      bool weak = vreport;
+      if (vmin > 0 && !weak) {
+        const Sketch& R = D.refs[d];
+        const double sg = R.sigma_used();
+        double ex = 0, var = 0;
+        for (size_t t = 0; t < R.tiers.size(); ++t) {
+          const double e = R.tiers[t].eps + sg - R.tiers[t].eps * sg;
+          ex += (double)hc[t] - (double)ntier[t] * e;
+          var += (double)ntier[t] * e * (1 - e);
+        }
+        weak = ex < 4.0 * std::sqrt(std::max(var, 1e-9));
+      }
+      if (weak) {
+        if (!have_sw) {
+          db_switch_costs(W, P.rho_u);
+          have_sw = true;
+        }
+        vs = db_vscore(D.refs[d], W);
+        if (vs < vmin) {  // cannot reach the model's reporting threshold: skip the HMM
+          ++nskip;
+          if (vreport) {
+            Result R;
+            R.probes = W.pr.size();
+            R.status = "skipped";
+            char ex[160];
+            snprintf(ex, sizeof ex, "\t%u\t%zu\t%.4f\t%zu\t%.2f", W.scnt16[d], ns, cd.first, W.cand.size(), vs);
+            format_result(out, name + "\t" + D.names[d] + "\t0", R, ex);
+          }
+          continue;
+        }
+      }
       const Estimator& E = ests.get(d);
-      db_hits(D.refs[d], W);
       Result R = E.estimate_probed(seq.size(), W);
+      if (vreport) {
+        char ex[160];
+        snprintf(ex, sizeof ex, "\t%u\t%zu\t%.4f\t%zu\t%.2f", W.scnt16[d], ns, cd.first, W.cand.size(), vs);
+        format_result(out, name + "\t" + D.names[d] + "\t0", R, ex);
+        continue;
+      }
       const bool ok = std::strcmp(R.status, "ok") == 0;
       if (!ok && nout > 0) continue;
       const double sc = !ok ? -1 : sort_by == 1 ? R.ani : sort_by == 2 ? R.af : R.ani * R.af;
       hits.push_back({R, d, cd.first, sc});
     }
+    (void)nskip;
+    if (vreport) return;
     if (nout > 0) {
       std::stable_sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) {
         return a.score != b.score ? a.score > b.score : a.d < b.d;
@@ -3495,12 +3788,22 @@ int cmd_db_search(int argc, char** argv) {
       format_result(out, name + "\t*\t0", R, extra);
       return;
     }
+    if (fseg && !hits.empty() && std::strcmp(hits[0].R.status, "ok") == 0) {  // segments of the top hit
+      const uint32_t d = hits[0].d;
+      db_hits(D.refs[d], W);
+      W.want_seg = true;
+      const Estimator& E = ests.get(d);
+      E.estimate_probed(seq.size(), W);
+      E.segments(W, seq.size(), g_seg_win, name + "\t" + D.names[d], out2, g_seg_ci_stat);
+      W.want_seg = false;
+    }
     for (size_t r = 0; r < hits.size(); ++r) {
       const Hit& h = hits[r];
-      snprintf(extra, sizeof extra, "\t%u\t%zu\t%.4f\t%zu", W.scnt[h.d], ns, screen ? h.z : NAN, W.cand.size());
+      snprintf(extra, sizeof extra, "\t%u\t%zu\t%.4f\t%zu", (unsigned)W.scnt16[h.d], ns, screen ? h.z : NAN, W.cand.size());
       format_result(out, name + "\t" + D.names[h.d] + "\t" + std::to_string(r + 1), h.R, extra);
     }
   });
+  if (fseg) fclose(fseg);
   fprintf(stderr, "estimators built: %zu of %u references\n", ests.built.load(), nr);
   return 0;
 }
@@ -3546,9 +3849,19 @@ int cmd_query(int argc, char** argv) {
   Fasta fa(argv[3]);
   fputs("contig\tani\taf\ttheta\tprobes\thits\taligned_probes\tstatus\tlr\thet\tlow_frac\tani_lo\tani_hi\taf_lo\taf_hi\tani_se\taf_se\n",
         stdout);
-  run_pipeline(fa, threads, [&](const std::string& name, std::string_view seq, Work& W, std::string& out) {
-    format_result(out, name, est.estimate(seq, W));
+  FILE* fseg = nullptr;
+  if (!g_seg_path.empty()) {
+    fseg = fopen(g_seg_path.c_str(), "w");
+    if (!fseg) throw std::runtime_error("cannot write " + g_seg_path);
+    fputs("contig\tstart\tend\taligned\tani\tani_lo\tani_hi\tprobes\thits\n", fseg);
+  }
+  run_pipeline(fa, threads, fseg, [&](const std::string& name, std::string_view seq, Work& W, std::string& out, std::string& out2) {
+    W.want_seg = fseg != nullptr;
+    const Result R = est.estimate(seq, W);
+    format_result(out, name, R);
+    if (fseg && std::strcmp(R.status, "ok") == 0) est.segments(W, seq.size(), g_seg_win, name, out2, g_seg_ci_stat);
   });
+  if (fseg) fclose(fseg);
   return 0;
 }
 

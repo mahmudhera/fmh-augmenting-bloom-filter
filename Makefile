@@ -1,5 +1,5 @@
 # Rebuild the theory report and the aif tool.
-#   make aif    -> build bin/aif (C++17, no dependencies)
+#   make aif    -> build bin/aif (C++17; zlib for gzip input)
 #   make pdf    -> rebuild the theory PDF from committed tables/figures (groff + ghostscript)
 #   make        -> regenerate theory tables/figures (numpy + matplotlib) and the PDF
 PYTHON ?= python3
@@ -11,7 +11,7 @@ all: tables pdf
 aif: bin/aif
 bin/aif: src/aif.cpp src/ci_table.inc
 	mkdir -p bin
-	$(CXX) $(CXXFLAGS) -Wall -Wextra -o $@ $<
+	$(CXX) $(CXXFLAGS) -Wall -Wextra -o $@ $< -lz
 
 report/gen/mc.csv: scripts/mc_check_theorem1.py
 	$(PYTHON) scripts/mc_check_theorem1.py > $@
@@ -28,4 +28,4 @@ pdf:
 prof: bin/aif_prof
 bin/aif_prof: src/aif.cpp src/ci_table.inc
 	mkdir -p bin
-	$(CXX) $(CXXFLAGS) -DAIF_PROF -Wall -Wextra -o $@ $<
+	$(CXX) $(CXXFLAGS) -DAIF_PROF -Wall -Wextra -o $@ $< -lz

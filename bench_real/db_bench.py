@@ -146,10 +146,11 @@ def search():
                        stdout=open(os.path.join(RES, "aif_b074", s + ".tsv"), "w"), stderr=subprocess.DEVNULL, check=True)
         subprocess.run([AIF, "db", "search", adb, q, "--no-screen", "-n", "1", "-t", "48"],
                        stdout=open(os.path.join(RES, "aif_exh", s + ".tsv"), "w"), stderr=subprocess.DEVNULL, check=True)
-        subprocess.run([SKANI, "search", "-d", sdb, "--qi", q, "-t", "16", "-o", os.path.join(RES, "skani", s + ".tsv")],
-                       stderr=subprocess.DEVNULL, check=True)
-        subprocess.run([SKANI, "dist", "--qi", "-q", q, "--rl", slst, "-t", "16", "-o", os.path.join(RES, "skani_dist", s + ".tsv")],
-                       stderr=subprocess.DEVNULL, check=True)
+        if "--aif-only" not in sys.argv:
+            subprocess.run([SKANI, "search", "-d", sdb, "--qi", q, "-t", "16", "-o", os.path.join(RES, "skani", s + ".tsv")],
+                           stderr=subprocess.DEVNULL, check=True)
+            subprocess.run([SKANI, "dist", "--qi", "-q", q, "--rl", slst, "-t", "16", "-o", os.path.join(RES, "skani_dist", s + ".tsv")],
+                           stderr=subprocess.DEVNULL, check=True)
         print("searched", s, flush=True)
 
 
