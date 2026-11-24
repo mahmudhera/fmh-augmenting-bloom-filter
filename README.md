@@ -1,13 +1,13 @@
 # FracMinHash + Bloom filters for ANI / AF on short contigs
 
-**Start here:** [`aif_method_and_results.pdf`](aif_method_and_results.pdf) (12 pages): the method and every result so far,
+**Start here:** [`aif_method_and_results.pdf`](aif_method_and_results.pdf) (13 pages): the method and every result so far,
 with pointers to the detailed reports below.
 
 Four detailed reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
-3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening.
+3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening; comparisons with Kraken2, CheckM2 and GUNC.
 4. **Viral clustering**: [`aif_viral_clustering_report.pdf`](aif_viral_clustering_report.pdf) (8 pages). vOTU clustering (95% ANI over 85% AF) of 2 x 10,000 phage genomes/contigs (INPHARED, Gut Phage Database) against BLAST/CheckV truth, vs skani and vclust.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
@@ -61,24 +61,56 @@ GTDB taxonomy, and MUMmer for top-hit ANI/AF (72,135 contig-reference pairs).
 | build, 32 threads, genomes in page cache (min; peak GB) | 10.8; 15.6 | **6.7; 1.9** | 14.7; 1.7 |
 | search, 23,561 contigs, 16 threads, warm (s) | 252 | **11.5** | 7.4 |
 | contigs with a hit | 71.6% | **93.5%** | 93.1% |
-| top hit = query's species / genus | 61.6% / 68.9% | **78.3% / 88.5%** | 77.8% / 88.1% |
-| species, contigs homologous to their own representative | 72.1% | **91.4%** | 90.9% |
-| species calls at top-hit ANI >= 95%: sensitivity / precision | 60.7% / 87.2% | **76.6% / 86.4%** | 75.8% / 86.2% |
-| species accuracy, 0.5-1 / 1-2 / 5-20 / >=20 kb contigs | 2.6 / 18.5 / 75.7 / 90.4% | **45.7 / 62.6 / 83.1 / 92.5%** | 44.9 / 61.8 / 82.9 / 92.3% |
-| top-hit ANI MAE / AF MAE (pp) | 0.63 / 3.42 | **0.49 / 2.58** | 0.58 / 3.84 |
+| top hit = query's species / genus | 61.8% / 69.0% | **78.3% / 88.5%** | 77.8% / 88.1% |
+| species, contigs homologous to their own representative | 72.3% | **91.4%** | 90.9% |
+| species calls at top-hit ANI >= 95%: sensitivity / precision | 60.9% / 87.5% | **76.6% / 86.4%** | 75.8% / 86.2% |
+| species accuracy, 0.5-1 / 1-2 / 5-20 / >=20 kb contigs | 2.7 / 18.5 / 76.1 / 90.5% | **45.7 / 62.6 / 83.1 / 92.5%** | 44.9 / 61.8 / 82.9 / 92.3% |
+| top-hit ANI MAE / AF MAE (pp) | 0.60 / 3.34 | **0.49 / 2.58** | 0.58 / 3.84 |
 
 Contamination screening (simulated bins: each query genome plus 5/10/20% of another's contigs, 861 bins; contig
 flagged when its top-hit genus differs from the bin's majority): aif flags 90.8% of contaminant contigs (75.5% of
 those of 0.5-2 kb) at 75% precision, and 98.8% of contaminant bases at 95% precision; skani flags 67.8% of
-contigs (13.3% of 0.5-2 kb) at 81% precision, and 97.6% of bases at 93% precision. Calibrated intervals cover 91.5% (ANI) / 91.9% (AF)
+contigs (13.3% of 0.5-2 kb) at 82% precision, and 97.6% of bases at 93% precision. Calibrated intervals cover 91.5% (ANI) / 91.9% (AF)
 on GTDB's diverse taxa (95% nominal; calibrated on five bacterial species).
 
 **Held-out confirmation (frozen defaults, git tag `v1.6-freeze`).** Database-mode defaults chosen while looking at
 the benchmarks (screening setup, pre-HMM filter, key cap, likelihood-ratio hit order) were frozen and re-tested
 on fresh queries: GTDB query set 2 (298 genomes from 300 unseen species, 19,555 contigs): aif species / genus
-accuracy 78.6% / 90.1% (skani 65.8% / 73.2%), ANI>=95% calls 76.6% at 85.8% precision (skani 64.7% at 88.4%),
+accuracy 78.6% / 90.1% (skani 66.1% / 73.3%), ANI>=95% calls 76.6% at 85.8% precision (skani 65.0% at 88.8%),
 search 12.8 s vs 212 s; 80 fresh drafts against the 2,005-genome database: top-hit ANI / AF MAE 0.23 / 0.77 pp
 (skani search 0.41 / 2.26, dist 0.52 / 2.93), coverage 99.9% (80.2%, 92.4%). Report Section 15.
+
+**Kraken2 on the same references (report Section 16).** Kraken2 2.1.3 built from the same 199,923 representatives
+(GTDB taxonomy as an NCBI-style taxdump), capped at aif's database size (`--max-db-size` 82.5 GB, which keeps
+about 8% of its minimizers; uncapped it estimated 990 GB), `--fast-build`. Query set 1 / set 2:
+
+| | skani 0.4.0 | Kraken2 2.1.3 | **aif** (budget 0.88) |
+|---|---|---|---|
+| build (min; threads; peak GB) | 10.8; 32; 15.6 | 233; 48; 88.7 | **6.7; 32; 1.9** |
+| search, 16 threads, warm (s; peak GB) | 252 / 212; 78 | 73.7 / 82.1; 83 | **11.5 / 12.8**; 65 |
+| contigs assigned | 71.6% / 75.5% | **97.5% / 98.7%** | 93.5% / 94.6% |
+| species correct | 61.8% / 66.1% | 76.8% / 78.1% | **78.3% / 78.6%** |
+| genus correct | 69.0% / 73.3% | **90.1% / 92.1%** | 88.5% / 90.1% |
+| species calls: sensitivity / precision (aif, skani: ANI >= 95%; Kraken2: species rank) | 60.9% / 87.5% (set 1) | 76.8% / 84.0% (set 1) | 76.6% / 86.4% (set 1) |
+| species correct, 0.5-1 kb contigs | 2.7% / 3.0% | 44.2% / 39.9% | **45.7% / 40.7%** |
+| ANI and AF per hit | yes | no | yes, with intervals |
+
+**Bin quality: CheckM2 and GUNC (report Section 16).** 400 simulated bins (100 each at 5/10/20% contamination
+and 100 uncontaminated controls), 24 threads; contamination = contaminant bases / host bases; aif and skani
+estimate it as flagged / unflagged bases (genus rule). GUNC 1.1.1 ran with DIAMOND 2.2.8 via
+`GUNC_SKIP_DIAMOND_VERSION_CHECK` (it pins 2.1.24).
+
+| | controls flagged | MAE at 5 / 10 / 20% (pp) | flagged at 5 / 10 / 20% | time, 400 bins |
+|---|---|---|---|---|
+| **aif** (estimate >= 5%) | 2% | **0.55 / 0.63 / 0.84** | 86 / 98 / 99% | **11 s** |
+| aif (estimate >= 3%) | 6% | | 95 / 100 / 99% | |
+| skani (>= 5%) | 4% | 0.89 / 1.03 / 1.35 | 77 / 96 / 99% | 206 s |
+| CheckM2 1.1.0 (>= 5%) | 0% | 2.87 / 5.23 / 10.70 | 23 / 61 / 70% | 23.5 min |
+| GUNC 1.1.1, own call | 5% | 0.69 / 1.33 / 3.86 | 94 / 100 / 99% | 6.6 h (upper bound: shared host) |
+
+Every host species has a representative in the database, which favours aif and skani; the gene-based tools need
+no close reference (and CheckM2 also estimates completeness). MMseqs2 taxonomy and CAT (about 700 million GTDB
+proteins) were not run.
 
 ## Database mode (v1.5-1.6): contigs against 2,005 genomes
 
@@ -237,6 +269,7 @@ bench_real/                    real genomes: select_datasets.py, select_tune.py,
                                time_real.py, scaling.py, consistency.py, calibration.py, af_model_grid.py, afopt_heldout.py,
                                database mode: db_select.py, db_download.sh, db_bench.py, db_screen_eval.py;
                                GTDB: gtdb_download.sh, gtdb_select.py, gtdb_prepare.py, gtdb_bench.py, gtdb_contam.py;
+                               other tools: kraken2_gtdb.py (Kraken2), contam_tools.py (CheckM2, GUNC);
                                pareto_sourmash.py, pareto_minimap2.py, pareto_time.py; idmap.py;
                                viral clustering: viral_download.sh, viral_bench.py
 results/, results_real/,       committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
@@ -278,6 +311,8 @@ python3 -I bench_real/select_fresh.py; REAL_DIR=data/real_fresh bench_real/downl
 REAL_DIR=data/real_fresh python3 -I bench_real/prepare.py; REAL_DIR=data/real_fresh REAL_SETS=bcereus,ecoli,paer,saur python3 -I bench_real/truth.py
 DB_QUERY_DIR=data/real_fresh DB_SETS=bcereus,ecoli,paer,saur DB_RES=data/db/results_fresh python3 -I bench_real/db_bench.py search  # + truth, evaluate
 GTDB_SET=2 python3 -I bench_real/gtdb_select.py   # + download, gtdb_prepare.py, gtdb_bench.py search/truth/evaluate, gtdb_contam.py
+for s in prepare build classify evaluate; do python3 -I bench_real/kraken2_gtdb.py $s; done   # Kraken2 2.1.3
+for s in bins checkm2 gunc seqtime evaluate; do THREADS=24 python3 -I bench_real/contam_tools.py $s; done  # CheckM2, GUNC
 python3 -I bench_real/run_tools.py aif_b011 aif_b022 aif_b176 skani_c60 skani_c250 skani_c500
 <python with sourmash> -I bench_real/pareto_sourmash.py; python3 -I bench_real/pareto_minimap2.py; python3 -I bench_real/pareto_time.py
 python3 -I bench_real/idmap.py run; REAL_DIR=data/real_tune python3 -I bench_real/idmap.py run

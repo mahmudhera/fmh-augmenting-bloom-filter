@@ -26,10 +26,11 @@
 \h'0.45i'3.8\h'|1.05i'Contamination screening8
 \h'0.45i'3.9\h'|1.05i'Identity maps8
 \h'0.45i'3.10\h'|1.05i'Viral clustering9
+\h'0.45i'3.11\h'|1.05i'Kraken2, CheckM2 and GUNC9
 .sp 0.25v
-\f[B]4.	Limitations and open items\f[]9
+\f[B]4.	Limitations and open items\f[]10
 .sp 0.25v
-\f[B]5.	Reports, code and reproducibility\f[]10
+\f[B]5.	Reports, code and reproducibility\f[]11
 .lc
 .ps \n(PS
 .vs \n(VSp

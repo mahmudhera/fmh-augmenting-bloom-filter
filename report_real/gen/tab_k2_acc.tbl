@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c c c c c c c
+^ c c c c c c c
+l c c c c c c c.
+set 1 / set 2@assigned@species@genus@species call@species call@species,@species,
+@@correct@correct@sensitivity@precision@0.5\(en1 kb@\(>= 20 kb
+_
+aif@0.935 / 0.946@0.783 / 0.786@0.885 / 0.901@0.766 / 0.766@0.864 / 0.858@0.457 / 0.407@0.925 / 0.936
+skani@0.716 / 0.755@0.618 / 0.661@0.690 / 0.733@0.609 / 0.650@0.875 / 0.888@0.027 / 0.030@0.905 / 0.919
+Kraken2@0.975 / 0.987@0.768 / 0.781@0.901 / 0.921@0.768 / 0.781@0.840 / 0.831@0.442 / 0.399@0.920 / 0.933
+.TE

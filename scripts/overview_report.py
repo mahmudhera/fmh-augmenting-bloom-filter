@@ -97,6 +97,8 @@ def glance():
     idm = J("results_real", "idmap", "idmap.json")
     vir = J("results_viral", "viral_eval.json")
     st = J("results_real", "gtdb", "search_time.json")
+    k2 = J("results_real", "tools", "kraken2_eval.json")
+    bt = J("results_real", "tools", "contam_tools.json")
     rows = [
         ["simulated contigs (2,800)", "ANI / AF MAE (pp)", f"{f(nb['ai_ani_mae_micro'], 2)} / {f(nb['ai_af_mae_micro'], 2)}",
          "skani", f"{f(nb['sk_ani_mae_micro'], 2)} / {f(nb['sk_af_mae_micro'], 2)}"],
@@ -118,6 +120,13 @@ def glance():
         ["contamination (genus rule)", "recall / precision", f"{f(con['aif|genus|default|all']['recall_contigs'], 3)} / "
          f"{f(con['aif|genus|default|all']['precision_contigs'], 3)}", "skani", f"{f(con['skani|genus|default|all']['recall_contigs'], 3)} / "
          f"{f(con['skani|genus|default|all']['precision_contigs'], 3)}"],
+        ["GTDB set 1, equal-size DB", "species / genus", f"{f(g1['tools']['aif_0.88']['all']['species_acc'], 3)} / "
+         f"{f(g1['tools']['aif_0.88']['all']['genus_acc'], 3)}", "Kraken2", f"{f(k2['set1']['all']['species_acc'], 3)} / {f(k2['set1']['all']['genus_acc'], 3)}"],
+        ["", "search (s) / build (min)", f"{f(st['aif_0.88']['s'], 1)} / {f(g1['build']['aif_0.88']['build_s'] / 60, 1)}", "Kraken2",
+         f"{f(k2['classify_time']['set1']['s'], 1)} / {f(k2['build']['build_s'] / 60, 0)}"],
+        ["bin contamination (300 bins)", "estimate MAE (pp)", f(bt["aif"]["contaminated"]["mae_pp"], 2), "GUNC / CheckM2",
+         f"{f(bt['gunc']['contaminated']['mae_pp'], 2)} / {f(bt['checkm2']['contaminated']['mae_pp'], 2)}"],
+        ["", "time, 400 bins (s)", f(bt["seq_time"]["aif"]["s"], 0), "GUNC / CheckM2", f"{f(bt['gunc_time']['s'], 0)} / {f(bt['checkm2_time']['s'], 0)}"],
         ["identity maps, 3 kb", "identity MAE (pp)", f(idm["aif_3000"]["all"]["mae_pp"], 2), "fastANI", f(idm["fastani_3000"]["all"]["mae_pp"], 2)],
         ["unaligned islands", "precision / recall", f"{f(idm['aif']['islands|all']['precision'], 3)} / {f(idm['aif']['islands|all']['recall'], 3)}",
          "fastANI", f"{f(idm['fastani']['islands|all']['precision'], 3)} / {f(idm['fastani']['islands|all']['recall'], 3)}"],
@@ -125,7 +134,7 @@ def glance():
          "skani small", f"{f(vir['inphared']['tools']['skani_small']['edges']['f1'], 3)} / {f(vir['gpd']['tools']['skani_small']['edges']['f1'], 3)}"],
         ["", "", "", "vclust", f"{f(vir['inphared']['tools']['vclust']['edges']['f1'], 3)} / {f(vir['gpd']['tools']['vclust']['edges']['f1'], 3)}"],
     ]
-    lines = [".TS", "center box tab(@);", "l l c l c", "l l n l n.", "experiment@metric@aif@comparator@value", "_"]
+    lines = [".TS", "center box tab(@);", "l l c l c", "l l c l c.", "experiment@metric@aif@comparator@value", "_"]
     lines += ["@".join(r) for r in rows]
     lines.append(".TE")
     open(os.path.join(GEN, "tab_glance.tbl"), "w").write("\n".join(lines) + "\n")

@@ -19,7 +19,7 @@ Bloom-Filter Sketches, from Pairwise Queries to GTDB Scale
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Overview of method and results, aif v1.6 \(em November 23, 2026
+Overview of method and results, aif v1.6 \(em November 24, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -48,8 +48,11 @@ skani 0.4.0 on simulated contigs (ANI 0.36 vs 1.12 pp, AF 0.39 vs 7.43 pp) and o
 of exact FracMinHash at up to 32\(mu the size. In database mode it searches all 199,923 GTDB R232 species
 representatives (82.5 GB, the size of skani's database) 22\(mu faster than skani, and assigns contigs of held-out
 genomes to the right species 78\(en79% of the time against 62\(en66%, confirmed on a fresh set of unseen species with
-frozen defaults. It also gives the best vOTU clustering among sketch tools and identity maps more accurate than
-fastANI's. Alignment (minimap2, vclust) remains more accurate at a much larger cost; the method's weak points
+frozen defaults. Kraken2 with the same references and database size names the species about as often (77\(en78%)
+and the genus more often, but searches 6\(mu slower and reports no ANI or AF. On simulated bins aif estimates
+contamination more accurately than GUNC and CheckM2 (0.67 vs 1.96 and 6.27 pp), detects it as well as GUNC, and
+runs 2,100\(mu faster. It also gives the best vOTU clustering among sketch tools and identity maps more accurate
+than fastANI's. Alignment (minimap2, vclust) remains more accurate at a much larger cost; the method's weak points
 are contigs below 90% identity and the AF definition at that boundary.
 .ps \n(PS
 .vs \n(VSp
@@ -273,9 +276,9 @@ the page cache aif builds it in 6.7 min with 1.9 GB of memory (skani: 10.8 min, 
 the same size (82.5 vs 82.7 GB). On 23,561 contigs of 294 held-out non-representative genomes, aif's search
 takes 11.5 s at 16 threads against skani's 252 s (Table 7).
 .LP
-aif's top hit has the query's species for 78.3% of contigs and its genus for 88.5%; skani's for 61.6% and 68.9%
+aif's top hit has the query's species for 78.3% of contigs and its genus for 88.5%; skani's for 61.8% and 69.0%
 (Table 8, Figure 4). aif is more accurate at every contig length, and under an equal calling rule (ANI \(>= 95%)
-it calls 76.6% of contigs correctly at 86.4% precision (skani 60.7% at 87.2%). A 28.5 GB aif database
+it calls 76.6% of contigs correctly at 86.4% precision (skani 60.9% at 87.5%). A 28.5 GB aif database
 (budget 0.22) is nearly as accurate.
 .TC 7
 Building and searching the GTDB R232 database.
@@ -300,7 +303,7 @@ two fresh query sets were drawn and scored once.
 0.41 / 2.26 pp for skani search and 0.52 / 2.93 pp for skani dist. Coverage is 99.9%, against 80.2% and 92.4%.
 .IP \(bu 0.2i
 \f[B]GTDB query set 2.\f[R] 298 genomes from 300 species not used before (Table 9). aif's species accuracy is
-78.6% (skani 65.8%) and its genus accuracy 90.1% (73.2%).
+78.6% (skani 66.1%) and its genus accuracy 90.1% (73.3%).
 .LP
 Every conclusion holds on unseen genomes and species.
 .TC 9
@@ -311,7 +314,7 @@ GTDB R232: query set 1 and the fresh set 2 (disjoint species), frozen defaults.
 .LP
 Bins were simulated from the GTDB queries: each genome plus 5\(en20% of another genome's contigs. A contig is
 flagged when its top hit's genus differs from the bin's majority. aif flags 91% (set 1) and 93% (set 2) of
-contaminant contigs at 75\(en77% precision; skani flags 68% and 70% at 81\(en84%. On contigs of 0.5\(en2 kb
+contaminant contigs at 75\(en77% precision; skani flags 68% and 70% at 82\(en85%. On contigs of 0.5\(en2 kb
 aif's recall is 76\(en84% and skani's 13\(en15%, because skani reports nothing for most short contigs.
 .H2 "Identity maps"
 .LP
@@ -341,6 +344,35 @@ tools. The alignment-based vclust is best overall, at 7\(en10\(mu aif's run time
 vOTU edges and clusters against BLAST/CheckV (aif with \f[CR]--af-min-ident 0.88\f[R] in the second aif row).
 .TCE
 .so ../report_viral/gen/tab_votu.tbl
+.H2 "Kraken2, CheckM2 and GUNC"
+.LP
+\f[B]Kraken2.\f[R] Kraken2 2.1.3 was built from the same 199,923 GTDB R232 representatives, with GTDB's taxonomy,
+capped at aif's database size (82.5 GB, about 8% of its minimizers; uncapped it would need 990 GB). On both query
+sets it names the species about as often as aif's top hit (76.8 and 78.1%, against 78.3 and 78.6%; Table 12).
+Its genus accuracy is higher (90.1 and 92.1%, against 88.5 and 90.1%), because its lowest-common-ancestor rule falls
+back to the genus when species share k-mers. At equal sensitivity aif's ANI \(>= 95% species calls are 2.4\(en2.7
+points more precise than Kraken2's species-rank assignments, and aif is level with or ahead of Kraken2 at every
+contig length. Kraken2 searched in 74\(en82 s (aif 11.5\(en12.8 s, at 16 threads), built its database in 3.9 h at
+48 threads (aif 6.7 min at 32), and reports no ANI or AF.
+.LP
+\f[B]Bin quality.\f[R] CheckM2 1.1.0 and GUNC 1.1.1 were run on 400 of the simulated bins (100 at each of 5, 10
+and 20% contamination, and 100 uncontaminated controls; Table 13). aif's contamination estimates are the most
+accurate (0.55\(en0.84 pp error; GUNC 0.69\(en3.86, CheckM2 2.9\(en10.7, both under-estimating as contamination
+grows). With a 3% limit aif flags 95\(en100% of contaminated bins and 6% of controls; GUNC's own call fails
+94\(en100% and 5%. aif searched the 400 bins in 11 s at 24 threads; CheckM2 took 23.5 min and GUNC 6.6 h (an
+upper bound, as it shared the host). The gene-based tools need no close reference and CheckM2 also estimates
+completeness; here every host species has a GTDB representative, which favours aif and skani. MMseqs2 taxonomy
+and CAT, which would need about 700 million GTDB proteins, were not run.
+.TC 12
+GTDB R232, query set 1 / set 2: aif, skani and Kraken2 (equal-size databases). Species call: aif's ANI
+\(>= 95% calls; Kraken2's species-rank assignments.
+.TCE
+.so ../report_real/gen/tab_k2_acc.tbl
+.TC 13
+Contamination estimates on 400 simulated bins: MAE against the truth, fraction flagged (estimate \(>= 5%, or 3%
+where stated; GUNC's own pass/fail call), and time and peak memory for all bins at 24 threads.
+.TCE
+.so ../report_real/gen/tab_bintools.tbl
 .\" =====================================================================
 .H1 "Limitations and open items"
 .IP \(bu 0.2i
@@ -354,8 +386,9 @@ convention (MUMmer, megablast) is a choice, made explicit by \f[CR]--af-min-iden
 accurate, at a much larger index or run time. aif's niche is accuracy per stored bit, uncertainty and
 segmentation at database scale.
 .IP \(bu 0.2i
-\f[B]Baselines.\f[R] Contig classification is compared with skani only. Kraken2, MMseqs2 taxonomy and CAT, and
-GUNC or CheckM2 for contamination, are the next comparisons (in progress).
+\f[B]Baselines.\f[R] Kraken2 was compared at one size (aif's); protein-based classifiers (MMseqs2, CAT) were not
+run. The bin comparison uses simulated bins whose host species are in the database, which favours aif; bins of
+novel lineages remain to be tested against GUNC and CheckM2.
 .IP \(bu 0.2i
 \f[B]Biology.\f[R] All applications so far are benchmarks; no biological finding yet.
 .IP \(bu 0.2i
@@ -377,10 +410,11 @@ detailed reports give full methods, data selection, all tables, and the commands
 \f[CR]aif_benchmark_report.pdf\f[R]: aif v1.1 on simulated contigs;
 .IP \(bu 0.2i
 \f[CR]aif_real_genomes_report.pdf\f[R]: real genomes, speed, intervals, database mode, GTDB, contamination,
-size\(enaccuracy front, identity maps, held-out confirmation;
+size\(enaccuracy front, identity maps, held-out confirmation, Kraken2, CheckM2 and GUNC;
 .IP \(bu 0.2i
 \f[CR]aif_viral_clustering_report.pdf\f[R]: vOTU clustering.
 .LP
 Software versions: aif v1.6 (git tag \f[CR]v1.6-freeze\f[R] for the database defaults), skani 0.4.0, sourmash
-4.8.14, minimap2 2.26, fastANI, vclust 1.3.1, MUMmer 4, BLAST+ 2.12. Timings were measured on one Xeon Gold
+4.8.14, minimap2 2.26, fastANI, vclust 1.3.1, MUMmer 4, BLAST+ 2.12, Kraken2 2.1.3, CheckM2 1.1.0, GUNC 1.1.1 (DIAMOND 2.2.8, through
+GUNC's version-check override). Timings were measured on one Xeon Gold
 5416S host.

@@ -1,0 +1,161 @@
+{
+ "set1": {
+  "all": {
+   "n": 23561,
+   "classified": 0.9746190738932983,
+   "species_acc": 0.7679640083188319,
+   "genus_acc": 0.9010653198081575,
+   "species_calls": 0.9140528840032257,
+   "species_prec": 0.8401745913818722
+  },
+  "bac": {
+   "n": 22546,
+   "classified": 0.9744965847600461,
+   "species_acc": 0.7627517076199769,
+   "genus_acc": 0.900736272509536,
+   "species_calls": 0.9126230816996364,
+   "species_prec": 0.8357795489891136
+  },
+  "ar": {
+   "n": 1015,
+   "classified": 0.9773399014778326,
+   "species_acc": 0.8837438423645321,
+   "genus_acc": 0.9083743842364532,
+   "species_calls": 0.9458128078817734,
+   "species_prec": 0.934375
+  },
+  "0.5-1k": {
+   "n": 3023,
+   "classified": 0.8547800198478333,
+   "species_acc": 0.4416142904399603,
+   "genus_acc": 0.6238835593781012,
+   "species_calls": 0.6602712537214688,
+   "species_prec": 0.6688376753507014
+  },
+  "1-2k": {
+   "n": 2908,
+   "classified": 0.9590784044016506,
+   "species_acc": 0.5897524071526823,
+   "genus_acc": 0.8036451169188445,
+   "species_calls": 0.8194635488308115,
+   "species_prec": 0.7196810742761225
+  },
+  "2-5k": {
+   "n": 3197,
+   "classified": 0.9881138567406944,
+   "species_acc": 0.7247419455739756,
+   "genus_acc": 0.8955270566155771,
+   "species_calls": 0.9077259931185486,
+   "species_prec": 0.7984148862853204
+  },
+  "5-20k": {
+   "n": 5203,
+   "classified": 0.999615606380934,
+   "species_acc": 0.814337881991159,
+   "genus_acc": 0.9573323082836825,
+   "species_calls": 0.9711704785700558,
+   "species_prec": 0.8385117751830595
+  },
+  ">=20k": {
+   "n": 9230,
+   "classified": 1.0,
+   "species_acc": 0.9198266522210184,
+   "genus_acc": 0.9927410617551463,
+   "species_calls": 0.9969664138678224,
+   "species_prec": 0.9226255161921322
+  }
+ },
+ "set2": {
+  "all": {
+   "n": 19555,
+   "classified": 0.9871132702633597,
+   "species_acc": 0.7808233188442854,
+   "genus_acc": 0.9211454870877014,
+   "species_calls": 0.9395039631807722,
+   "species_prec": 0.8311016764641846
+  },
+  "bac": {
+   "n": 18930,
+   "classified": 0.9871632329635499,
+   "species_acc": 0.779609086106709,
+   "genus_acc": 0.9209720021130481,
+   "species_calls": 0.938932910723719,
+   "species_prec": 0.830313941712614
+  },
+  "ar": {
+   "n": 625,
+   "classified": 0.9856,
+   "species_acc": 0.8176,
+   "genus_acc": 0.9264,
+   "species_calls": 0.9568,
+   "species_prec": 0.8545150501672241
+  },
+  "0.5-1k": {
+   "n": 1843,
+   "classified": 0.9213239283776451,
+   "species_acc": 0.3993488876831253,
+   "genus_acc": 0.684753119913185,
+   "species_calls": 0.7395550732501357,
+   "species_prec": 0.5399853264856933
+  },
+  "1-2k": {
+   "n": 2353,
+   "classified": 0.964300892477688,
+   "species_acc": 0.5189120271993201,
+   "genus_acc": 0.798555036124097,
+   "species_calls": 0.8270293242668934,
+   "species_prec": 0.6274409044193217
+  },
+  "2-5k": {
+   "n": 2258,
+   "classified": 0.9911426040744021,
+   "species_acc": 0.6970770593445527,
+   "genus_acc": 0.8976970770593445,
+   "species_calls": 0.9229406554472985,
+   "species_prec": 0.755278310940499
+  },
+  "5-20k": {
+   "n": 4370,
+   "classified": 0.9993135011441647,
+   "species_acc": 0.822883295194508,
+   "genus_acc": 0.9562929061784897,
+   "species_calls": 0.977345537757437,
+   "species_prec": 0.8419573870287989
+  },
+  ">=20k": {
+   "n": 8731,
+   "classified": 1.0,
+   "species_acc": 0.9325392280380255,
+   "genus_acc": 0.9925552628564884,
+   "species_calls": 0.9973657083953729,
+   "species_prec": 0.9350022967386311
+  }
+ },
+ "build": {
+  "build_s": 13995.014,
+  "step2_estimate_s": 6674.484,
+  "step3_s": 7320.53,
+  "build_kb": 88728864,
+  "bytes": 82512140712,
+  "max_db_size": 82492502021,
+  "required_bytes_uncapped": 990301521920,
+  "threads": 48,
+  "fast_build": true,
+  "block_size": 16777216,
+  "note": "step 2 (capacity estimate) from the first build; step 3 rerun with --fast-build after the default deterministic step 3 processed 29.7 GB of 618 GB in 4.2 h (and --fast-build with the default 16 KB blocks ran at 26 MB/s); peak memory is that of step 3"
+ },
+ "classify_time": {
+  "set1": {
+   "s": 73.74,
+   "kb": 83126148
+  },
+  "set2": {
+   "s": 82.12,
+   "kb": 83187544
+  }
+ },
+ "prepare": {
+  "taxa": 247369,
+  "genomes": 199923
+ }
+}

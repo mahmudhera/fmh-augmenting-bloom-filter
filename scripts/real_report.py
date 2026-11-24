@@ -609,6 +609,7 @@ def main():
     idmap_section(nums)
     gtdb_section(nums)
     fresh_section(nums)
+    tools_section(nums)
 
     with open(os.path.join(GEN, "numbers.txt"), "w") as fh:
         for k, v in nums.items():
@@ -1072,6 +1073,132 @@ def fresh_section(nums):
         open(os.path.join(out, "gtdb_" + fn), "w").write(open(os.path.join(ROOT, "data", "gtdb", "meta", fn)).read())
     for s_ in ("bcereus", "ecoli", "paer", "saur"):
         open(os.path.join(out, f"real_fresh_{s_}.tsv"), "w").write(open(os.path.join(ROOT, "data", "real_fresh", "lists", s_ + ".tsv")).read())
+
+
+def tools_section(nums):
+    """Kraken2 on GTDB R232 (tables 35-36, figure 12); CheckM2 and GUNC on simulated bins (table 37, figure 13)."""
+    GD = os.path.join(ROOT, "data", "gtdb")
+    out = os.path.join(ROOT, "results_real", "tools")
+    os.makedirs(out, exist_ok=True)
+    COLX = {"kraken2": "#008300", "checkm2": "#e87ba4", "gunc": "#6250d6"}  # palette slots 6, 5, 7
+    KP = os.path.join(GD, "kraken2_eval.json")
+    G = [json.load(open(os.path.join(GD, d, "gtdb_eval.json"))) for d in ("results", "results2")]
+    if os.path.exists(KP):
+        K = json.load(open(KP))
+        open(os.path.join(out, "kraken2_eval.json"), "w").write(open(KP).read())
+        B, S1, S2 = G[0]["build"], G[0]["search_time"], json.load(open(os.path.join(GD, "results2", "search_time.json")))
+        kb, kt = K["build"], K.get("classify_time", {})
+        rows = []
+        for k, lab in (("aif_0.88", "aif (budget 0.88)"), ("skani", "skani 0.4.0")):
+            b = B[k]
+            rows.append([lab, f(b["bytes"] / 1e9, 1), f(b["build_s"] / 60, 1), f(b["build_kb"] / 1e6, 1), "32", f(S1[k]["s"], 1),
+                         f(S2[k]["s"], 1), f(max(S1[k]["kb"], S2[k]["kb"]) / 1e6, 1)])
+        rows.append(["Kraken2 2.1.3", f(kb["bytes"] / 1e9, 1), f(kb["build_s"] / 60, 1), f(kb["build_kb"] / 1e6, 1), str(kb["threads"]),
+                     f(kt["set1"]["s"], 1) if "set1" in kt else "\\(em", f(kt["set2"]["s"], 1) if "set2" in kt else "\\(em",
+                     f(max(v["kb"] for v in kt.values()) / 1e6, 1) if kt else "\\(em"])
+        nums["k2_build"] = kb
+        nums["k2_time"] = kt
+        tbl("tab_k2_build.tbl", ["l c c c c c c c", "^ c c c c c c c"], "l n n n n n n n",
+            [["GTDB R232 (199,923)", "database", "build", "build peak", "build", "search (s)", "search (s)", "search peak"],
+             ["", "(GB)", "(min)", "(GB)", "threads", "set 1", "set 2", "(GB)"]], rows)
+        rows = []
+        pr = lambda a, b, d=3: f"{f(a, d)} / {f(b, d)}"  # noqa: E731
+        for k, lab in (("aif_0.88", "aif"), ("skani", "skani")):
+            a, b = G[0]["tools"][k], G[1]["tools"][k]
+            rows.append([lab, pr(a["all"]["reported"], b["all"]["reported"]), pr(a["all"]["species_acc"], b["all"]["species_acc"]),
+                         pr(a["all"]["genus_acc"], b["all"]["genus_acc"]), pr(a["all"]["call95_sens"], b["all"]["call95_sens"]),
+                         pr(a["all"]["call95_prec"], b["all"]["call95_prec"]), pr(a["0.5-1k"]["species_acc"], b["0.5-1k"]["species_acc"]),
+                         pr(a[">=20k"]["species_acc"], b[">=20k"]["species_acc"])])
+        a, b = K["set1"], K["set2"]
+        rows.append(["Kraken2", pr(a["all"]["classified"], b["all"]["classified"]), pr(a["all"]["species_acc"], b["all"]["species_acc"]),
+                     pr(a["all"]["genus_acc"], b["all"]["genus_acc"]), pr(a["all"]["species_acc"], b["all"]["species_acc"]),
+                     pr(a["all"]["species_prec"], b["all"]["species_prec"]), pr(a["0.5-1k"]["species_acc"], b["0.5-1k"]["species_acc"]),
+                     pr(a[">=20k"]["species_acc"], b[">=20k"]["species_acc"])])
+        nums["k2_set1"], nums["k2_set2"] = K["set1"], K["set2"]
+        tbl("tab_k2_acc.tbl", ["l c c c c c c c", "^ c c c c c c c"], "l c c c c c c c",
+            [["set 1 / set 2", "assigned", "species", "genus", "species call", "species call", "species,", "species,"],
+             ["", "", "correct", "correct", "sensitivity", "precision", "0.5\\(en1 kb", "\\(>= 20 kb"]], rows)
+        # figure 12: species accuracy by contig length, aif / skani / Kraken2, both query sets
+        bins = ["0.5-1k", "1-2k", "2-5k", "5-20k", ">=20k"]
+        fig, axes = plt.subplots(1, 2, figsize=(6.6, 2.4), sharey=True)
+        for ax, gi, key, title in ((axes[0], 0, "set1", "query set 1 (294 genomes)"), (axes[1], 1, "set2", "query set 2 (298 genomes)")):
+            x = list(range(len(bins)))
+            for k, col, mk, lab in (("aif_0.88", COL["aif"], "o", "aif (top hit)"), ("skani", COL["skani"], "s", "skani (top hit)")):
+                ax.plot(x, [100 * G[gi]["tools"][k][b]["species_acc"] for b in bins], color=col, marker=mk, ms=4, lw=1.4, label=lab)
+            ax.plot(x, [100 * K[key][b]["species_acc"] for b in bins], color=COLX["kraken2"], marker="^", ms=4, lw=1.4, label="Kraken2")
+            ax.set_xticks(x)
+            ax.set_xticklabels(["0.5\u20131", "1\u20132", "2\u20135", "5\u201320", "\u226520"])
+            ax.set_xlabel("contig length (kb)")
+            ax.set_title(title, fontsize=8, color=INK)
+            ax.grid(axis="y", color=GRID, lw=0.5)
+            ax.set_ylim(0, 100)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+        axes[0].set_ylabel("species correct (%)")
+        axes[0].legend(frameon=False, fontsize=7, loc="lower right")
+        fig.tight_layout()
+        fig.savefig(os.path.join(FIG, "fig_k2.eps"))
+        plt.close(fig)
+    else:
+        print("Kraken2 results missing; skipping tables 35-36")
+    CP = os.path.join(GD, "results", "contam_tools.json")
+    BP = os.path.join(GD, "results", "contam_tools_bins.tsv")
+    if not os.path.exists(CP):
+        print("bin-tool results missing; skipping table 37")
+        return
+    C = json.load(open(CP))
+    for src, dst in ((CP, "contam_tools.json"), (BP, "contam_tools_bins.tsv")):
+        if os.path.exists(src):
+            open(os.path.join(out, dst), "w").write(open(src).read())
+    T = C.get("seq_time", {})
+    TIM = {"aif": T.get("aif"), "skani": T.get("skani"), "checkm2": C.get("checkm2_time"), "gunc": C.get("gunc_time")}
+    rows = []
+    LABT = {"aif": "aif", "skani": "skani", "checkm2": "CheckM2 1.1.0", "gunc": "GUNC 1.1.1"}
+    for k in ("aif", "skani", "checkm2", "gunc"):
+        if k not in C:
+            continue
+        d = C[k]
+        tm = TIM.get(k)
+        rows.append([LABT[k], f(d["0.0"]["mae_pp"], 2), f(d["0.0"]["flag_5pct"], 2)] + [f(d[lv]["mae_pp"], 2) for lv in ("0.05", "0.1", "0.2")] +
+                    [f(d[lv]["flag_5pct"], 2) for lv in ("0.05", "0.1", "0.2")] + [f(tm["s"], 0) if tm else "\\(em", f(tm["kb"] / 1e6, 1) if tm else "\\(em"])
+        nums[f"bintool_{k}"] = d
+        if k == "gunc":
+            rows.append(["GUNC, own call", "\\(em", f(d["0.0"]["gunc_fail"], 2), "\\(em", "\\(em", "\\(em"] +
+                        [f(d[lv]["gunc_fail"], 2) for lv in ("0.05", "0.1", "0.2")] + ["", ""])
+    if os.path.exists(BP):  # detection at a lower threshold, near GUNC's own false-call rate on controls
+        rb = tsv(BP)
+        for k in ("aif", "skani"):
+            fl = lambda lv: sum(float(r[k]) >= 0.03 for r in rb if r["level"] == lv) / max(1, sum(r["level"] == lv for r in rb))  # noqa: E731
+            d3 = {lv: fl(lv) for lv in ("0.0", "0.05", "0.1", "0.2")}
+            nums[f"bintool_{k}_3pct"] = d3
+            rows.insert([r[0] for r in rows].index(LABT["skani"]) + 1 if k == "skani" else 1,
+                        [f"{LABT[k]}, flag at 3%", "\\(em", f(d3["0.0"], 2), "\\(em", "\\(em", "\\(em"] + [f(d3[lv], 2) for lv in ("0.05", "0.1", "0.2")] + ["", ""])
+    nums["bintool_time"] = TIM
+    tbl("tab_bintools.tbl", ["l c s c s s c s s c c", "^ c c c c c c c c c c"], "l n n n n n n n n n n",
+        [["tool", "controls", "", "MAE (pp) at", "", "", "flagged at", "", "", "time", "peak"],
+         ["", "MAE (pp)", "flagged", "5%", "10%", "20%", "5%", "10%", "20%", "(s)", "(GB)"]], rows)
+    if not os.path.exists(BP):
+        return
+    rs = tsv(BP)
+    tools = [t for t in ("aif", "skani", "checkm2", "gunc") if t in rs[0]]
+    fig, axes = plt.subplots(1, len(tools), figsize=(6.6, 1.9), sharey=True)
+    colt = {"aif": COL["aif"], "skani": COL["skani"], "checkm2": COLX["checkm2"], "gunc": COLX["gunc"]}
+    for ax, t in zip(axes, tools):
+        xs = [100 * float(r["true"]) for r in rs if r[t] != "NA"]
+        ys = [100 * float(r[t]) for r in rs if r[t] != "NA"]
+        ax.plot([0, 30], [0, 30], color=INK2, lw=0.6, ls="--")
+        ax.axhline(5, color=GRID, lw=0.6)
+        ax.scatter(xs, ys, s=4, color=colt[t], lw=0)
+        ax.set_title(LABT[t], fontsize=8, color=INK)
+        ax.set_xlim(-1, 30)
+        ax.set_ylim(-1, 40)
+        ax.set_xlabel("true (%)")
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_ylabel("estimated contamination (%)")
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG, "fig_bintools.eps"))
+    plt.close(fig)
 
 
 if __name__ == "__main__":

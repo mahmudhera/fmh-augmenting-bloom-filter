@@ -145,8 +145,8 @@ def load_skani(path):
     for line in list(open(path))[1:]:
         p = line.rstrip("\n").split("\t")
         H.setdefault(p[6].split()[0], []).append((acc_of(p[0]), float(p[2]) / 100, float(p[4]) / 100))
-    for c in H:
-        H[c].sort(key=lambda x: -x[1])
+    for c in H:  # skani's ranking (ANI); exact ties broken by AF, then reference name (deterministic)
+        H[c].sort(key=lambda x: (-x[1], -x[2], x[0]))
     return H
 
 

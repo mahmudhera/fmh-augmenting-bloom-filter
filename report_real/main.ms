@@ -18,7 +18,7 @@ from the skani Benchmark Data
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Real-genome report, aif v1.6 \(em November 23, 2026
+Real-genome report, aif v1.6 \(em November 24, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -53,7 +53,12 @@ Across sketch sizes from 0.11 to 3.6 bits per base aif is on the Pareto front. E
 aif also reports identity maps along contigs. These are more accurate than fastANI's fragment identities
 (0.55 vs 0.78 pp at 3 kb), with calibrated window intervals, and they find unaligned islands at 97% precision and
 81% recall. Database defaults were frozen and re-validated on fresh queries and unseen species, with
-unchanged conclusions. We also report where aif errs, notably AF over-estimates on divergent partial contigs.
+unchanged conclusions. Kraken2, given the same references and database size, names the species about as often
+as aif (77\(en78% vs 78\(en79%) and the genus more often (90\(en92% vs 89\(en90%), but it reports no ANI or AF,
+searches 6\(mu slower and builds 35\(mu slower. On 400 simulated bins aif estimates contamination more
+accurately than GUNC and CheckM2 (0.67 vs 1.96 and 6.27 pp error). It detects contamination as well as GUNC's
+own call, and runs 2,100\(mu faster.
+We also report where aif errs, notably AF over-estimates on divergent partial contigs.
 .ps \n(PS
 .vs \n(VSp
 .in 0
@@ -118,7 +123,7 @@ somewhat more memory (1.8 vs 1.3 GB) and a 16% larger database; a size-matched d
 \f[B]GTDB scale.\f[R] Against all 199,923 GTDB R232 representatives, aif classifies contigs of held-out genomes
 to the right species 78% of the time (skani 62%), genus 89% (69%), and 22\(mu faster, with an equal-size
 database. With an equal species-calling rule (ANI \(>= 95%) it calls 77% of contigs correctly at 86% precision,
-against 61% at 87% for skani (Section 11). Contaminant contigs in simulated bins are flagged at genus level
+against 61% at 88% for skani (Section 11). Contaminant contigs in simulated bins are flagged at genus level
 for 91% (skani 68%, Section 12).
 .IP (10) 0.3i
 \f[B]Size\(enaccuracy front.\f[R] Across sketch sizes from 0.11 to 3.6 bits per base, aif is more accurate than
@@ -131,7 +136,15 @@ breakpoints (median 171 bp) (Section 14).
 .IP (12) 0.3i
 \f[B]Held-out confirmation.\f[R] With the database defaults frozen, fresh query sets reproduce every conclusion: on
 80 new drafts against 2,005 genomes (ANI 0.23 vs 0.41 pp for skani search), and on 298 genomes of 300 unseen GTDB
-species (species accuracy 78.6% vs 65.8%) (Section 15).
+species (species accuracy 78.6% vs 66.1%) (Section 15).
+.IP (13) 0.3i
+\f[B]Other tools.\f[R] With the same 199,923 references in an equal-size database, Kraken2 gets the species right
+for 76.8% and 78.1% of contigs (aif 78.3 and 78.6%) and the genus for 90.1% and 92.1% (aif 88.5 and 90.1%). At
+equal sensitivity aif's species calls are 2.4\(en2.7 points more precise. Kraken2 searches 6.4\(mu slower, takes
+35\(mu longer to build, and reports no ANI or AF. On 400 simulated bins aif's contamination error is
+0.55\(en0.84 pp; GUNC's is 0.69\(en3.86 pp and CheckM2's 2.9\(en10.7 pp. With a 3% limit aif detects
+contamination as often as GUNC's own call (95\(en100% of bins, 6% of controls), and searches all 400 bins in
+11 s, against 23.5 min for CheckM2 and 6.6 h for GUNC (Section 16).
 .\" =====================================================================
 .H1 "Data and ground truth"
 .H2 "Genome sets"
@@ -822,21 +835,21 @@ passed the pre-HMM filter) add about 7 GB.
 \f[B]Classification (Table 28, Figure 9).\f[R]
 .IP \(bu 0.2i
 \f[B]Coverage and accuracy.\f[R] aif finds a hit for 93.5% of contigs, skani for 71.6%. aif's top hit has the
-query's species for 78.3% of all contigs and its genus for 88.5%; skani's for 61.6% and 68.9%.
+query's species for 78.3% of all contigs and its genus for 88.5%; skani's for 61.8% and 69.0%.
 .IP \(bu 0.2i
 \f[B]Homologous contigs.\f[R] On contigs that align to their own species representative, aif's top hit is the
-right species for 91.4% and skani's for 72.1%.
+right species for 91.4% and skani's for 72.3%.
 .IP \(bu 0.2i
-\f[B]By length.\f[R] aif is more accurate at every contig length: 45.7 vs 2.6% at 0.5\(en1 kb,
-62.6 vs 18.5% at 1\(en2 kb, 83.1 vs 75.7% at 5\(en20 kb, and 92.5 vs 90.4% at \(>= 20 kb.
+\f[B]By length.\f[R] aif is more accurate at every contig length: 45.7 vs 2.7% at 0.5\(en1 kb,
+62.6 vs 18.5% at 1\(en2 kb, 83.1 vs 76.1% at 5\(en20 kb, and 92.5 vs 90.5% at \(>= 20 kb.
 .IP \(bu 0.2i
 \f[B]Equal calling rule.\f[R] Species calls are made only when the top-hit ANI is \(>= 95%, GTDB's species
-boundary. Under this rule aif calls 76.6% of contigs correctly at 86.4% precision, and skani 60.7% at 87.2%.
+boundary. Under this rule aif calls 76.6% of contigs correctly at 86.4% precision, and skani 60.9% at 87.5%.
 .IP \(bu 0.2i
-\f[B]Archaea.\f[R] On the 1,015 archaeal contigs, aif's species accuracy is 87.4% against 68.6%.
+\f[B]Archaea.\f[R] On the 1,015 archaeal contigs, aif's species accuracy is 87.4% against 69.1%.
 .IP \(bu 0.2i
-\f[B]ANI and AF.\f[R] Against MUMmer, aif's top-hit ANI error is 0.49 pp and skani's 0.63 pp, over a larger set
-of contigs for aif. AF error is 2.58 vs 3.42 pp.
+\f[B]ANI and AF.\f[R] Against MUMmer, aif's top-hit ANI error is 0.49 pp and skani's 0.60 pp, over a larger set
+of contigs for aif. AF error is 2.58 vs 3.34 pp.
 .IP \(bu 0.2i
 \f[B]Smaller database.\f[R] The 0.22-budget database, a third of skani's size, still classifies 77.8% of
 contigs to species (88.1% to genus), with 0.58 pp ANI error.
@@ -882,8 +895,8 @@ flagged when its top hit has another species, or with the genus rule another gen
 are left unflagged, or flagged under the strict rule.
 .LP
 The genus rule gives the best precision for both tools (Table 29). Pooled over the three levels, aif flags
-98.8% of contaminant bases at 95.1% precision, and skani 97.6% at 92.9%. By contig count aif flags 90.8% of
-contaminant contigs at 75.3% precision, and skani 67.8% at 81.2%. On 0.5\(en2 kb contaminant contigs the recall is 75.5% against 13.3%:
+98.8% of contaminant bases at 95.1% precision, and skani 97.6% at 93.1%. By contig count aif flags 90.8% of
+contaminant contigs at 75.3% precision, and skani 67.8% at 81.8%. On 0.5\(en2 kb contaminant contigs the recall is 75.5% against 13.3%:
 skani reports nothing for most short contigs, so they cannot be flagged. Their bases are few, which is why the
 base-level recalls are close. Flagging every contig without a hit (strict rule) recovers almost all contaminant
 contigs for both tools, at a large cost in precision. The species rule flags host contigs whose best match lies
@@ -1030,14 +1043,14 @@ Its ANI regret is 0.08 pp (skani 0.20 and 0.27), and its top hit is the best ref
 (66.3% and 62.4%). Screening recall is 98.0%, and interval coverage 95.0% (ANI) and 95.8% (AF).
 .IP \(bu 0.2i
 \f[B]GTDB.\f[R] On set 2 aif's top hit has the right species for 78.6% of contigs (set 1: 78.3%) and the right
-genus for 90.1% (88.5%); skani's for 65.8% and 73.2%. aif is again more accurate at every contig length:
-40.7 vs 2.9% at 0.5\(en1 kb, and 93.6 vs 91.9% at \(>= 20 kb. Under the ANI \(>= 95% calling rule it
-calls 76.6% correctly at 85.8% precision (skani 64.7% at 88.4%). Top-hit errors are 0.49 pp ANI and 2.32 pp AF
-(skani 0.63, 3.28). Its margin over skani is somewhat smaller than on set 1 (12.8 vs 16.7 points of species
+genus for 90.1% (88.5%); skani's for 66.1% and 73.3%. aif is again more accurate at every contig length:
+40.7 vs 3.0% at 0.5\(en1 kb, and 93.6 vs 91.9% at \(>= 20 kb. Under the ANI \(>= 95% calling rule it
+calls 76.6% correctly at 85.8% precision (skani 65.0% at 88.8%). Top-hit errors are 0.49 pp ANI and 2.32 pp AF
+(skani 0.60, 3.20). Its margin over skani is somewhat smaller than on set 1 (12.5 vs 16.5 points of species
 accuracy). Searches took 12.8 s (aif) and 212 s (skani).
 .IP \(bu 0.2i
 \f[B]Contamination.\f[R] In the bins simulated from set 2 (genus rule), aif flags 93.0% of contaminant contigs
-(skani 70.3%), and 98.2% of contaminant bases at 97.0% precision (skani 97.4% at 95.0%).
+(skani 70.3%), and 98.2% of contaminant bases at 97.0% precision (skani 97.4% at 95.2%).
 .LP
 The tuned defaults were therefore not fitted to the benchmark queries: on unseen genomes and unseen species
 they give the same results, or slightly better.
@@ -1050,6 +1063,137 @@ frozen defaults (MAE and regret in pp; best: fraction whose top hit is the best 
 GTDB R232: query set 1 (Section 11) and the fresh set 2 (disjoint species), frozen defaults.
 .TCE
 .so gen/tab_fresh_gtdb.tbl
+.\" =====================================================================
+.H1 "Comparison with a taxonomic classifier and bin-quality tools"
+.LP
+Sections 11 and 12 compare aif only with skani. Two other kinds of tool answer related questions. k-mer
+taxonomic classifiers (Kraken2) assign contigs to taxa. Gene-based bin-quality tools (CheckM2, GUNC) estimate
+how contaminated a bin is. Neither kind reports ANI or AF, so they are compared on classification and
+contamination only.
+.H2 "Kraken2 on GTDB R232"
+.LP
+Kraken2 2.1.3 was given exactly aif's references: the 199,923 GTDB R232 representatives, with GTDB's
+taxonomy written as an NCBI-style taxonomy of 247,369 taxa (\f[CR]bench_real/kraken2_gtdb.py\f[R]). Its
+defaults were kept (k = 35, minimizer length 31, no masking). The database was capped at aif's size
+(\f[CR]--max-db-size\f[R] 82.5 GB); Kraken2 then keeps a hash-chosen subset of minimizers.
+Uncapped, Kraken2 estimated its hash table at 990 GB, so the capped database keeps about 8% of the
+minimizers (those with the largest hash values).
+Kraken2's default, deterministic build parallelises within one sequence at a time. On GTDB's many short contigs
+it read 2 MB/s (30 GB of the 618 GB library in 4.2 h, at 37 cores), so the build was rerun with
+\f[CR]--fast-build\f[R] and 16 MB read blocks (\f[CR]--block-size\f[R]; the 16 KB default left the threads
+waiting on the input lock). The fast build is not bit-for-bit reproducible between runs.
+Kraken2 assigns each contig to the lowest common ancestor of its k-mer hits. A contig counts as correct at
+species (genus) level when the assigned taxon is the query's species (or lies within the query's genus).
+Assignments above species rank are Kraken2's way of abstaining, so its species-rank assignments are set
+against aif's ANI \(>= 95% calls (Table 36). Searches used 16 threads with the hash table in the page cache, as
+for aif and skani.
+.LP
+\f[B]Results (Tables 35\(en36, Figure 12).\f[R]
+.IP \(bu 0.2i
+\f[B]Species and genus.\f[R] At the same database size, aif and Kraken2 name the species about equally often.
+aif's top hit has the right species for 78.3% of contigs on set 1 and 78.6% on set 2; Kraken2's assignment for
+76.8% and 78.1%. Kraken2 assigns more contigs (97.5 and 98.7%, against aif's 93.5 and 94.6%) and has the right
+genus more often (90.1 and 92.1%, against 88.5 and 90.1%). When a contig's k-mers are shared by several species of
+one genus, its lowest-common-ancestor rule falls back to the genus; aif's top hit then names one of the species.
+skani trails both (61.8 and 66.1% species).
+.IP \(bu 0.2i
+\f[B]Species calls.\f[R] Kraken2's species-rank assignments recover the right species for 76.8 and 78.1% of
+contigs at 84.0 and 83.1% precision. aif's ANI \(>= 95% calls recover 76.6% at 86.4 and 85.8% precision. At
+about the same sensitivity, aif's calls are 2.4 and 2.7 points more precise.
+.IP \(bu 0.2i
+\f[B]Contig length.\f[R] aif's species accuracy is level with or above Kraken2's at every length: 45.7 vs 44.2%
+(set 1) and 40.7 vs 39.9% (set 2) at 0.5\(en1 kb, and 92.5 vs 92.0% and 93.6 vs 93.3% at \(>= 20 kb. Both keep
+most of their accuracy on short contigs, where skani reports almost nothing.
+.IP \(bu 0.2i
+\f[B]Cost.\f[R] Kraken2's build took 3.9 h at 48 threads: 1.9 h to estimate the hash table size and 2.0 h to
+fill it, with 88.7 GB peak memory. aif's took 6.7 min at 32 threads (30 min from a cold disk) and 1.9 GB.
+Kraken2 loads the whole hash table into memory, so each search peaks at 83 GB. It took 73.7 and 82.1 s, 6.4
+times aif's 11.5 and 12.8 s.
+.LP
+Kraken2 reports a taxon and no measure of similarity. aif reports the same labels about as accurately,
+together with ANI and AF and their intervals for every hit, from a database it builds 35 times faster. Kraken2
+kept 8% of its minimizers to fit aif's size; an uncapped Kraken2 database would be about 12 times larger and
+probably more accurate.
+.TC 35
+Kraken2, aif and skani on GTDB R232 (199,923 representatives): database size, build and search cost. Searches
+at 16 threads with the database in the page cache; peak memory includes mapped database pages.
+.TCE
+.so gen/tab_k2_build.tbl
+.TC 36
+Classification on GTDB R232, query set 1 / set 2. Species call: aif's ANI \(>= 95% calls; Kraken2's
+assignments at species rank (sensitivity: correct calls over all contigs). Last two columns: species correct
+among contigs of 0.5\(en1 kb and of \(>= 20 kb.
+.TCE
+.so gen/tab_k2_acc.tbl
+.ne 3.0i
+.PSPIC -C figs/fig_k2.eps 6.4i
+.FC 12
+Species accuracy by contig length on GTDB R232: aif's and skani's top hits and Kraken2's assignments, for
+query set 1 and the fresh set 2.
+.FE
+.H2 "CheckM2 and GUNC on simulated bins"
+.LP
+The gene-based tools take minutes per bin, so they were run on a fixed subset of the bins of Section 12:
+the first 100 bins of each contamination level, and 100 uncontaminated controls (the first 100 host genomes
+alone), 400 bins in all (\f[CR]bench_real/contam_tools.py\f[R]). True contamination is contaminant bases
+divided by host bases.
+.IP \(bu 0.2i
+CheckM2 1.1.0 (default models, its DIAMOND database) estimates contamination from redundant marker genes.
+.IP \(bu 0.2i
+GUNC 1.1.1 (GTDB r214 database) reports the fraction of genes from non-dominant clades at the taxonomic level
+of maximal clade separation, and its own pass or fail call. GUNC pins DIAMOND 2.1.24; the installed DIAMOND
+2.2.8 was used through GUNC's documented override (\f[CR]GUNC_SKIP_DIAMOND_VERSION_CHECK\f[R]).
+.IP \(bu 0.2i
+aif and skani estimate contamination as flagged over unflagged bases under the genus rule of Section 12.
+.LP
+All four tools ran at 24 threads. A bin counts as flagged when its estimate is \(>= 5%, the MIMAG
+high-quality limit.
+.LP
+\f[B]Results (Table 37, Figure 13).\f[R]
+.IP \(bu 0.2i
+\f[B]Size of the contamination.\f[R] aif's estimates track the truth: the error is 0.55, 0.63 and 0.84 pp at 5,
+10 and 20% contamination, and 0.51 pp on controls. skani's errors are 0.90\(en1.35 pp. GUNC's contamination
+portion is close at 5% (0.69 pp) but falls short as contamination grows (1.33 and 3.86 pp; a mean of 17.0%
+at a true 20.7%). CheckM2 under-estimates at every level, with errors of 2.9, 5.2 and 10.7 pp and a mean of
+7.7% against a true 12.1%.
+.IP \(bu 0.2i
+\f[B]Detection.\f[R] At the 5% limit aif flags 86, 98 and 99% of the bins at the three levels, and 2% of the
+controls. CheckM2 flags 23, 61 and 70%, and no controls. GUNC's own call rests on clade separation rather than
+on the size of its estimate. It fails 94, 100 and 99% of the contaminated bins and 5% of the controls. A fixed
+5% limit is a poor detector for bins whose true contamination is about 5%. With a 3% limit aif flags 95,
+100 and 99% of the bins and 6% of the controls, level with GUNC's call.
+.IP \(bu 0.2i
+\f[B]Cost.\f[R] For the 400 bins at 24 threads, CheckM2 took 23.5 min and GUNC 6.6 h, each with 16.6 GB of
+peak memory. GUNC's DIAMOND search shared the machine with the Kraken2 build for most of its run, so its time
+is an upper bound.
+For comparison, aif searched the contigs of all 400 bins (36,614 contigs, 1.83 Gbp, written as one file) in
+11.0 s at 24 threads, with the database in the page cache and 46.6 GB peak memory (mapped database pages).
+That is 128 times faster than CheckM2 and about 2,100 times faster than GUNC. skani took 206 s. The top hits
+of these timed runs are identical, contig for contig, to those of the full-set searches used for the estimates.
+.TC 37
+Contamination estimates on 400 simulated bins (100 per level of 5, 10 and 20% contamination, and 100
+uncontaminated controls). MAE against the true contamination; flagged: estimate \(>= 5% (rows \(lqflag at
+3%\(rq: \(>= 3%); GUNC, own call: pass.GUNC false. Time and peak memory for all 400 bins at 24 threads.
+.TCE
+.so gen/tab_bintools.tbl
+.ne 2.6i
+.PSPIC -C figs/fig_bintools.eps 6.4i
+.FC 13
+Estimated against true contamination for the 400 bins (dashed: equality; grey line: the 5% limit).
+.FE
+.LP
+The gene-based tools do things not tested here. They need no reference genome close to the bin, and CheckM2
+also estimates completeness. aif and skani judge contamination by the taxa of the contigs' top hits, so they
+depend on the reference database. Here every host species has a representative in GTDB R232; a host without a
+relative of its own genus in the database would be split among other genera and its contigs flagged. GUNC's
+database (GTDB r214) is older than the R232 database used by aif and skani.
+.H2 "Tools not run"
+.LP
+MMseqs2 taxonomy and CAT/BAT classify contigs by protein search against a reference protein database. For
+GTDB R232 that means predicting, storing and indexing about 700 million proteins from the 199,923
+representatives, and a translated search for every contig. This was beyond the scope of this comparison.
+These tools target a different question: placing contigs of novel lineages at higher ranks, where nucleotide
+identity carries little signal. Their comparison with aif on such contigs is left open.
 .\" =====================================================================
 .H1 "Discussion"
 .H2 "Why the simulation results carry over"
@@ -1095,6 +1239,10 @@ correct but slower. Timings come from one Xeon Gold 5416S host, interleaved to c
 .IP \(bu 0.2i
 \f[B]Fresh sketches for few contigs.\f[R] When a few hundred contigs meet a newly sketched reference, building
 the sketch dominates, and skani remains about 10% faster end to end.
+.IP \(bu 0.2i
+\f[B]Other tools.\f[R] Kraken2 was compared at one size, aif's, where it keeps 8% of its minimizers; protein-based
+classifiers (MMseqs2, CAT) were not run. The bin comparison uses simulated bins whose host species are all in the
+database, which favours the reference-based estimates of aif and skani over the gene-based tools.
 .H2 "Next steps"
 .IP 1. 0.3i
 Positional anchors for colinearity, then a dispersion test on low-identity calls to cut AF over-calls.
@@ -1112,6 +1260,9 @@ keep their adaptive k. A taxonomically broad calibration set for the intervals.
 .IP 6. 0.3i
 Application studies on the new outputs: identity maps across a pangenome (recombination tracts and islands),
 and contamination screening of real MAG catalogues against GTDB.
+.IP 7. 0.3i
+Novel lineages: contigs and bins from genera absent from the database, compared with protein-based classifiers
+and with GUNC and CheckM2, which do not need close references.
 .\" =====================================================================
 .H1 "Reproducibility"
 .CS
@@ -1137,6 +1288,8 @@ bench_real/gtdb_download.sh                  # GTDB R232 representatives (parall
 python3 -I bench_real/gtdb_select.py; (NCBI datasets download); python3 -I bench_real/gtdb_prepare.py
 python3 -I bench_real/gtdb_bench.py list     # then: build, search, truth, evaluate
 python3 -I bench_real/gtdb_contam.py         # contamination screening of simulated bins
+python3 -I bench_real/kraken2_gtdb.py prepare   # then: build, classify, evaluate (Kraken2 on GTDB R232)
+python3 -I bench_real/contam_tools.py bins     # then: checkm2, gunc, seqtime, evaluate (bin-quality tools)
 python3 -I bench_real/run_tools.py aif_b011 aif_b022 aif_b176 skani_c60 skani_c250 skani_c500
 <sourmash python> -I bench_real/pareto_sourmash.py; python3 -I bench_real/pareto_minimap2.py
 python3 -I bench_real/pareto_time.py         # Pareto timing

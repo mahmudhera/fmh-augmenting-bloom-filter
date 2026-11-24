@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+l c s c s s c s s c c
+^ c c c c c c c c c c
+l n n n n n n n n n n.
+tool@controls@MAE (pp) at@flagged at@time@peak
+@MAE (pp)@flagged@5%@10%@20%@5%@10%@20%@(s)@(GB)
+_
+aif@0.51@0.02@0.55@0.63@0.84@0.86@0.98@0.99@11@46.6
+aif, flag at 3%@\(em@0.06@\(em@\(em@\(em@0.95@1.00@0.99@@
+skani@0.82@0.04@0.89@1.03@1.35@0.77@0.96@0.99@206@70.2
+skani, flag at 3%@\(em@0.08@\(em@\(em@\(em@0.95@0.99@0.99@@
+CheckM2 1.1.0@0.48@0.00@2.87@5.23@10.70@0.23@0.61@0.70@1410@16.6
+GUNC 1.1.1@0.84@0.05@0.69@1.33@3.86@0.77@0.98@0.98@23627@16.6
+GUNC, own call@\(em@0.05@\(em@\(em@\(em@0.94@1.00@0.99@@
+.TE

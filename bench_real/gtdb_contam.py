@@ -26,14 +26,18 @@ LEVELS = [0.05, 0.10, 0.20]
 LB = [(500, 2000, "0.5-2k"), (2000, 10000, "2-10k"), (10000, 10 ** 12, ">=10k")]
 
 
-def main():
-    TX = gb.taxonomy()
+def genomes():
+    """{gid: [(contig, length)]} of the current query set"""
     meta = list(csv.DictReader(open(os.path.join(G, "meta", f"query_contigs{gb.SET}.tsv")), delimiter="\t"))
     by_g = {}
     for m in meta:
         by_g.setdefault(m["gid"], []).append((m["contig"], int(m["length"])))
+    return by_g
+
+
+def make_bins(by_g):
+    """[(level, host, contaminant, host contigs, added contigs)], deterministic (seed 7)"""
     gids = sorted(by_g)
-    tools = {"aif": gb.load_aif(os.path.join(gb.RES, "aif_0.88.tsv")), "skani": gb.load_skani(os.path.join(gb.RES, "skani.tsv"))}
     rng = random.Random(7)
     bins = []
     for lvl in LEVELS:
@@ -53,6 +57,14 @@ def main():
             if not add:
                 continue
             bins.append((lvl, h, c, by_g[h], add))
+    return bins
+
+
+def main():
+    TX = gb.taxonomy()
+    by_g = genomes()
+    bins = make_bins(by_g)
+    tools = {"aif": gb.load_aif(os.path.join(gb.RES, "aif_0.88.tsv")), "skani": gb.load_skani(os.path.join(gb.RES, "skani.tsv"))}
     res = {}
     for tname, H in tools.items():
         top = {}
