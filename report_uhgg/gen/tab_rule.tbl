@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c c s c s c s
+^ ^ c c c c c c
+l n n n n n n n.
+@n@contamination, any (%)@\(>= 1% (%)@\(>= 5% (%)
+@@pre-specified@final@pre-specified@final@pre-specified@final
+_
+isolates@10,158@20.7@1.5@8.77@0.48@3.98@0.02
+MAGs@276,463@9.9@9.7@2.88@2.71@0.30@0.20
+\0\0high-quality MAGs@125,972@7.1@6.8@2.04@1.76@0.25@0.08
+MAG \(mi isolate, same species (pp)@@-2.7@+7.8@@@@
+core-gene mixture, all lengths (%)@@26@44@@@@
+.TE

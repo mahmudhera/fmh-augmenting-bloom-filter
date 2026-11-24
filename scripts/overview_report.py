@@ -99,6 +99,7 @@ def glance():
     st = J("results_real", "gtdb", "search_time.json")
     k2 = J("results_real", "tools", "kraken2_eval.json")
     bt = J("results_real", "tools", "contam_tools.json")
+    uh = J("results_uhgg", "summary.json")
     rows = [
         ["simulated contigs (2,800)", "ANI / AF MAE (pp)", f"{f(nb['ai_ani_mae_micro'], 2)} / {f(nb['ai_af_mae_micro'], 2)}",
          "skani", f"{f(nb['sk_ani_mae_micro'], 2)} / {f(nb['sk_af_mae_micro'], 2)}"],
@@ -133,6 +134,11 @@ def glance():
         ["vOTUs, INPHARED / GPD", "edge F1 (aif: AF \\(>= 88%)", f"{f(vir['inphared']['tools']['aif_t']['edges']['f1'], 3)} / {f(vir['gpd']['tools']['aif_t']['edges']['f1'], 3)}",
          "skani small", f"{f(vir['inphared']['tools']['skani_small']['edges']['f1'], 3)} / {f(vir['gpd']['tools']['skani_small']['edges']['f1'], 3)}"],
         ["", "", "", "vclust", f"{f(vir['inphared']['tools']['vclust']['edges']['f1'], 3)} / {f(vir['gpd']['tools']['vclust']['edges']['f1'], 3)}"],
+        ["UHGG v3.0, 286,621 genomes", "contamination \\(>= 1% (%)", f"{f(100 * uh['groups']['mags']['contam_ge1'][0], 2)} (MAGs)", "isolates",
+         f(100 * uh["groups"]["isolates"]["contam_ge1"][0], 2)],
+        ["", "shared with another genus (%)", f"{f(100 * uh['groups']['mags']['shared_any'][0], 1)} (MAGs)", "isolates",
+         f(100 * uh["groups"]["isolates"]["shared_any"][0], 1)],
+        ["", "search, 48 threads (h)", f(uh["search"]["s"] / 3600, 1), "\\(em", "\\(em"],
     ]
     lines = [".TS", "center box tab(@);", "l l c l c", "l l c l c.", "experiment@metric@aif@comparator@value", "_"]
     lines += ["@".join(r) for r in rows]

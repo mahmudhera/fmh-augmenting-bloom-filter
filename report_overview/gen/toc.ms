@@ -6,7 +6,7 @@
 .sp 0.25v
 \f[B]1.	Introduction\f[]1
 .sp 0.25v
-\f[B]2.	Method\f[]1
+\f[B]2.	Method\f[]2
 \h'0.45i'2.1\h'|1.05i'Sketch2
 \h'0.45i'2.2\h'|1.05i'Containment and ANI2
 \h'0.45i'2.3\h'|1.05i'Segmentation, AF and heterogeneous identity3
@@ -27,8 +27,9 @@
 \h'0.45i'3.9\h'|1.05i'Identity maps8
 \h'0.45i'3.10\h'|1.05i'Viral clustering9
 \h'0.45i'3.11\h'|1.05i'Kraken2, CheckM2 and GUNC9
+\h'0.45i'3.12\h'|1.05i'The human gut catalogue10
 .sp 0.25v
-\f[B]4.	Limitations and open items\f[]10
+\f[B]4.	Limitations and open items\f[]11
 .sp 0.25v
 \f[B]5.	Reports, code and reproducibility\f[]11
 .lc

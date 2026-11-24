@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c c c c c
+^ c c c c c
+l n n n n n.
+per-genome call@isolates@MAGs@difference@species: MAG higher /@sign test
+@(%)@(%)@(pp)@isolate higher / tie@p
+_
+any shared sequence@81.6@71.6@-10.1@123 / 126 / 7@0.9
+non-mobile shared \(>= 1%@22.8@26.3@+3.5@177 / 66 / 13@7e-13
+contamination, any@2.1@9.9@+7.8@205 / 22 / 29@2e-38
+contamination \(>= 1%@0.7@2.9@+2.2@158 / 21 / 77@4e-27
+contamination \(>= 5%@0.0@0.2@+0.1@74 / 2 / 180@8e-20
+.TE

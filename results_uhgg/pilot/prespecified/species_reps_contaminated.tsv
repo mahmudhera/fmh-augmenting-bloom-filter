@@ -1,0 +1,21 @@
+genome	type	lineage	completeness	checkm2_contamination	aif_contam	aif_contam_strict	anchored_species	anchored_core	top_anchor	host_src
+MGYG000003018	MAG	d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Bacteroidales;f__Rikenellaceae;g__Alistipes_A;s__Alistipes_A sp900549685	86.07	2.4	0.05794	0	1	1	Alistipes communis	self
+MGYG000001969	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Oscillospirales;f__Oscillospiraceae;g__JAZOXB01;s__JAZOXB01 sp029225225	78.02	3.65	0.04723	0.0041974	2	3	Hominicoprocola sp003522105	species
+MGYG000000311	MAG	d__Bacteria;p__Bacillota;c__Negativicutes;o__Veillonellales;f__Veillonellaceae;g__Veillonella;s__Veillonella sp900550175	90.26	2.82	0.04449	0	1	1	F0422 sp963515865	self
+MGYG000001894	MAG	d__Bacteria;p__Pseudomonadota;c__Alphaproteobacteria;o__RF32;f__CAG-239;g__CAJLXD01;s__CAJLXD01 sp905210515	93.05	3.62	0.03602	0.036016	1	4	Scatocola faecipullorum	species
+MGYG000001797	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__CAG-590;s__CAG-590 sp900548855	100	3.01	0.03582	0.035819	2	5	Suilimivivens sp000438155	self
+MGYG000001931	MAG	d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Bacteroidales;f__Muribaculaceae;g__Limisoma;s__Limisoma sp900548875	99.93	0.3	0.03258	0	1	1	Bacteroides bouchesdurhonensis	self
+MGYG000000242	Isolate	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Enterocloster;s__Enterocloster sp000431375	98.72	2.13	0.02972	0	1	1	Roseburia_B zhanii	self
+MGYG000000494	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__TANB77;f__CAG-508;g__CAG-269;s__CAG-269 sp934130935	98.83	1.48	0.02259	0	1	1	HGM12814 sp900770165	species
+MGYG000001800	MAG	d__Bacteria;p__Bacillota_I;c__Bacilli_A;o__RFN20;f__CAG-631;g__Caccosoma;s__Caccosoma sp905197115	91.47	0.85	0.02107	0	1	1	UMGS687 sp900545735	self
+MGYG000001811	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Maccoyibacter;s__Maccoyibacter sp900556645	75.58	4	0.01722	0	1	1	Acetatifactor sp900550475	species
+MGYG000002029	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Laedolimicola;s__Laedolimicola hominis	78.62	2.1	0.01523	0	1	1	Lachnoclostridium_A avicola	species
+MGYG000000206	Isolate	d__Bacteria;p__Bacillota;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Claveliimonas;s__Claveliimonas ammoniilytica	99.94	0.1	0.01388	0	1	1	Oliverpabstia faecicola	species
+MGYG000000388	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Oscillospirales;f__Acutalibacteraceae;g__UMGS1623;s__UMGS1623 sp902461995	84.29	4.42	0.01357	0.01357	1	8	Avimonas_A narfae	self
+MGYG000001620	MAG	d__Bacteria;p__Patescibacteriota;c__Saccharimonadia;o__Saccharimonadales;f__Saccharimonadaceae;g__Nanogingivalis;s__Nanogingivalis sp900556165	99	1.04	0.01313	0.013126	1	3	Streptococcus mitis_BN	self
+MGYG000001912	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Oscillospirales;f__Acutalibacteraceae;g__Onthovicinus;s__Onthovicinus sp900555545	76.12	0.74	0.01195	0	1	1	Enterocloster lavalensis	species
+MGYG000003057	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Oscillospirales;f__Oscillospiraceae;g__Faecousia;s__Faecousia sp900554625	83.67	2.05	0.01176	0	1	1	Hominenteromicrobium mulieris	self
+MGYG000002237	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__TANB77;f__CAG-465;g__UMGS1649;s__UMGS1649 sp900553785	98.82	0.5	0.01142	0.011418	1	2	UMGS1613 sp900553395	self
+MGYG000003058	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__TANB77;f__CAG-508;g__Scatovivens;s__Scatovivens faecipullorum	97.58	3.17	0.01067	0.01067	1	7	CAG-492 sp019417465	species
+MGYG000001253	MAG	d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Bacteroidales;f__Muribaculaceae;g__Paramuribaculum;s__Paramuribaculum sp001689535	78.43	0.15	0.01049	0	1	1	Lepagella sp002493515	species
+MGYG000002135	MAG	d__Bacteria;p__Bacillota;c__Clostridia;o__Oscillospirales;f__Acutalibacteraceae;g__Anaeromassilibacillus;s__Anaeromassilibacillus stercoravium	99.99	0.59	0.01035	0.010348	1	2	Paludihabitans sp016901855	species

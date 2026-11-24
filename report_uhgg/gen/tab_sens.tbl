@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+c c c
+n n n.
+contamination (%)@anchored, \(>= 1 core gene (%)@strict, \(>= 2 (%)
+_
+0.5@44@28
+1.0@51@32
+2.0@62@40
+5.0@84@68
+10.0@96@89
+.TE

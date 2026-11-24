@@ -23,4 +23,7 @@ identity maps, 3 kb@identity MAE (pp)@0.55@fastANI@0.78
 unaligned islands@precision / recall@0.969 / 0.810@fastANI@0.563 / 0.506
 vOTUs, INPHARED / GPD@edge F1 (aif: AF \(>= 88%)@0.938 / 0.902@skani small@0.917 / 0.857
 @@@vclust@0.970 / 0.948
+UHGG v3.0, 286,621 genomes@contamination \(>= 1% (%)@2.71 (MAGs)@isolates@0.48
+@shared with another genus (%)@64.4 (MAGs)@isolates@74.7
+@search, 48 threads (h)@2.1@\(em@\(em
 .TE

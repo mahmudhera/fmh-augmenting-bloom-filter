@@ -1,0 +1,19 @@
+.TS
+center box tab(@);
+l l l c c c
+l l l n n n.
+source genus@family@phylum@Mbp@share (%)@MAGs
+_
+Bacteroides@Bacteroidaceae@Bacteroidota@104.62@17.2@2236
+Phocaeicola@Bacteroidaceae@Bacteroidota@53.67@8.8@1365
+Roseburia@Lachnospiraceae@Bacillota@33.11@5.4@1685
+Blautia\_A@Lachnospiraceae@Bacillota@25.55@4.2@1619
+Acetatifactor@Lachnospiraceae@Bacillota@16.34@2.7@595
+Fusicatenibacter@Lachnospiraceae@Bacillota@13.12@2.2@495
+Mediterraneibacter@Lachnospiraceae@Bacillota@12.49@2.0@533
+Parabacteroides@Tannerellaceae@Bacteroidota@12.09@2.0@365
+Oscillibacter@Oscillospiraceae@Bacillota@11.73@1.9@539
+Otoolea@Lachnospiraceae@Bacillota@11.60@1.9@522
+Vescimonas@Oscillospiraceae@Bacillota@10.59@1.7@715
+CAG-103@Oscillospiraceae@Bacillota@9.11@1.5@518
+.TE

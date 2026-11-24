@@ -1,0 +1,3 @@
+reference	gtdb_species	gtdb_family	ncbi_species	checkm2_completeness	checkm2_contamination	genomes	host_genera
+GCA_047199055.1	ECMA0423 sp047199055	Enterobacteriaceae	Escherichia coli	42.86	1.09	1	Escherichia:1
+GCA_048288485.1	Enterobacter flexneri_A	Enterobacteriaceae	Shigella flexneri	44.1	2.53	1	Escherichia:1

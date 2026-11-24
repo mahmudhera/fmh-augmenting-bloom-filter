@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+l c c c s c s s
+^ ^ ^ c c c c c
+l n n n n n n n.
+genomes@number@Gbp@bases with a GTDB hit (%)@host genus from (% of genomes)
+@@@any@ANI \(>= 95%@self@species@weak
+_
+isolates@10,158@42.2@99.2@97.5@8.2@91.8@0.0
+MAGs@276,463@664.0@98.9@96.8@3.7@96.2@0.1
+\0\0high-quality MAGs@125,972@338.1@99.2@97.4@4.1@95.8@0.1
+species representatives@6,461@15.0@97.1@94.1@39.5@57.2@3.3
+.TE

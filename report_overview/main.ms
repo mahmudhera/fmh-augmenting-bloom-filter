@@ -53,7 +53,10 @@ and the genus more often, but searches 6\(mu slower and reports no ANI or AF. On
 contamination more accurately than GUNC and CheckM2 (0.67 vs 1.96 and 6.27 pp), detects it as well as GUNC, and
 runs 2,100\(mu faster. It also gives the best vOTU clustering among sketch tools and identity maps more accurate
 than fastANI's. Alignment (minimap2, vclust) remains more accurate at a much larger cost; the method's weak points
-are contigs below 90% identity and the AF definition at that boundary.
+are contigs below 90% identity and the AF definition at that boundary. As a first biological application, aif
+screened all 286,621 genomes of the UHGG v3.0 gut catalogue against GTDB in 2.1 h. Cross-genus sequence at
+species-level identity is common (64% of MAGs, 75% of isolates) but mostly transferred DNA. Contamination
+anchored on core genes affects 2.7% of MAGs at \(>= 1%, against 0.48% of isolates.
 .ps \n(PS
 .vs \n(VSp
 .in 0
@@ -89,9 +92,10 @@ decomposes into mutation, sampling and false-positive terms.
 \f[B]AF needs query positions only.\f[R] Unordered containment cannot separate AF from ANI, but the positions of
 hits along the query make AF identifiable; positions on the reference are not needed.
 .LP
-The project has four detailed reports: the theory, a simulated benchmark of aif v1.1
+The project has five detailed reports: the theory, a simulated benchmark of aif v1.1
 (\f[CR]aif_benchmark_report.pdf\f[R]), real genomes, database mode and GTDB scale
-(\f[CR]aif_real_genomes_report.pdf\f[R]), and viral clustering (\f[CR]aif_viral_clustering_report.pdf\f[R]).
+(\f[CR]aif_real_genomes_report.pdf\f[R]), viral clustering (\f[CR]aif_viral_clustering_report.pdf\f[R]), and a
+screen of the human-gut genome catalogue (\f[CR]aif_uhgg_contamination_report.pdf\f[R]).
 This overview summarises the method (Section 2) and the results (Section 3); Table 1 lists the headline
 numbers.
 .TC 1
@@ -373,6 +377,32 @@ Contamination estimates on 400 simulated bins: MAE against the truth, fraction f
 where stated; GUNC's own pass/fail call), and time and peak memory for all bins at 24 threads.
 .TCE
 .so ../report_real/gen/tab_bintools.tbl
+.H2 "The human gut catalogue"
+.LP
+aif searched every contig of at least 500 bp of the 286,621 UHGG v3.0 genomes (276,463 MAGs, 10,158 isolates;
+707 GB) against GTDB R232 in 2.1 h at 48 threads (\f[CR]aif_uhgg_contamination_report.pdf\f[R]).
+.IP \(bu 0.2i
+\f[B]Shared sequence.\f[R] 64% of MAGs and 75% of isolates have a contig at \(>= 95% ANI and AF \(>= 0.5 to another
+genus: 1.75 million contigs linking 3,156 genera. These contigs carry 0.3\(en0.7\(mu the core-gene density of
+other contigs, and 71\(en74% of their genes are hypothetical. They are mostly transferred DNA, not misbinning.
+.IP \(bu 0.2i
+\f[B]Contamination\f[R] is therefore called only when a source species' foreign contigs carry a core gene
+(Table 14). 2.71% of MAGs have at least 1%, against 0.48% of isolates. Within the 256 species that have both,
+MAGs are higher in 205 and isolates in 22. The rate rises from 4.0% to 32.7% across MGnify's CheckM2 contamination
+bins. A core-gene mixture model attributes 44% of the non-mobile shared MAG sequence to misbinned fragments, so
+the per-genome calls are conservative.
+.IP \(bu 0.2i
+\f[B]Kraken2 agrees.\f[R] On the same references, Kraken2 puts 94.8% of the anchored MAG contigs in the source genus
+that aif found, and 84.0% of length-matched control contigs in the host genus.
+.IP \(bu 0.2i
+\f[B]Reference labels.\f[R] With the pre-specified rule, isolates looked more contaminated than MAGs (20.7%).
+GTDB R232 files five \f[I]E. coli\f[R]/\f[I]Shigella\f[R] assemblies under other genera. References that are
+conspecific with a genome (ANI \(>= 95% over \(>= 50%) now count as the host; the change affected only
+Enterobacteriaceae.
+.TC 14
+UHGG v3.0: per-genome shared sequence and core-anchored contamination (aif against GTDB R232).
+.TCE
+.so ../report_uhgg/gen/tab_rates.tbl
 .\" =====================================================================
 .H1 "Limitations and open items"
 .IP \(bu 0.2i
@@ -390,7 +420,9 @@ segmentation at database scale.
 run. The bin comparison uses simulated bins whose host species are in the database, which favours aif; bins of
 novel lineages remain to be tested against GUNC and CheckM2.
 .IP \(bu 0.2i
-\f[B]Biology.\f[R] All applications so far are benchmarks; no biological finding yet.
+\f[B]Biology.\f[R] The gut-catalogue screen has no truth set: its contamination calls rest on indirect checks
+(isolates, CheckM2, Kraken2, recurrence), see only sources with a GTDB relative, and miss about half of 1%
+contaminations that carry no core gene.
 .IP \(bu 0.2i
 \f[B]Engineering.\f[R] The fast paths need AVX-512, and timings come from one host. There is no packaging yet.
 Search memory is roughly the database size (memory-mapped).
@@ -402,7 +434,8 @@ Search memory is roughly the database size (memory-mapped).
 .LP
 Everything is in the repository \f[CR]fmh-augmenting-bloom-filter\f[R]: the tool (\f[CR]src/aif.cpp\f[R]),
 benchmark scripts (\f[CR]bench/\f[R], \f[CR]bench_real/\f[R]), report generators (\f[CR]scripts/\f[R]) and
-committed result summaries (\f[CR]results/\f[R], \f[CR]results_real/\f[R], \f[CR]results_viral/\f[R]). The
+committed result summaries (\f[CR]results/\f[R], \f[CR]results_real/\f[R], \f[CR]results_viral/\f[R],
+\f[CR]results_uhgg/\f[R]). The
 detailed reports give full methods, data selection, all tables, and the commands to reproduce them:
 .IP \(bu 0.2i
 \f[CR]fmh_bloom_filter_theory.pdf\f[R]: variance framework, designs, theorems and proofs;
@@ -412,7 +445,9 @@ detailed reports give full methods, data selection, all tables, and the commands
 \f[CR]aif_real_genomes_report.pdf\f[R]: real genomes, speed, intervals, database mode, GTDB, contamination,
 size\(enaccuracy front, identity maps, held-out confirmation, Kraken2, CheckM2 and GUNC;
 .IP \(bu 0.2i
-\f[CR]aif_viral_clustering_report.pdf\f[R]: vOTU clustering.
+\f[CR]aif_viral_clustering_report.pdf\f[R]: vOTU clustering;
+.IP \(bu 0.2i
+\f[CR]aif_uhgg_contamination_report.pdf\f[R]: the UHGG v3.0 screen, shared sequence and contamination.
 .LP
 Software versions: aif v1.6 (git tag \f[CR]v1.6-freeze\f[R] for the database defaults), skani 0.4.0, sourmash
 4.8.14, minimap2 2.26, fastANI, vclust 1.3.1, MUMmer 4, BLAST+ 2.12, Kraken2 2.1.3, CheckM2 1.1.0, GUNC 1.1.1 (DIAMOND 2.2.8, through

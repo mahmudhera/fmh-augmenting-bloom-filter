@@ -3,12 +3,13 @@
 **Start here:** [`aif_method_and_results.pdf`](aif_method_and_results.pdf) (13 pages): the method and every result so far,
 with pointers to the detailed reports below.
 
-Four detailed reports:
+Five detailed reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
 3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening; comparisons with Kraken2, CheckM2 and GUNC.
 4. **Viral clustering**: [`aif_viral_clustering_report.pdf`](aif_viral_clustering_report.pdf) (8 pages). vOTU clustering (95% ANI over 85% AF) of 2 x 10,000 phage genomes/contigs (INPHARED, Gut Phage Database) against BLAST/CheckV truth, vs skani and vclust.
+5. **Human gut catalogue**: [`aif_uhgg_contamination_report.pdf`](aif_uhgg_contamination_report.pdf). All 286,621 UHGG v3.0 genomes (276,463 MAGs, 10,158 isolates) screened contig by contig against GTDB R232: cross-genus shared sequence (mostly transferred DNA) and core-anchored contamination, checked against isolates, CheckM2, Kraken2 and recurrence in other strains.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -174,6 +175,35 @@ aif's default AF counts divergent homologous stretches that megablast does not a
 `--af-min-ident T` reports the AF at identity >= T (T = 0.88 chosen on a disjoint tuning set). Best among the
 sketch tools; vclust's alignment is closest to BLAST at ~10x aif's time. `aif db build -i` makes every FASTA record a reference.
 
+## Human gut catalogue (UHGG v3.0, 286,621 genomes, every contig >= 500 bp against GTDB R232)
+
+Search: 55.7 M contigs (707 GB) in 2.1 h at 48 threads, 89 GB peak memory. A contig is *foreign* when its best hit
+is >= 95% ANI over AF >= 0.5 to another genus and nothing of the host (genus, or a reference conspecific with the
+genome) is among its top 5 hits.
+
+| | isolates (10,158) | MAGs (276,463) | high-quality MAGs (125,972) |
+|---|---|---|---|
+| any foreign (shared) contig | 74.7% | 64.4% | 60.7% |
+| core-anchored contamination, any | 1.5% | 9.7% | 6.8% |
+| contamination >= 1% | 0.48% | 2.71% | 1.76% |
+| contamination >= 5% | 0.02% | 0.20% | 0.08% |
+
+- **Shared sequence is mostly transferred DNA**: non-mobile foreign contigs of MAGs carry 0.29-0.69x the core-gene
+  density of unflagged contigs of the same length and 71-74% hypothetical proteins; isolates (never binned) carry
+  shared sequence as often as MAGs. 1.75 M contigs link 3,156 genera (46% of pairs across families).
+- **Contamination is therefore core-anchored**: called only when a source species' foreign contigs carry a core gene
+  (ribosomal proteins, RNA polymerase, EF-Tu/G, gyrase, RecA, tRNA ligases, ...). Within 256 species, MAGs are more
+  contaminated than isolates in 205 and less in 22 (p = 2e-38); the rate rises from 4.0% to 32.7% across MGnify's
+  CheckM2 contamination bins (0-1% ... 4-5%). A core-gene mixture puts 44% (43-45%) of non-mobile shared MAG
+  sequence as misbinned fragments, so per-genome calls are conservative.
+- **Kraken2 agrees on the genera**: on the same GTDB R232 references, it puts 94.8% of anchored MAG contigs in the
+  source genus aif found (2.1% in the host genus) and 84.0% of length-matched unflagged control contigs in the
+  host genus. This checks the search, not the contamination/transfer split, which rests on core genes.
+- **GTDB R232 label problem**: five *E. coli*/*Shigella* assemblies are filed under other genera (ECMA0423,
+  G047199095, G047199115, "Enterobacter flexneri"); with the pre-specified rule, isolates looked more contaminated
+  than MAGs (20.7%). References conspecific with the genome by GTDB's criterion now count as the host (the one
+  change after the held-out screen; `results_uhgg/prespecified/` keeps the first version).
+
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
 | | skani 0.4.0 (default) | **aif v1.1** |
@@ -271,13 +301,14 @@ bench_real/                    real genomes: select_datasets.py, select_tune.py,
                                GTDB: gtdb_download.sh, gtdb_select.py, gtdb_prepare.py, gtdb_bench.py, gtdb_contam.py;
                                other tools: kraken2_gtdb.py (Kraken2), contam_tools.py (CheckM2, GUNC);
                                pareto_sourmash.py, pareto_minimap2.py, pareto_time.py; idmap.py;
-                               viral clustering: viral_download.sh, viral_bench.py
+                               viral clustering: viral_download.sh, viral_bench.py;
+                               gut catalogue: uhgg_download.sh, uhgg_screen.py, uhgg_run.sh, uhgg_summary.py
 results/, results_real/,       committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
-results_viral/
+results_viral/, results_uhgg/  (the full UHGG flagged-contig lists, 54-57 MB, are not committed; `uhgg_summary.py stats` rewrites them)
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
 report_real/, report_viral/,
-report_overview/
+report_uhgg/, report_overview/
 data/  (git-ignored)           genomes, assemblies, generated contigs, raw run outputs; regenerate with the scripts
 ```
 
@@ -321,6 +352,9 @@ python3 scripts/real_report.py && report_real/build.sh
 bench_real/viral_download.sh && for s in prepare blast prepare_tune; do python3 -I bench_real/viral_bench.py $s; done
 python3 -I bench_real/viral_bench.py blast tune && for s in tune tools evaluate; do python3 -I bench_real/viral_bench.py $s; done
 /usr/bin/python3 scripts/viral_report.py && report_viral/build.sh
+bench_real/uhgg_run.sh        # UHGG v3.0: download, prepare, search, per-genome calls (UHGG_PILOT=3000 for the pilot)
+/usr/bin/python3 -I bench_real/uhgg_summary.py stats && /usr/bin/python3 -I bench_real/uhgg_summary.py kraken
+/usr/bin/python3 scripts/uhgg_report.py && report_uhgg/build.sh
 /usr/bin/python3 scripts/overview_report.py && report_overview/build.sh   # method-and-results overview
 ```
 

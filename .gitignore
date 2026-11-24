@@ -18,3 +18,9 @@ report_viral/build1.log
 report_overview/main.ps
 report_overview/build.log
 report_overview/build1.log
+report_uhgg/main.ps
+report_uhgg/build.log
+report_uhgg/build1.log
+# full-screen flagged-contig lists (54-57 MB); regenerate with bench_real/uhgg_summary.py stats
+results_uhgg/flagged_contigs.tsv.gz
+results_uhgg/prespecified/flagged_contigs.tsv.gz
