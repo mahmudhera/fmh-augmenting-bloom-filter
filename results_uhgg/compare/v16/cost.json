@@ -1,0 +1,288 @@
+{
+ "bp": {
+  "S1": 11177312,
+  "S2": 32846716,
+  "S3": 113892833,
+  "pool": 3644548045
+ },
+ "full_bp": 706165220067,
+ "aif_full_measured_s": 7566.3,
+ "builds": {
+  "cat": {
+   "build_s": 56081.83,
+   "build_kb": 250904952,
+   "bytes": 267404898530,
+   "threads": 32,
+   "paused_s": 13689,
+   "build_s_active": 42392.83,
+   "process_s": 40912.01,
+   "process_kb": 162252616,
+   "prepare_s": 15169.82,
+   "prepare_kb": 250904952,
+   "note": "CAT_pack download --db gtdb processing (md5, de-duplicate 618.6 M proteins, write singletons; single-threaded Python) + CAT_pack prepare (DIAMOND makedb 1.4 h, fastaid2LCAtaxid, multiple-offspring). paused_s = SIGSTOP time from pauses.log (memory guard while minimap2 built). Excludes the network fetch of the 132 GB protein tarball. Processing ran slowed by disk contention with the minimap2 and sourmash builds, so build_s_active is an upper bound."
+  },
+  "sourmash": {
+   "build_s": 82634.55,
+   "build_kb": 2495784,
+   "bytes": 184334892210,
+   "threads": 16,
+   "paused_s": 7489,
+   "build_s_active": 75145.55,
+   "sketch_s": 25404.23,
+   "sketch_from_mtimes": true,
+   "unpack_s": 2286.31,
+   "index_s": 54944.01,
+   "index_kb": 2495784,
+   "sig_zip_bytes": 84275645321,
+   "failed_zip_index_s": 8086,
+   "note": "manysketch of the 199,923 GTDB R232 representatives (k=21, scaled=64; time from file mtimes, its memory was not recorded) + unpack of the zip64 sig.zip that 'sourmash scripts index' cannot read (0.9.15) + rocksdb index with internal storage (what manysearch reads). paused_s = SIGSTOP time from pauses.log (disk serialisation beside the minimap2 and CAT builds); index ran slowed by disk contention, so build_s_active is an upper bound. failed_zip_index_s: the first index attempt on the zip, not counted."
+  },
+  "lexicmap": {
+   "build_s": 25736.79,
+   "build_kb": 87182312,
+   "bytes": 540998778436,
+   "threads": 32,
+   "paused_s": 3281,
+   "build_s_active": 22455.79,
+   "note": "built concurrently with the minimap2 and sourmash builds and the CAT download on one HDD array (sdb at 100% utilization); paused by SIGSTOP for paused_s; build_s_active is wall time minus pauses and is still contended"
+  },
+  "minimap2": {
+   "build_s": 46608.09,
+   "build_kb": 364075852,
+   "bytes": 2076330615366,
+   "threads": 16,
+   "split": "25G"
+  },
+  "aif": {
+   "build_s": 402.91,
+   "bytes": 82492502021,
+   "threads": 32
+  },
+  "skani": {
+   "build_s": 648.88,
+   "bytes": 82726143810,
+   "threads": 32
+  }
+ },
+ "tools": {
+  "aif": {
+   "points": {
+    "S1": {
+     "s": 0.88,
+     "kb": 15429316,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S2": {
+     "s": 1.13,
+     "kb": 22963280,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S3": {
+     "s": 2.53,
+     "kb": 40967944,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "pool": {
+     "s": 36.53,
+     "kb": 85782580,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "fit_fixed_s": 0.6503211872029588,
+   "fit_s_per_gbp": 16.39493352385674,
+   "pool_s_per_gbp": 9.844753963943708,
+   "projected_full_s": 6952.673170640982,
+   "basis": "pool rate, S1-S3 fixed cost",
+   "peak_gb": 81.80864334106445
+  },
+  "cat": {
+   "points": {
+    "S1": {
+     "s": 2946.46,
+     "kb": 28507156,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S2": {
+     "s": 2132.68,
+     "kb": 27627844,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S3": {
+     "s": 3868.58,
+     "kb": 55131564,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "fit_fixed_s": 2330.831095650257,
+   "fit_s_per_gbp": 12381.367642871486,
+   "projected_full_s": 8745622.037354426,
+   "basis": "S1-S3 fit",
+   "peak_gb": 52.57755661010742
+  },
+  "kraken2": {
+   "points": {
+    "S1": {
+     "s": 40.38,
+     "kb": 80677952,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S2": {
+     "s": 43.04,
+     "kb": 80842224,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S3": {
+     "s": 42.44,
+     "kb": 81486820,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "pool": {
+     "s": 66.92,
+     "kb": 84643436,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "fit_fixed_s": 41.29310035105311,
+   "fit_s_per_gbp": 12.542669188698664,
+   "pool_s_per_gbp": 7.031571358787476,
+   "projected_full_s": 5006.744236346025,
+   "basis": "pool rate, S1-S3 fixed cost",
+   "peak_gb": 80.72227096557617
+  },
+  "lexicmap": {
+   "points": {
+    "S1": {
+     "s": 22828.3,
+     "kb": 3010636,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "s_per_gbp": 2042378.3464217517,
+   "projected_full_s": 1442256554.4609919,
+   "basis": "S1 rate, no fixed cost",
+   "peak_gb": 2.871166229248047
+  },
+  "minimap2": {
+   "points": {
+    "S1": {
+     "s": 10475.57,
+     "kb": 174703104,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S2": {
+     "s": 10461.04,
+     "kb": 175756792,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S3": {
+     "s": 12059.96,
+     "kb": 180406496,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "pool": {
+     "s": 14463.59,
+     "kb": 185247584,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "fit_fixed_s": 10124.9198304728,
+   "fit_s_per_gbp": 16602.473554623266,
+   "pool_s_per_gbp": 1190.454924988429,
+   "projected_full_s": 850782.7839147708,
+   "basis": "pool rate, S1-S3 fixed cost",
+   "peak_gb": 176.66586303710938
+  },
+  "skani": {
+   "points": {
+    "S1": {
+     "s": 112.42,
+     "kb": 41658004,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S2": {
+     "s": 105.73,
+     "kb": 41702476,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S3": {
+     "s": 105.91,
+     "kb": 43698584,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "pool": {
+     "s": 157.04,
+     "kb": 67887032,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "fit_fixed_s": 110.41142311183268,
+   "fit_s_per_gbp": -45.43067339400804,
+   "pool_s_per_gbp": 12.794062888576164,
+   "projected_full_s": 9145.133658374258,
+   "basis": "pool rate, S1-S3 fixed cost",
+   "peak_gb": 64.74211883544922
+  },
+  "sourmash": {
+   "points": {
+    "S1": {
+     "s": 13.38,
+     "kb": 2762984,
+     "sketch_s": 4.49,
+     "search_s": 8.89,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S2": {
+     "s": 13.66,
+     "kb": 3591912,
+     "sketch_s": 1.37,
+     "search_s": 12.29,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "S3": {
+     "s": 30.330000000000002,
+     "kb": 4176360,
+     "sketch_s": 4.98,
+     "search_s": 25.35,
+     "threads": 48,
+     "cpus": "0-47"
+    },
+    "pool": {
+     "s": 362.24,
+     "kb": 5221496,
+     "sketch_s": 71.47,
+     "search_s": 290.77,
+     "threads": 48,
+     "cpus": "0-47"
+    }
+   },
+   "fit_fixed_s": 9.851228634806459,
+   "fit_s_per_gbp": 176.14530785018988,
+   "pool_s_per_gbp": 96.68929233863169,
+   "projected_full_s": 68288.46663106716,
+   "basis": "pool rate, S1-S3 fixed cost",
+   "peak_gb": 4.979606628417969
+  }
+ }
+}

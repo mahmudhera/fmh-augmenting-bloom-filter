@@ -17,7 +17,8 @@ Design (fixed before any tool was run on the sample):
   context     host genus, self reference and host-equivalent references of each genome come from the screen and
               are the same for every tool and for the truth: only contig-level hits differ
   weights     inverse inclusion probabilities of both stages, for catalogue-level estimates
-  tools       aif (frozen v1.6 defaults, GTDB R232 0.88 database, top 5), skani 0.4.0 (search --qi), sourmash
+  tools       aif (v1.7 defaults: v1.6 plus the AF fix of bench_real/uhgg_af.py, same hits and ANI; v1.6 results in
+              results_uhgg/compare/v16; GTDB R232 0.88 database, top 5), skani 0.4.0 (search --qi), sourmash
               (branchwater manysearch, k = 21, scaled 64 = 1 bit per reference base as aif, containment >= 0.05),
               minimap2 -x asm20 (whole GTDB as a split index), LexicMap (-n 100; S1 only, as its S1 run took 6.3 h,
               scored on S1 with S1's own weights), Kraken2 (database capped at aif's size),
@@ -515,8 +516,9 @@ def waterfill(avail, target):
     return {k: min(a, lo) for k, a in avail.items()}
 
 
-def strata():
-    """stage 2: categories x length classes; nested subsets S1 < S2 < S3 from one seeded order per cell"""
+def stage2_cells():
+    """stage-2 cells {(category, length class): pool contigs in one seeded random order}, rows {contig: (genome,
+    length, category, length class)} and the genome contexts; subsets take prefixes of every cell's order"""
     TX = gtdb_tax()
     X = contexts()
     label_refs = {r["reference"] for r in csv.DictReader(open(os.path.join(RESU, "label_inconsistent_refs.tsv")),
@@ -544,6 +546,12 @@ def strata():
     for k in sorted(cells):
         cells[k].sort()
         rng.shuffle(cells[k])
+    return cells, rows, X
+
+
+def strata():
+    """stage 2: categories x length classes; nested subsets S1 < S2 < S3 from one seeded order per cell"""
+    cells, rows, X = stage2_cells()
     avail = {k: len(v) for k, v in cells.items()}
     alloc = {s: waterfill(avail, n) for s, n in SIZES.items()}
     d = os.path.join(C, "sample")

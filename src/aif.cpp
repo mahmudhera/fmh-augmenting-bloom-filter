@@ -44,6 +44,12 @@
 // windowed identity with calibrated intervals; db search adds a pre-HMM local-score filter, caps
 // screening keys per contig, and orders hits by the model's likelihood ratio.
 //
+// v1.7 (AF): AF counts the aligned posterior mass within --af-local (0.05) of the local identity. Unaligned
+// stretches inside an alignment were absorbed by the lowest identity levels (expected hit rates near the filters'
+// false-positive rates), which over-stated AF by ~5 pp on real contigs (UHGG v3 against GTDB R232, bench_real/
+// uhgg_af.py); windows with their own evidence of alignment keep divergent blocks. ANI and hits are unchanged;
+// --af-local 0 reproduces v1.6 exactly.
+//
 // Build: g++ -O3 -march=native -std=c++17 -pthread -o aif aif.cpp -lz
 #include <algorithm>
 #include <cstddef>
@@ -1072,6 +1078,12 @@ struct Params {
   double ci_level = 0.95;      // two-sided level of the reported intervals (0.90, 0.95 or 0.99 calibrated)
   bool ci_stat = false;        // intervals from the statistical SE alone (normal quantile), no calibration
   double af_min_ident = 0.0;   // report AF over regions aligned at identity >= this (0 = all aligned regions)
+  double af_local = 0.05;      // AF counts aligned mass at identity >= local identity - af_local (0 = all aligned mass, v1.6)
+  int af_win_probes = 64;      // window (probes) of the AF local identity
+  int af_radius = 3;           // AF local identity = median over windows within +-af_radius
+  double af_llr = 3.0;         // a window favouring its best aligned level over unaligned by this (nats) sets its own
+                               // AF floor when below the median (real divergent blocks keep their AF)
+  int af_own_radius = 1;       // ... and that of the windows within +-af_own_radius (windows straddling a block edge)
   std::string ci_table;        // file with a calibration table (default: built in, from the real tuning set)
   double grid_step = 0.005;  // ANI spacing of aligned levels
   double floor_frac = 2.0;   // flag below_floor if this much aligned mass is on the 2 lowest levels (>1 = off)
@@ -1116,14 +1128,18 @@ struct alignas(64) Work {  // per-thread scratch buffers, reused across contigs
   std::vector<const float*> ep;         // per-bin emission vectors (into Ef or the emission cache)
   std::vector<uint16_t> wj;             // local identity prior: allowed levels 0..wj-1 per probe window
   size_t wprobes = 0;                   // probes per window (0: prior off)
+  std::vector<uint16_t> wja;            // AF local identity: levels 0..wja-1 count towards AF, per probe window
+  size_t awprobes = 0;                  // probes per AF window (0: off)
   std::vector<std::pair<double, double>> wtheta;  // scratch: (window containment, probes)
   std::vector<double> wth, wn;          // scratch: per-window containment and probe counts
+  std::vector<double> wllr;             // scratch: per-window log-likelihood ratio, best aligned level vs unaligned
   std::vector<uint16_t> bjc;            // allowed level count per bin of the current binning
   std::vector<std::pair<double, double>> hw;  // heterogeneity windows: (containment, aligned length)
   double se_pooled = 0;                 // statistical SE of the pooled ANI (for the heterogeneous CI)
   std::vector<double> cxs, cas;         // scratch for the AF interval
   double afvar = 0;                     // AF boundary variance (bp^2), accumulated by refine()
   double al_mass = 0, alt_mass = 0;     // aligned posterior mass, and the part at identity >= af_min_ident
+  double altl_mass = 0;                 // ... the part also within af_local of the local identity
   std::vector<uint8_t> refined;         // per bin: per-probe posteriors available in ap
   std::vector<double> ap;               // per-probe aligned posterior (refined bins only)
   std::vector<float> rfa, rfu, rb, rw;  // refinement scratch
@@ -1775,17 +1791,34 @@ struct Estimator {
   // level's) within +-ident_radius windows of ident_win_probes probes. Islands (containment
   // ~0) and isolated conserved genes do not move the median; a long divergent tract sets its
   // own local identity and stays aligned. Fills W.wj (allowed level count per window).
+  //
+  // The same local identity bounds what counts towards AF (--af-local, the HMM unchanged): an unaligned stretch
+  // inside an alignment costs almost nothing as "aligned at the lowest levels", whose expected hit rates are
+  // close to the filters' false-positive rates, so the posterior there follows the switch prior rather than the
+  // probes. AF counts aligned mass at levels within af_local of the local identity; a uniformly divergent contig
+  // sets a low local identity and keeps its AF, and a window with its own evidence of alignment (a divergent
+  // block between conserved ones: hits above the filters' false-positive rates) lowers its floor to its own
+  // identity, whereas an absorbed stretch (hit rate at the false-positive rate) does not.
   void set_local_prior(Work& W) const {
-    const size_t m = gth.size(), nb = W.bstart.size();
-    W.wprobes = 0;
+    W.wprobes = W.awprobes = 0;
     W.wj.clear();
-    if (P.ident_window <= 0 || nb == 0) return;
+    W.wja.clear();
+    if (W.bstart.empty()) return;
+    if (P.ident_window > 0)
+      W.wprobes = local_levels(W, P.ident_win_probes, P.ident_radius, P.ident_window, W.wj, false);
+    if (P.af_local > 0) W.awprobes = local_levels(W, P.af_win_probes, P.af_radius, P.af_local, W.wja, true);
+  }
+  // per window of win_probes probes: the number of levels (from the top) within delta of the local identity;
+  // returns the window length in probes. own: a window with af_llr evidence of alignment caps its floor at its own
+  // identity minus delta
+  size_t local_levels(Work& W, int win_probes, int radius, double delta, std::vector<uint16_t>& wj, bool own) const {
+    const size_t m = gth.size(), nb = W.bstart.size();
     const size_t B = (size_t)std::max(1, P.bin);
-    const size_t wbins = std::max<size_t>(1, ((size_t)P.ident_win_probes + B - 1) / B);
+    const size_t wbins = std::max<size_t>(1, ((size_t)win_probes + B - 1) / B);
     const size_t nw = (nb + wbins - 1) / wbins;
-    W.wprobes = wbins * B;
     W.wth.assign(nw, -1.0);
     W.wn.assign(nw, 0.0);
+    if (own) W.wllr.assign(nw, -1e300);
     for (size_t w = 0; w < nw; ++w) {
       double N[MAXT] = {0}, Y[MAXT] = {0}, tot = 0;
       for (size_t bi = w * wbins; bi < std::min(nb, (w + 1) * wbins); ++bi)
@@ -1795,13 +1828,22 @@ struct Estimator {
         }
       for (int t = 0; t < T; ++t) tot += N[t];
       const double th = combine(N, Y, 0.5);
+      if (own) {
+        double best = -1e300;
+        for (size_t j = 0; j < m; ++j) {
+          double a = 0;
+          for (int t = 0; t < T; ++t) a += Y[t] * LH[(size_t)t * SPA + j] + (N[t] - Y[t]) * LM[(size_t)t * SPA + j];
+          best = std::max(best, a);
+        }
+        W.wllr[w] = best;
+      }
       if (th >= gth.back() && th == th) {
         W.wth[w] = std::min(th, 1.0);
         W.wn[w] = tot;
       }
     }
-    W.wj.assign(nw, (uint16_t)m);
-    const size_t R = (size_t)P.ident_radius;
+    wj.assign(nw, (uint16_t)m);
+    const size_t R = (size_t)radius;
     for (size_t w = 0; w < nw; ++w) {
       const size_t lo = (R >= nw || w < R) ? 0 : w - R, hi = (R >= nw) ? nw : std::min(nw, w + R + 1);
       auto& v = W.wtheta;
@@ -1820,11 +1862,17 @@ struct Estimator {
           med = x.first;
           break;
         }
-      const double floor = std::pow(med, 1.0 / sk.k) - P.ident_window;
+      double floor = std::pow(med, 1.0 / sk.k) - delta;
+      if (own) {
+        const size_t r = (size_t)P.af_own_radius, a = w < r ? 0 : w - r, b = std::min(nw, w + r + 1);
+        for (size_t q = a; q < b; ++q)
+          if (W.wth[q] >= 0 && W.wllr[q] >= P.af_llr) floor = std::min(floor, std::pow(W.wth[q], 1.0 / sk.k) - delta);
+      }
       size_t jc = 0;
       while (jc < m && gani[jc] >= floor) ++jc;
-      W.wj[w] = (uint16_t)std::max<size_t>(jc, std::min<size_t>(m, 2));
+      wj[w] = (uint16_t)std::max<size_t>(jc, std::min<size_t>(m, 2));
     }
+    return wbins * B;
   }
   // allowed level count at probe index i (m when the prior is off)
   inline size_t jc_at(const Work& W, size_t i) const {
@@ -2040,14 +2088,18 @@ struct Estimator {
     double pm_num = 0, pm_den = 0, low = 0;
     const size_t nlow = std::min<size_t>(2, m);
     const float tau = (float)P.af_min_ident;
-    if (!fine) W.al_mass = W.alt_mass = 0;
+    if (!fine) W.al_mass = W.alt_mass = W.altl_mass = 0;
     auto post = [&](size_t bi, const float* fa, float fu, const float* ba, float bub) {
-      float pu = fu * bub, tot = pu, num = 0, lw = 0, hi = 0;
+      float pu = fu * bub, tot = pu, num = 0, lw = 0, hi = 0, hil = 0;
+      // levels counted towards AF: identity >= tau (hi) and also within af_local of the local identity (hil)
+      const size_t ja = W.awprobes ? W.wja[std::min(W.wja.size() - 1, (size_t)W.bfirst[bi] / W.awprobes)] : SP;
       for (size_t j = 0; j < SP; ++j) {
         float g = fa[j] * ba[j];
         tot += g;
         num += g * gaf[j];
-        hi += gaf[j] >= tau ? g : 0.0f;
+        const float gt = gaf[j] >= tau ? g : 0.0f;
+        hi += gt;
+        hil += j < ja ? gt : 0.0f;
       }
       for (size_t j = m - nlow; j < m; ++j) lw += fa[j] * ba[j];
       if (!(tot > 0)) {  // degenerate (underflow): treat the bin as unaligned
@@ -2060,6 +2112,7 @@ struct Estimator {
         W.ab[bi] = al;  // per-bin posteriors are not used after the fine re-run
         W.al_mass += cnt * al;
         W.alt_mass += cnt * (double)hi * it;
+        W.altl_mass += cnt * (double)hil * it;
       }
       pm_num += cnt * (double)num * it;
       pm_den += cnt * al;
@@ -2300,7 +2353,8 @@ struct Estimator {
     PSTAMP(1);
     const size_t nb = W.bstart.size();
     double ll = 0, pm_ani = NAN, low_frac = 0, fast_lr = 0;
-    // (the fast path skips the HMM; the identity-thresholded AF needs its level posteriors)
+    // (the fast path skips the HMM; the identity-thresholded AF needs its level posteriors. --af-local keeps it:
+    // every window of a fast-path contig favours alignment by fast_llr >= af_llr nats, so all its mass counts)
     const bool fast = P.af_min_ident <= 0 && all_aligned(W, fast_lr);
     if (fast) {  // confidently aligned everywhere: the posterior is ~1 in every bin
       W.ab.assign(nb, 1.0);
@@ -2371,13 +2425,17 @@ struct Estimator {
     R.aligned_probes = neff;
     R.af = std::min(1.0, std::max(0.0, (Sx + (double)(k - 1) * segs) / (double)L));
     // identity-thresholded AF: the aligned fraction scaled by the share of aligned posterior mass at
-    // identity levels >= af_min_ident (what seed-based aligners such as megablast can align)
-    double af_rho = 1.0;
-    if (P.af_min_ident > 0 && W.al_mass > 0) {
-      af_rho = std::min(1.0, W.alt_mass / W.al_mass);
-      R.af *= af_rho;
+    // identity levels >= af_min_ident (what seed-based aligners such as megablast can align) and, with
+    // --af-local, within af_local of the local identity (unaligned stretches absorbed by the lowest levels).
+    // The k-mer count behind theta's bias correction follows af_min_ident as in v1.6 and ignores af_local, so
+    // --af-local changes AF (and its interval) only.
+    double af_rho = 1.0, af_rho_min = 1.0;
+    if (!fast && W.al_mass > 0) {
+      if (P.af_min_ident > 0) af_rho_min = std::min(1.0, W.alt_mass / W.al_mass);
+      af_rho = P.af_local > 0 ? std::min(1.0, W.altl_mass / W.al_mass) : af_rho_min;
     }
-    const double nk_aligned = std::max(1.0, R.af * L - (k - 1));
+    const double nk_aligned = std::max(1.0, R.af * af_rho_min * L - (k - 1));
+    R.af *= af_rho;
     if (th <= 0) {
       R.status = "no_homology";
       return R;
@@ -2569,6 +2627,7 @@ void usage() {
           "          [--floor-frac 2] [--no-bias-correct]\n"
           "          intervals: [--ci-level 0.95 (0.90/0.95/0.99)] [--ci-stat (statistical SE only)] [--ci-table FILE]\n"
           "          [--af-min-ident T (AF over regions aligned at identity >= T, e.g. to match megablast-based AF; 0: off)]\n"
+          "          [--af-local D (AF over aligned mass within D of the local identity; 0.05; 0: off, as v1.6) --af-win-probes 64 --af-radius 3 --af-llr 3 --af-own-radius 1]\n"
           "          AF model options: [--ident-window D (0: off) --ident-radius 3] (local identity prior)\n"
           "                            [--overdisp L (0: off)] (overdispersed bin emissions, experimental)\n"
           "          [--segments FILE --seg-window 1000 --seg-ci-stat] (aligned/unaligned segments and windowed identity map\n"
@@ -2634,6 +2693,11 @@ bool parse_query_opt(int& i, int argc, char** argv, Params& P, int& threads) {
   else if (a == "--ci-level") P.ci_level = std::min(0.9999, std::max(0.5, atof(argv[++i])));
   else if (a == "--ci-stat") P.ci_stat = true;
   else if (a == "--af-min-ident") P.af_min_ident = std::max(0.0, std::min(1.0, atof(argv[++i])));
+  else if (a == "--af-local") P.af_local = std::max(0.0, std::min(1.0, atof(argv[++i])));
+  else if (a == "--af-win-probes") P.af_win_probes = std::max(8, atoi(argv[++i]));
+  else if (a == "--af-radius") P.af_radius = std::max(0, atoi(argv[++i]));
+  else if (a == "--af-llr") P.af_llr = atof(argv[++i]);
+  else if (a == "--af-own-radius") P.af_own_radius = std::max(0, atoi(argv[++i]));
   else if (a == "--ci-table") P.ci_table = argv[++i];
   else if (a == "--grid-step") P.grid_step = atof(argv[++i]);
   else if (a == "--floor-frac") P.floor_frac = atof(argv[++i]);
