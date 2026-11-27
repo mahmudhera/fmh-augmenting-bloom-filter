@@ -1,0 +1,15 @@
+.TS
+center box tab(@);
+c c c c c
+c c c c c
+n n n n n.
+level $a sub j$@$theta sub j$@nats per kb@internal gap@flank
+@@(U data)@break-even (bp)@break-even (bp)
+_
+0.889@0.0961@6.011@602@29
+0.884@0.0859@5.141@702@33
+0.879@0.0767@4.391@820@39
+0.874@0.0684@3.746@957@45
+0.869@0.0610@3.191@1,119@53
+0.864@0.0544@2.714@1,308@62
+.TE

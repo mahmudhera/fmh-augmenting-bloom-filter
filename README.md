@@ -3,9 +3,10 @@
 **Start here:** [`aif_method_and_results.pdf`](aif_method_and_results.pdf) (15 pages): the method and every result so far,
 with pointers to the detailed reports below.
 
-Five detailed reports:
+Six detailed reports:
 
-1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios.
+1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios (before implementation).
+   **Theory of the method as built (v1.7)**: [`aif_theory.pdf`](aif_theory.pdf) (23 pages). Exact blocked-filter FPR, the containment estimator and the cost of the two-tier hedge, AF identifiability and boundary resolution, absorption of unaligned stretches by low identity levels (the mechanism of the v1.6 AF bias), a parameter-free false-report bound and detection limits, power-mean bias on mosaics, conformal coverage, and screening recall at GTDB scale; each result checked by Monte Carlo and by aif on contigs simulated from a random reference.
 2. **Implementation + simulated benchmark**: [`aif_benchmark_report.pdf`](aif_benchmark_report.pdf) (15 pages). The `aif` tool (v1.1) compared with skani 0.4.0 at equal sketch budget, including the v1.1 speed rewrite.
 3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening; comparisons with Kraken2, CheckM2 and GUNC; a v1.7 addendum (AF near the local identity, refitted intervals).
 4. **Viral clustering**: [`aif_viral_clustering_report.pdf`](aif_viral_clustering_report.pdf) (8 pages). vOTU clustering (95% ANI over 85% AF) of 2 x 10,000 phage genomes/contigs (INPHARED, Gut Phage Database) against BLAST/CheckV truth, vs skani and vclust.
@@ -307,7 +308,7 @@ bin/aif db info refs.aifd --refs
 ## Layout
 
 ```
-fmh_bloom_filter_theory.pdf, aif_benchmark_report.pdf, aif_real_genomes_report.pdf
+fmh_bloom_filter_theory.pdf, aif_theory.pdf, aif_benchmark_report.pdf, aif_real_genomes_report.pdf
 src/aif.cpp, src/ci_table.inc  the tool (+ built-in confidence-interval calibration table)
 bench/                         simulated benchmark: download_genomes.sh, make_scenarios.py, run_skani.sh, run_aif.sh,
                                run_all.sh, evaluate.py, tune.py, time_all.py (interleaved timing), time_compare.sh, medtime.sh
@@ -322,10 +323,12 @@ bench_real/                    real genomes: select_datasets.py, select_tune.py,
                                gut catalogue: uhgg_download.sh, uhgg_screen.py, uhgg_run.sh, uhgg_summary.py
 results/, results_real/,       committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
 results_viral/, results_uhgg/  (the full UHGG flagged-contig lists, 54-57 MB, are not committed; `uhgg_summary.py stats` rewrites them)
-scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py)
+scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py);
+                               theory of v1.7: theory_numbers.py, theory_sims.py, theory_hmm.py, theory_report.py (-> results_theory/)
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
 report_real/, report_viral/,
-report_uhgg/, report_overview/
+report_uhgg/, report_overview/,
+report_theory/
 data/  (git-ignored)           genomes, assemblies, generated contigs, raw run outputs; regenerate with the scripts
 ```
 

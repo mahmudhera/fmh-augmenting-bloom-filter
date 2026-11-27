@@ -1,0 +1,11 @@
+.TS
+center box tab(@);
+c c c c c c c c c c
+c c c c c c c c c c
+c c c c c c c c c c.
+tier@target@budget@bits per@selection@hash@elements@FPR@FPR@FPR
+@FPR@share@element $c$@rate $s sub t$@functions@per block@standard@blocked@measured
+_
+1@0.005@60%@11.03@0.0478@6@46.4@0.0054@0.0064@0.0063
+2@0.1@40%@4.81@0.0732@3@106.5@0.1000@0.1012@0.1016
+.TE

@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+c c c c c c c
+c c c c c c c
+n n n n n n n.
+ANI@$D sub A$@$D sub U$@scale (16)@mean error@SD of error@mean posterior
+(%)@(nats/probe)@(nats/probe)@(bp)@(bp)@(bp)@SD (bp)
+_
+85@0.023@0.014@954@-18.2@756@764
+90@0.136@0.069@181@+1.5@196@175
+95@0.674@0.317@38@+0.8@39@35
+99@2.337@1.452@9@-0.1@8@7
+.TE

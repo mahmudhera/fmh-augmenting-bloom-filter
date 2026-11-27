@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+c c c c s s c s
+c c c c c c c c
+c c c c c c c c
+n n n c c c c c.
+ANI@scale@independent@substitution model, exact HMM@aif
+(%)@(16)@probes, SD@two states@all levels,@floor rule,@all mass@v1.7
+@(bp)@(bp)@(true level)@all mass@no windows@(v1.6)@
+_
+90@181@196@\(mi73 / 272@\(mi46 / 327@\(mi46 / 327@\(mi84 / 297@\(mi91 / 305
+95@38@39@\(mi32 / 86@+15 / 147@\(mi113 / 149@+20 / 178@\(mi10 / 163
+99@9@8@\(mi10 / 36@+26 / 113@\(mi43 / 52@+18 / 74@\(mi21 / 95
+.TE

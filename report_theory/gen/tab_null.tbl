@@ -1,0 +1,15 @@
+.TS
+center box tab(@);
+c c c s s
+c c c c c
+n n n n n.
+$lambda$@bound@observed share of unrelated contigs with $LR >= e sup lambda$
+@$e sup {- lambda}$@1 kb (40,000)@5 kb (20,000)@20 kb (5,000)
+_
+1@0.37@3.4\(mu10\u\(mi3\d@1.0\(mu10\u\(mi4\d@2.0\(mu10\u\(mi4\d
+2@0.14@1.1\(mu10\u\(mi3\d@5.0\(mu10\u\(mi5\d@2.0\(mu10\u\(mi4\d
+3@0.05@4.8\(mu10\u\(mi4\d@0 (< 5.0\(mu10\u\(mi5\d)@0 (< 2.0\(mu10\u\(mi4\d)
+5@6.7\(mu10\u\(mi3\d@5.0\(mu10\u\(mi5\d@0 (< 5.0\(mu10\u\(mi5\d)@0 (< 2.0\(mu10\u\(mi4\d)
+7@9.1\(mu10\u\(mi4\d@2.5\(mu10\u\(mi5\d@0 (< 5.0\(mu10\u\(mi5\d)@0 (< 2.0\(mu10\u\(mi4\d)
+10@4.5\(mu10\u\(mi5\d@0 (< 2.5\(mu10\u\(mi5\d)@0 (< 5.0\(mu10\u\(mi5\d)@0 (< 2.0\(mu10\u\(mi4\d)
+.TE
