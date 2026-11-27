@@ -18,7 +18,7 @@ from the skani Benchmark Data
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Real-genome report, aif v1.6 \(em November 24, 2026
+Real-genome report, aif v1.6, with a v1.7 addendum (Section 17) \(em November 27, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -145,6 +145,12 @@ equal sensitivity aif's species calls are 2.4\(en2.7 points more precise. Kraken
 0.55\(en0.84 pp; GUNC's is 0.69\(en3.86 pp and CheckM2's 2.9\(en10.7 pp. With a 3% limit aif detects
 contamination as often as GUNC's own call (95\(en100% of bins, 6% of controls), and searches all 400 bins in
 11 s, against 23.5 min for CheckM2 and 6.6 h for GUNC (Section 16).
+.IP (14) 0.3i
+\f[B]v1.7.\f[R] A benchmark on gut contigs (\f[CR]aif_uhgg_contamination_report.pdf\f[R], Section 7) showed that
+aif over-called AF on real contigs: unaligned stretches inside an alignment were absorbed by the lowest identity
+levels. v1.7 counts AF only near the local identity, which lowers the AF error on every real set here (macro
+2.45 to 1.97 pp; fresh drafts 2.53 to 1.97) and raises it on simulated contigs of heterogeneous identity. ANI and
+the hits are unchanged, and the intervals were refitted (Section 17). The rest of this report is v1.6.
 .\" =====================================================================
 .H1 "Data and ground truth"
 .H2 "Genome sets"
@@ -1193,7 +1199,54 @@ MMseqs2 taxonomy and CAT/BAT classify contigs by protein search against a refere
 GTDB R232 that means predicting, storing and indexing about 700 million proteins from the 199,923
 representatives, and a translated search for every contig. This was beyond the scope of this comparison.
 These tools target a different question: placing contigs of novel lineages at higher ranks, where nucleotide
-identity carries little signal. Their comparison with aif on such contigs is left open.
+identity carries little signal. Their comparison with aif on such contigs is left open. CAT was later run on gut
+contigs in the UHGG report (Section 7): with the GTDB R232 proteins (a 227 GB DIAMOND database), its genus calls
+gave a foreign-contig F1 of 0.41, and the catalogue would take about 100 days.
+.\" =====================================================================
+.H1 "Addendum: aif v1.7, AF near the local identity"
+.LP
+The contig benchmark on the UHGG gut catalogue (\f[CR]aif_uhgg_contamination_report.pdf\f[R], Section 7) found aif
+v1.6's top-hit AF 5.1 pp above MUMmer's. Base by base, three quarters of the excess were gaps bridged between two
+MUMmer alignments, at aif window identities near its lowest levels. Those levels (about 85%) expect a hit rate close
+to the filters' false-positive rates, so an unaligned stretch inside an alignment costs almost nothing as
+"aligned", while two switches cost about 14 nats. The same mechanism was behind the AF over-calls on divergent
+contigs analysed in Section 9.
+.LP
+v1.7 counts AF over the aligned posterior mass within 0.05 of the local identity: the median FP-corrected
+containment of aligned-looking windows of 64 probes, three windows either side. A window that favours its best
+aligned level over unaligned by 3 nats, or a neighbour of such a window, sets its floor at its own identity, so
+divergent blocks keep their AF. The HMM, the hits and ANI are unchanged; \f[CR]\-\-af-local 0\f[R] reproduces
+v1.6. The settings were chosen on tuning sets only: a gut tuning set disjoint from the UHGG benchmark, the real
+tuning set of Section 6 and the simulated tuning set.
+.LP
+Table 38 gives the held-out effect on the data of this report. The AF error falls on all nine real sets, by a
+fifth on average (main 2.45 to 1.97 pp, fresh 2.53 to 1.97), and the bias drops from +1.5\(en1.7 to +0.3\(en0.7 pp.
+On simulated contigs it rises from 5.30 to 5.83 pp. Uniformly mutated contigs at 90\(en99% identity lose 0.5\(en1 pp,
+and contigs of heterogeneous identity lose more: 5.8 pp for alternating 100%/90% blocks (\f[CR]hetblock\f[R]) and
+4.4 pp for gamma-distributed rates (\f[CR]hetgamma\f[R]), where a short divergent block next to conserved ones
+does not always show enough evidence of its own. The \f[CR]hetblock\f[R] failure was first seen on the held-out
+simulated benchmark, and it shaped the evidence rule.
+.LP
+\f[B]Genome level.\f[R] Aggregated from contigs as in Section 4, genome-level ANI is unchanged (error 0.140 to
+0.141 pp, macro over the five main sets; fresh drafts 0.145 both), and the genome-level AF error against ANIm
+halves (1.87 to 0.97 pp; fresh 2.10 to 1.17; \f[CR]bench_real/af_local_genome.py\f[R]). The identity prior of
+Section 9 changed which regions the HMM aligns and so paid in genome-level ANI; v1.7 leaves the HMM and contig ANI
+alone and moves only the AF weights, which the AF gain makes more accurate.
+.LP
+\f[B]Intervals.\f[R] The conformal tables were refitted for the new AF (Table 39). Pairwise queries keep a table
+fitted on the real tuning set, and \f[CR]aif db search\f[R] now has its own, fitted on gut contigs against GTDB R232,
+where the pairwise table under-covered (92% of ANI and 87% of AF at a nominal 95%; 95.1% and 94.2% with the new
+table). On the real sets the coverage stays at its nominal level and the median AF half-width falls from 2.60 to
+1.98 pp, because AF is more accurate. Simulated contigs remain over-covered, as before.
+.TC 38
+AF error of aif v1.6 and v1.7 on the held-out real and simulated data of this report (every contig; macro over sets or
+conditions; ANI is identical in both versions).
+.TCE
+.so gen/tab_v17_af.tbl
+.TC 39
+Coverage of the calibrated intervals (ANI/AF, %) at three levels, v1.6 and v1.7 (pairwise query).
+.TCE
+.so gen/tab_v17_ci.tbl
 .\" =====================================================================
 .H1 "Discussion"
 .H2 "Why the simulation results carry over"

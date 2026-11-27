@@ -524,10 +524,12 @@ def stage2_cells():
     length, category, length class)} and the genome contexts; subsets take prefixes of every cell's order"""
     TX = gtdb_tax()
     X = contexts()
-    label_refs = {r["reference"] for r in csv.DictReader(open(os.path.join(RESU, "label_inconsistent_refs.tsv")),
+    # the v1.6 screen's label-inconsistent references, frozen with the design (the v1.7 rerun rewrites results_uhgg/)
+    label_refs = {r["reference"] for r in csv.DictReader(open(os.path.join(OUT, "design", "label_inconsistent_refs_v16.tsv")),
                                                           delimiter="\t")}
     pd_ = os.path.join(C, "runs", "pool")
-    A = load_aif(os.path.join(pd_, "aif.tsv"))
+    # the design used aif v1.6's pool hits (the categories depend on AF); kept as aif_v16.tsv after the v1.7 rerun
+    A = load_aif(next(f for f in (os.path.join(pd_, "aif_v16.tsv"), os.path.join(pd_, "aif.tsv")) if os.path.exists(f)))
     S = load_skani(os.path.join(pd_, "skani.tsv"))
     K = k2_genus(os.path.join(pd_, "kraken2.tsv"))
     F = {}

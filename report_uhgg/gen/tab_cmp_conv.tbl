@@ -1,0 +1,12 @@
+.TS
+center box tab(@);
+l c s s s c s c s s
+l c c c c c c c c c
+l n n n n n n n n n.
+MUMmer convention@AF MAE, top hit (pp)@AF MAE, shared pairs@ANI MAE, top hit (pp)
+@aif v1.6@aif v1.7@skani@minimap2@aif v1.7@skani@aif@skani@minimap2
+_
+delta-filter \-q@5.13@3.58@5.40@2.73@3.08@5.78@0.746@1.083@0.318
+delta-filter \-1@9.82@8.11@8.42@5.36@11.23@12.02@0.809@1.100@0.382
+\(>= 90% identity@6.75@5.00@5.01@3.14@5.50@5.76@0.800@1.002@0.348
+.TE

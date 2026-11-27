@@ -58,6 +58,40 @@ def axes_style(ax):
         ax.spines[sp].set_visible(False)
 
 
+def extra_numbers(label_refs):
+    """numbers quoted in the text: MAGs >= 5% contaminated against CheckM2, representatives >= 1%, and the flagged
+    contigs whose best hit is a label-inconsistent reference (flagged_contigs.tsv.gz and the metadata, if present)"""
+    import csv
+    import gzip
+    import statistics
+    out = {}
+    meta = os.path.join(ROOT, "data", "uhgg3", "meta", "genomes-all_metadata.tsv")
+    if os.path.exists(meta):
+        cm = {r["Genome"]: (r["Genome_type"], float(r["Contamination"])) for r in csv.DictReader(open(meta), delimiter="\t")}
+        g5 = [(float(r["contam"]), cm[r["genome"]][1]) for r in csv.DictReader(gzip.open(os.path.join(RES, "genomes.tsv.gz"), "rt"),
+                                                                                 delimiter="\t")
+              if cm[r["genome"]][0] == "MAG" and float(r["contam"]) >= 0.05]
+        out["mags_ge5"] = {"n": len(g5), "checkm_median": statistics.median(c for _, c in g5),
+                           "aif_median": statistics.median(a for a, _ in g5), "checkm_lt2": sum(c < 2 for _, c in g5)}
+    reps = list(csv.DictReader(open(os.path.join(RES, "species_reps_contaminated.tsv")), delimiter="\t"))
+    out["reps_ge1"] = sum(float(r["aif_contam"]) >= 0.01 for r in reps)
+    fc = os.path.join(RES, "flagged_contigs.tsv.gz")
+    if os.path.exists(fc):
+        bad = {r[0] for r in label_refs}
+        n = nb = bp = bpb = abp = abpb = 0
+        for r in csv.DictReader(gzip.open(fc, "rt"), delimiter="\t"):
+            L, hit = int(r["length"]), r["ref"] in bad
+            n += 1
+            nb += hit
+            bp += L
+            bpb += L * hit
+            if r["anchored"] == "1":
+                abp += L
+                abpb += L * hit
+        out["label_resid"] = {"contigs": n, "share": nb / n, "gbp": bpb / 1e9, "anchored_share": abpb / max(1, abp)}
+    return out
+
+
 def main():
     os.makedirs(GEN, exist_ok=True)
     os.makedirs(FIG, exist_ok=True)
@@ -244,6 +278,7 @@ def main():
     nums["euk"] = S["euk_known_issue"]
     nums["low_hit"] = S["low_hit"]
     nums["host_vs_mgnify"] = S["host_vs_mgnify"]
+    nums["extra"] = extra_numbers(lr)
     # figure 1: distribution of the per-genome fractions
     E = S["hist"]["edges"]
     labs = ["0", "<0.01", "0.01–0.1", "0.1–0.3", "0.3–1", "1–2", "2–5", "5–10", "10–20", "≥20"]

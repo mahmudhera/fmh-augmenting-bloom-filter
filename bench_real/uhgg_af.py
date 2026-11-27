@@ -281,6 +281,11 @@ def diag(name, stage="T"):
             v[0] += ov
             v[1] += (e - s) - ov
     B = max(1, tot["bases"])
+    json.dump({"pairs": tot["pairs"], "bases": tot["bases"], "frac": {k: v / B for k, v in tot.items() if k not in ("pairs", "bases")},
+               "by_length": {lc: {"pairs": v["pairs"], "aif_only": v["aonly"] / v["bases"], "mummer_only": v["monly"] / v["bases"]}
+                             for lc, v in perlen.items()},
+               "by_aif_window_identity": {k: {"shared": v[0] / B, "aif_only": v[1] / B} for k, v in idbin.items()}},
+              open(os.path.join(U.OUT, f"af_diag_{stage}_{name}.json"), "w"), indent=1)
     print(f"{stage}_{name}: {tot['pairs']} top-hit pairs (truth ANI >= 0.90), {tot['bases']} contig bases")
     print(f"  aif aligned {tot['aif'] / B:.4f}  MUMmer aligned {tot['mum'] / B:.4f}  both {tot['both'] / B:.4f}")
     print(f"  aif-only {(tot['aif'] - tot['both']) / B:.4f} = edge {tot['edge'] / B:.4f} + bridged gap {tot['gap'] / B:.4f}"

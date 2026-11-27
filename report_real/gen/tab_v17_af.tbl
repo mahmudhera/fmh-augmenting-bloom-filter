@@ -1,0 +1,28 @@
+.TS
+center box tab(@);
+l c c s c s c
+l c c c c c c
+l n n n n n n.
+Set@contigs@AF MAE (pp)@AF bias (pp)@ANI MAE (pp)
+@@v1.6@v1.7@v1.6@v1.7@v1.6 = v1.7
+_
+main: \f[I]B. cereus\f[R]@10355@3.84@3.31@2.24@0.63@0.710
+main: \f[I]E. coli\f[R]@7528@3.15@2.35@1.87@0.51@0.587
+main: MAGs (bin 2328)@8710@1.12@0.87@1.03@0.28@0.362
+main: \f[I]P. aeruginosa\f[R]@4405@2.31@1.76@2.12@1.32@0.303
+main: \f[I]S. aureus\f[R]@2466@1.82@1.57@1.40@0.62@0.455
+main: macro@@2.45@1.97@1.73@0.67@0.483
+_
+fresh: \f[I]B. cereus\f[R]@1478@3.41@2.56@2.28@0.65@0.691
+fresh: \f[I]E. coli\f[R]@4005@2.73@2.07@1.85@0.59@0.554
+fresh: \f[I]P. aeruginosa\f[R]@2836@2.55@2.13@0.74@-0.21@0.406
+fresh: \f[I]S. aureus\f[R]@1298@1.45@1.11@1.11@0.29@0.408
+fresh: macro@@2.53@1.97@1.49@0.33@0.515
+_
+simulated main: macro@@5.30@5.83@-4.96@-5.64@0.502
+\0\0hetblock@100@0.22@5.76@-0.22@-5.76@0.261
+\0\0hetgamma@100@0.26@4.38@-0.26@-4.38@0.412
+simulated fresh: macro@@4.95@5.51@-4.54@-5.23@0.505
+\0\0hetblock@100@0.23@5.61@-0.23@-5.61@0.265
+\0\0hetgamma@100@0.56@4.71@-0.56@-4.71@0.486
+.TE

@@ -43,6 +43,8 @@ U = os.path.join(ROOT, "data", "uhgg3")
 PILOT = bool(os.environ.get("UHGG_PILOT"))
 W = os.path.join(U, "pilot") if PILOT else U
 OUT = os.path.join(ROOT, "results_uhgg", "pilot") if PILOT else os.path.join(ROOT, "results_uhgg")
+OUT = os.environ.get("UHGG_OUT", OUT)  # e.g. results_uhgg/prespecified with UHGG_SCREEN=screen_prespec
+SCREEN = os.environ.get("UHGG_SCREEN", "screen")
 G = os.path.join(ROOT, "data", "gtdb")
 K2 = os.path.join(G, "kraken2_db")
 THREADS = os.environ.get("THREADS", "48")
@@ -123,7 +125,7 @@ def ncbi_meta(accs):
 def load():
     M = {r["Genome"]: r for r in csv.DictReader(open(os.path.join(U, "meta", "genomes-all_metadata.tsv")), delimiter="\t")}
     R = {}
-    for f in sorted(glob.glob(os.path.join(W, "screen", "part*.genomes.tsv"))):
+    for f in sorted(glob.glob(os.path.join(W, SCREEN, "part*.genomes.tsv"))):
         for r in csv.DictReader(open(f), delimiter="\t"):
             m = M[r["genome"]]
             for k in GINT:
@@ -138,7 +140,7 @@ def load():
             r["hq"] = r["type"] == "MAG" and r["compl"] >= 90 and r["contam_checkm"] <= 5
             R[r["genome"]] = r
     F = []
-    for f in sorted(glob.glob(os.path.join(W, "screen", "part*.flagged.tsv"))):
+    for f in sorted(glob.glob(os.path.join(W, SCREEN, "part*.flagged.tsv"))):
         for r in csv.DictReader(open(f), delimiter="\t"):
             for k in FINT:
                 r[k] = int(r[k])

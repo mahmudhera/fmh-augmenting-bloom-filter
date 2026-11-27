@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+l c c s c s
+l c c c c c
+l c n n n n.
+Data set@@AF MAE (pp)@AF bias (pp)
+@role@v1.6@v1.7@v1.6@v1.7
+_
+UHGG tuning set T (top hit, \-q)@tuning@5.39@3.78@5.17@2.36
+UHGG S3 (top hit, \-q)@held out@5.13@3.58@4.96@2.18
+UHGG S1 (top hit, \-q)@held out@5.69@4.35@5.43@2.64
+real genomes, 5 sets@held out@2.45@1.97@1.73@0.67
+real genomes, fresh drafts@held out@2.53@1.97@1.49@0.33
+simulated, main@held out@5.30@5.83@-4.96@-5.64
+simulated, fresh@held out@4.95@5.51@-4.54@-5.23
+.TE

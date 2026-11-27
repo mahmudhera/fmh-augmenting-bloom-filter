@@ -26,7 +26,10 @@ bacterium carries and that rarely move between genera.
 .LP
 Each assembly's contigs of at least 500 bp (55.7 million contigs, 707 GB) went into one of 128 FASTA parts, with
 genomes kept whole. Each part was searched with \f[CR]aif db search\f[R] against the GTDB R232 database of 199,923 species representatives
-(82.5 GB; Section 11 of the real-genome report), with the frozen defaults and the top 5 hits per contig.
+(82.5 GB; Section 11 of the real-genome report), with the top 5 hits per contig and aif v1.7: the frozen v1.6
+defaults plus the AF fix of Section 7.5. The screen was first run with v1.6 and rerun with v1.7; the rule was
+developed with v1.6 on the pilot. The rerun moved the contamination rates of Table 6 by at most 0.23 pp and the
+shared-sequence rates by at most 1.2 pp (isolates with \(>= 1% non-mobile shared sequence, 18.7% \(-> 19.8%).
 Searches ran on 48 threads, with the database in the page cache. Table 1 summarizes the catalogue and the search.
 .TC 1
 The catalogue and its hits to GTDB R232 (host genus from: self, the genome's own GTDB copy; species, the majority
@@ -104,13 +107,14 @@ An \f[I]E. coli\f[R] genome thus has species-level hits under four genus labels.
 label wins the vote, and its contigs that best match another label, often its core-gene-rich conserved
 regions, became "foreign". The fix judges sameness by sequence rather than label: a reference that is
 conspecific with the genome by GTDB's criterion is treated as the host (host-equivalent references, above).
-The threshold is GTDB's AF of 0.5, not a tuned value. The fix changed nothing on the pilot (12,200 flagged contigs
-before and after) and removed 118,517 of 1,993,817 flagged contigs in the full screen. Only nine references were
-ever host-equivalent under another genus label, all in \f[I]Enterobacteriaceae\f[R]: the seven above and the two
-correctly labelled \f[I]E. coli\f[R] representatives, for genomes whose host vote went to a placeholder genus
-(Table 3). Both versions
+The threshold is GTDB's AF of 0.5, not a tuned value. The fix changed nothing on the pilot (11,979 flagged contigs
+before and after; 12,200 with v1.6) and removed 113,809 of 1,960,522 flagged contigs in the full screen (v1.6:
+118,517 of 1,993,817). Only seven references were ever host-equivalent under another genus label, all in
+\f[I]Enterobacteriaceae\f[R]: the five above and the two correctly labelled \f[I]E. coli\f[R] representatives,
+for genomes whose host vote went to a placeholder genus (Table 3). With v1.6, whose AF read high, the two
+\f[I]E. hormaechei\f[R] assemblies also covered half of seven genomes. Both versions
 of every summary are kept (\f[CR]results_uhgg/prespecified/\f[R]), and Table 2 compares them. The final rule
-brings the isolates back to the pilot's level (1.5% any, 0.02% \(>= 5%) and barely moves the MAGs (9.9% \(-> 9.7%).
+brings the isolates back to the pilot's level (1.5% any, 0.02% \(>= 5%) and barely moves the MAGs (9.8% \(-> 9.6%).
 .TC 2
 Pre-specified and final rule (final: with host-equivalent references), all genomes. Same species: the
 Mantel\(enHaenszel weighted difference in the share with any contamination (Section 4.2); core-gene mixture: Section 3.2.

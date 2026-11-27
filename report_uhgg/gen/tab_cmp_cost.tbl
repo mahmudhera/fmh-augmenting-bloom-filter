@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+l c c c c c c c c
+l c c c c c c c c
+l n n n n n n c n.
+Tool@index (GB)@build@build@S3 search@pool search@full catalogue@basis@search peak
+@@@threads@(114 Mbp)@(3.64 Gbp)@(706 Gbp)@@memory (GB)
+_
+aif@82.5@403 s@32@2.4 s@33 s@105 min@pool@82
+Kraken2@82.5@3.9 h@48@42 s@67 s@83 min@pool@81
+skani@82.7@11 min@32@106 s@157 s@2.5 h@pool@65
+sourmash@184.3@20.9 h\(dg@16@30 s@362 s@19.0 h@pool@5
+minimap2@2.08 TB@12.9 h@16@3.3 h@4.0 h@10 d@pool@177
+CAT@267.4@11.8 h\(dg@32@64 min@\(em@101 d@S1\(enS3@53
+LexicMap@541.0@6.2 h\(dg@32@6.3 h (S1)@\(em@46 y@S1@3
+.TE

@@ -32,6 +32,7 @@ Rule (fixed on the 3,000-genome pilot and the simulated GTDB bins before the ful
                   misbinned genome, so per-genome contamination is anchored on core genes
 
 UHGG_PILOT=N restricts prepare/search to the first N downloaded genomes (metadata order) in data/uhgg3/pilot.
+UHGG_EQ_COV=2 UHGG_SCREEN=screen_prespec scores the pre-specified rule (no host-equivalent references).
 """
 import csv
 import gzip
@@ -68,6 +69,9 @@ CORE = re.compile(r"product=(?:(?:30S|50S) ribosomal protein [LS][0-9A-Za-z]*|DN
 CONTIG_COLS = ["contig", "genome", "length", "gc", "screened", "cds", "mge_cds", "ribo_cds", "plasmid_bp", "prophage_bp",
                "amr_cds", "mobkw_cds", "hypo_cds", "core_cds"]
 ANI_SP, AF_MIN, AF_STRICT, SELF_ANI, SELF_COV, SP_COV, EQ_COV = 0.95, 0.5, 0.8, 0.999, 0.5, 0.2, 0.5
+# the pre-specified rule (no host-equivalent references) is UHGG_EQ_COV=2 UHGG_SCREEN=screen_prespec
+EQ_COV = float(os.environ.get("UHGG_EQ_COV", EQ_COV))
+SCREEN = os.environ.get("UHGG_SCREEN", "screen")
 
 
 def meta():
@@ -313,7 +317,7 @@ def screen_part(p):
                      acc["chrom_xfam_bp"], abp, sbp, len(anch), sum(v[1] for v in anch.values()), acc["amr"], top, topa,
                      f"{acc['chrom_bp'] / max(1, tot - acc['chrom_bp']):.5f}", f"{abp / max(1, tot - abp):.5f}", len(E), len(exg),
                      ";".join(exg)])
-    out = os.path.join(W, "screen")
+    out = os.path.join(W, SCREEN)
     with open(os.path.join(out, key + ".genomes.tsv"), "w") as fh:
         fh.write("\t".join(GENOME_COLS) + "\n")
         for r in rows:
@@ -327,7 +331,7 @@ def screen_part(p):
 
 def genomes():
     TX.update(taxonomy())  # inherited by the forked workers
-    os.makedirs(os.path.join(W, "screen"), exist_ok=True)
+    os.makedirs(os.path.join(W, SCREEN), exist_ok=True)
     parts = [p for p in range(NPART) if os.path.exists(os.path.join(W, "aif", f"part{p:03d}.tsv"))]
     import multiprocessing  # fork, so the workers share TX (Python >= 3.14 defaults to forkserver)
     with multiprocessing.get_context("fork").Pool(min(len(parts), int(THREADS))) as pool:

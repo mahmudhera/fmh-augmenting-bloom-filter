@@ -1,0 +1,13 @@
+.TS
+center box tab(@);
+l c s s c c s
+l c c c c c c
+l n n n n n n.
+AF model@UHGG tuning set T@real tuning@simulated tuning
+@AF MAE@AF bias@AF MAE at ANI 0.80\(en0.90@AF MAE@AF MAE@hetblock bias
+_
+v1.6@5.39@5.17@13.66@2.62@5.43@-0.1
+flat: identity \(>= 0.89@3.34@0.31@27.34@2.62@14.93@-15.2
+local threshold only@3.63@0.21@12.40@2.27@7.56@-33.5
+v1.7 (local + evidence)@3.78@2.36@12.60@2.14@5.94@-5.3
+.TE

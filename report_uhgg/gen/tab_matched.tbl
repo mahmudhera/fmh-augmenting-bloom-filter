@@ -6,9 +6,9 @@ l n n n n n.
 per-genome call@isolates@MAGs@difference@species: MAG higher /@sign test
 @(%)@(%)@(pp)@isolate higher / tie@p
 _
-any shared sequence@81.6@71.6@-10.1@123 / 126 / 7@0.9
-non-mobile shared \(>= 1%@22.8@26.3@+3.5@177 / 66 / 13@7e-13
-contamination, any@2.1@9.9@+7.8@205 / 22 / 29@2e-38
-contamination \(>= 1%@0.7@2.9@+2.2@158 / 21 / 77@4e-27
+any shared sequence@81.3@71.2@-10.1@124 / 125 / 7@1
+non-mobile shared \(>= 1%@23.8@26.3@+2.5@175 / 67 / 14@3e-12
+contamination, any@2.1@10.0@+7.8@207 / 21 / 28@1e-39
+contamination \(>= 1%@0.7@3.0@+2.2@157 / 20 / 79@1e-27
 contamination \(>= 5%@0.0@0.2@+0.1@74 / 2 / 180@8e-20
 .TE

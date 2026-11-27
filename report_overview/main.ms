@@ -19,7 +19,7 @@ Bloom-Filter Sketches, from Pairwise Queries to GTDB Scale
 .vs 13p
 .ce 3
 Project: \f[CR]fmh-augmenting-bloom-filter\f[R]
-Overview of method and results, aif v1.6 \(em November 24, 2026
+Overview of method and results, aif v1.7 \(em November 27, 2026
 Experiments and typesetting by Claude (Anthropic) for the project owner
 .ps \n(PS
 .vs \n(VSp
@@ -54,9 +54,14 @@ contamination more accurately than GUNC and CheckM2 (0.67 vs 1.96 and 6.27 pp), 
 runs 2,100\(mu faster. It also gives the best vOTU clustering among sketch tools and identity maps more accurate
 than fastANI's. Alignment (minimap2, vclust) remains more accurate at a much larger cost; the method's weak points
 are contigs below 90% identity and the AF definition at that boundary. As a first biological application, aif
-screened all 286,621 genomes of the UHGG v3.0 gut catalogue against GTDB in 2.1 h. Cross-genus sequence at
-species-level identity is common (64% of MAGs, 75% of isolates) but mostly transferred DNA. Contamination
-anchored on core genes affects 2.7% of MAGs at \(>= 1%, against 0.48% of isolates.
+screened all 286,621 genomes of the UHGG v3.0 gut catalogue against GTDB in 2.2 h. Cross-genus sequence at
+species-level identity is common (64% of MAGs, 74% of isolates) but mostly transferred DNA. Contamination
+anchored on core genes affects 2.7% of MAGs at \(>= 1%, against 0.47% of isolates. On 10,005 of the screen's
+contigs scored against MUMmer, aif's foreign-contig calls (F1 0.871) come close to minimap2's (0.881) at a
+hundredth of its projected cost for the catalogue (2 h against 10 days), ahead of sourmash, Kraken2, skani and
+CAT. That benchmark exposed an AF over-call (+5 pp) on real contigs, which v1.7 fixes (AF error \(mi30% on gut
+contigs, \(mi20% on the real-genome sets) with recalibrated intervals. The gut screen was rerun with v1.7; other
+results here are from v1.6.
 .ps \n(PS
 .vs \n(VSp
 .in 0
@@ -159,6 +164,9 @@ switching between identity levels a smaller one (10\u\(mi4\d).
 .IP \(bu 0.2i
 \f[B]Inference.\f[R] Forward\(enbackward over bins of 32 probes, with emissions from precomputed power tables, and
 exact per-probe refinement around aligned/unaligned boundaries. AF is the posterior-weighted aligned length.
+Since v1.7 it counts only the aligned mass within 0.05 of the local identity (or of a window's own identity when
+the window shows evidence of alignment): the lowest levels expect hits at nearly the false-positive rate and
+otherwise absorb unaligned stretches inside an alignment.
 .IP \(bu 0.2i
 \f[B]Heterogeneous contigs.\f[R] A test over 1 kb windows detects contigs whose identity varies (recombination,
 mosaics). For them ANI is the posterior mean over identity levels, from a finer re-run (bins of 8 probes).
@@ -169,7 +177,8 @@ A contig is reported when the log-likelihood ratio against "all unaligned" is at
 Statistical standard errors come from Theorem 1, conditioned on the realised substitutions (for ANI), and from
 the posterior uncertainty of alignment boundaries (for AF). Real contigs violate the model (indels, repeats,
 mosaics), so the default intervals are calibrated: stratified split-conformal multipliers (identity
-\(mu length \(mu AF class, 24 strata) fitted on a disjoint real tuning set against MUMmer truth.
+\(mu length \(mu AF class, 24 strata) fitted on a disjoint real tuning set against MUMmer truth. Since v1.7,
+database search has its own table, fitted on gut contigs against GTDB R232, where the pairwise table under-covered.
 .H2 "Database mode"
 .LP
 \f[CR]aif db build\f[R] stores many references in one memory-mapped file with one k and one tier layout. Since
@@ -380,20 +389,20 @@ where stated; GUNC's own pass/fail call), and time and peak memory for all bins 
 .H2 "The human gut catalogue"
 .LP
 aif searched every contig of at least 500 bp of the 286,621 UHGG v3.0 genomes (276,463 MAGs, 10,158 isolates;
-707 GB) against GTDB R232 in 2.1 h at 48 threads (\f[CR]aif_uhgg_contamination_report.pdf\f[R]).
+707 GB) against GTDB R232 in 2.2 h at 48 threads with aif v1.7 (\f[CR]aif_uhgg_contamination_report.pdf\f[R]).
 .IP \(bu 0.2i
-\f[B]Shared sequence.\f[R] 64% of MAGs and 75% of isolates have a contig at \(>= 95% ANI and AF \(>= 0.5 to another
-genus: 1.75 million contigs linking 3,156 genera. These contigs carry 0.3\(en0.7\(mu the core-gene density of
+\f[B]Shared sequence.\f[R] 64% of MAGs and 74% of isolates have a contig at \(>= 95% ANI and AF \(>= 0.5 to another
+genus: 1.73 million contigs linking 3,117 genera. These contigs carry 0.3\(en0.7\(mu the core-gene density of
 other contigs, and 71\(en74% of their genes are hypothetical. They are mostly transferred DNA, not misbinning.
 .IP \(bu 0.2i
 \f[B]Contamination\f[R] is therefore called only when a source species' foreign contigs carry a core gene
-(Table 14). 2.71% of MAGs have at least 1%, against 0.48% of isolates. Within the 256 species that have both,
-MAGs are higher in 205 and isolates in 22. The rate rises from 4.0% to 32.7% across MGnify's CheckM2 contamination
-bins. A core-gene mixture model attributes 44% of the non-mobile shared MAG sequence to misbinned fragments, so
+(Table 14). 2.68% of MAGs have at least 1%, against 0.47% of isolates. Within the 256 species that have both,
+MAGs are higher in 207 and isolates in 21. The rate rises from 3.9% to 32.6% across MGnify's CheckM2 contamination
+bins. A core-gene mixture model attributes 45% of the non-mobile shared MAG sequence to misbinned fragments, so
 the per-genome calls are conservative.
 .IP \(bu 0.2i
-\f[B]Kraken2 agrees.\f[R] On the same references, Kraken2 puts 94.8% of the anchored MAG contigs in the source genus
-that aif found, and 84.0% of length-matched control contigs in the host genus.
+\f[B]Kraken2 agrees.\f[R] On the same references, Kraken2 puts 95.0% of the anchored MAG contigs in the source genus
+that aif found, and 83.6% of length-matched control contigs in the host genus.
 .IP \(bu 0.2i
 \f[B]Reference labels.\f[R] With the pre-specified rule, isolates looked more contaminated than MAGs (20.7%).
 GTDB R232 files five \f[I]E. coli\f[R]/\f[I]Shigella\f[R] assemblies under other genera. References that are
@@ -403,6 +412,40 @@ Enterobacteriaceae.
 UHGG v3.0: per-genome shared sequence and core-anchored contamination (aif against GTDB R232).
 .TCE
 .so ../report_uhgg/gen/tab_rates.tbl
+.H2 "Against other tools on gut contigs (v1.7)"
+.LP
+A stratified sample of the screen's contigs (S3: 10,005 contigs, 114 Mbp; S1: 1,018) was scored against MUMmer
+alignments of every tool's top hits, and each tool was timed at 48 threads and projected to the 706 Gbp catalogue
+(Section 7 of the UHGG report).
+.IP \(bu 0.2i
+\f[B]Accuracy.\f[R] minimap2 is the most accurate (top-hit ANI error 0.32 pp, AF 2.73 pp, foreign-contig F1
+0.881). aif v1.7 follows (0.75 pp, 3.58 pp, F1 0.871) and finds the best reference most often (89.5%); sourmash
+reaches F1 0.844 without AF, Kraken2 0.609, skani 0.578 (a hit for only 67% of contigs) and CAT 0.411. LexicMap,
+run on S1 only, has the lowest AF error (1.4 pp).
+.IP \(bu 0.2i
+\f[B]Cost.\f[R] aif, Kraken2 and skani would take 1.4\(en2.5 h for the catalogue and sourmash 19 h. minimap2 would
+take 10 days after building a 2.08 TB index, CAT about 100 days, and LexicMap, held back by random disk reads of
+its genome store, decades (Table 16).
+.IP \(bu 0.2i
+\f[B]AF fix.\f[R] aif v1.6 over-called AF by about 5 pp on gut contigs: unaligned stretches inside alignments were
+absorbed by its lowest identity levels. v1.7 counts AF only near the local identity (tuned on a separate gut
+tuning set, the real and the simulated tuning sets). Held out, AF error falls from 5.13 to 3.58 pp on gut contigs
+and from 2.45 to 1.97 pp on the real-genome sets, but rises from 5.30 to 5.83 pp on the simulated benchmarks,
+mostly on contigs of heterogeneous identity (Table 17). Genome-level ANI aggregated from contigs is unchanged,
+and genome-level AF error halves (1.87 to 0.97 pp). Interval coverage on gut contigs rises from 92%/87% to
+95%/94% (ANI/AF, nominal 95%).
+.TC 15
+Accuracy on 10,005 sampled UHGG contigs against MUMmer (\f[CR]delta-filter \-q\f[R]); see Table 16 of the UHGG report.
+.TCE
+.so ../report_uhgg/gen/tab_cmp_acc.tbl
+.TC 16
+Cost of each tool and its projection to the full catalogue (48 threads); see Table 19 of the UHGG report.
+.TCE
+.so ../report_uhgg/gen/tab_cmp_cost.tbl
+.TC 17
+AF error of aif v1.6 and v1.7 on tuning and held-out data; see Table 21 of the UHGG report.
+.TCE
+.so ../report_uhgg/gen/tab_cmp_affix.tbl
 .\" =====================================================================
 .H1 "Limitations and open items"
 .IP \(bu 0.2i
@@ -410,14 +453,17 @@ UHGG v3.0: per-genome shared sequence and core-anchored contamination (aif again
 against MUMmer, and sometimes over-calls AF. Positional anchors on the reference would allow colinearity checks.
 .IP \(bu 0.2i
 \f[B]AF definition.\f[R] aif's AF measures homology down to its \(ap84% detection floor. Matching an alignment
-convention (MUMmer, megablast) is a choice, made explicit by \f[CR]--af-min-ident\f[R].
+convention (MUMmer, megablast) is a choice, made explicit by \f[CR]--af-min-ident\f[R]. v1.7 removes most of the
+over-call on real contigs, but gut contigs still read 2 pp high, heterogeneous simulated contigs lose about 5 pp,
+and the \f[CR]--segments\f[R] maps still show the absorbed stretches as aligned.
 .IP \(bu 0.2i
 \f[B]Alignment is more accurate.\f[R] minimap2 on bacterial contigs and vclust on viral genomes are more
-accurate, at a much larger index or run time. aif's niche is accuracy per stored bit, uncertainty and
-segmentation at database scale.
+accurate, at a much larger index or run time (on gut contigs minimap2 halves aif's ANI and AF error but would take
+10 days for the catalogue against 2 h). aif's niche is accuracy per stored bit, uncertainty and segmentation at
+database scale.
 .IP \(bu 0.2i
-\f[B]Baselines.\f[R] Kraken2 was compared at one size (aif's); protein-based classifiers (MMseqs2, CAT) were not
-run. The bin comparison uses simulated bins whose host species are in the database, which favours aif; bins of
+\f[B]Baselines.\f[R] Kraken2 was compared at one size (aif's). CAT was run on gut contigs only (F1 0.41, about 100
+days for the catalogue); MMseqs2 was not run. The bin comparison uses simulated bins whose host species are in the database, which favours aif; bins of
 novel lineages remain to be tested against GUNC and CheckM2.
 .IP \(bu 0.2i
 \f[B]Biology.\f[R] The gut-catalogue screen has no truth set: its contamination calls rest on indirect checks
@@ -427,8 +473,9 @@ contaminations that carry no core gene.
 \f[B]Engineering.\f[R] The fast paths need AVX-512, and timings come from one host. There is no packaging yet.
 Search memory is roughly the database size (memory-mapped).
 .IP \(bu 0.2i
-\f[B]Calibration scope.\f[R] Intervals were calibrated on five bacterial species against MUMmer; coverage is
-92\(en93% on GTDB's diverse taxa.
+\f[B]Calibration scope.\f[R] Pairwise intervals were calibrated on five bacterial species against MUMmer, and
+database-search intervals (v1.7) on gut contigs against GTDB; coverage was 92\(en93% on GTDB's diverse taxa with
+the v1.6 table and was not re-measured there.
 .\" =====================================================================
 .H1 "Reports, code and reproducibility"
 .LP
@@ -447,9 +494,11 @@ size\(enaccuracy front, identity maps, held-out confirmation, Kraken2, CheckM2 a
 .IP \(bu 0.2i
 \f[CR]aif_viral_clustering_report.pdf\f[R]: vOTU clustering;
 .IP \(bu 0.2i
-\f[CR]aif_uhgg_contamination_report.pdf\f[R]: the UHGG v3.0 screen, shared sequence and contamination.
+\f[CR]aif_uhgg_contamination_report.pdf\f[R]: the UHGG v3.0 screen, shared sequence and contamination, the
+seven-tool benchmark on its contigs, and the v1.7 AF fix and intervals.
 .LP
-Software versions: aif v1.6 (git tag \f[CR]v1.6-freeze\f[R] for the database defaults), skani 0.4.0, sourmash
-4.8.14, minimap2 2.26, fastANI, vclust 1.3.1, MUMmer 4, BLAST+ 2.12, Kraken2 2.1.3, CheckM2 1.1.0, GUNC 1.1.1 (DIAMOND 2.2.8, through
+Software versions: aif v1.7 (v1.6 for results not marked v1.7; git tag \f[CR]v1.6-freeze\f[R] for the database
+defaults), skani 0.4.0, sourmash 4.8.14 (gut benchmark: 4.9.4 with branchwater 0.9.15), minimap2 2.26 (gut
+benchmark: 2.31), LexicMap 0.10.1, CAT_pack 7.0.0b0 with DIAMOND 2.2.9, fastANI, vclust 1.3.1, MUMmer 4, BLAST+ 2.12, Kraken2 2.1.3, CheckM2 1.1.0, GUNC 1.1.1 (DIAMOND 2.2.8, through
 GUNC's version-check override). Timings were measured on one Xeon Gold
 5416S host.

@@ -7,7 +7,7 @@
 \f[B]1.	Summary of results\f[]1
 .sp 0.25v
 \f[B]2.	Data and screen\f[]1
-\h'0.45i'2.1\h'|1.05i'The catalogue1
+\h'0.45i'2.1\h'|1.05i'The catalogue2
 \h'0.45i'2.2\h'|1.05i'The search2
 \h'0.45i'2.3\h'|1.05i'Host genus and foreign contigs2
 \h'0.45i'2.4\h'|1.05i'From the first rule to core anchoring3
@@ -32,13 +32,19 @@
 .sp 0.25v
 \f[B]6.	Shared sequence and resistance genes\f[]11
 .sp 0.25v
-\f[B]7.	Cost\f[]12
+\f[B]7.	Accuracy and cost against other tools\f[]12
+\h'0.45i'7.1\h'|1.05i'Cost of the screen12
+\h'0.45i'7.2\h'|1.05i'A benchmark on the screen's own contigs12
+\h'0.45i'7.3\h'|1.05i'Accuracy13
+\h'0.45i'7.4\h'|1.05i'Cost14
+\h'0.45i'7.5\h'|1.05i'AF over-call and the v1.7 fix15
+\h'0.45i'7.6\h'|1.05i'Intervals16
 .sp 0.25v
-\f[B]8.	Discussion\f[]12
-\h'0.45i'8.1\h'|1.05i'What the screen shows12
-\h'0.45i'8.2\h'|1.05i'Limitations12
+\f[B]8.	Discussion\f[]16
+\h'0.45i'8.1\h'|1.05i'What the screen shows16
+\h'0.45i'8.2\h'|1.05i'Limitations17
 .sp 0.25v
-\f[B]9.	Reproducibility\f[]13
+\f[B]9.	Reproducibility\f[]17
 .lc
 .ps \n(PS
 .vs \n(VSp

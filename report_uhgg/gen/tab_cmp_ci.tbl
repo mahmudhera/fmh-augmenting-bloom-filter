@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c s c s c s
+l c c c c c c
+l n n n n n n.
+Held-out set@ANI cover (%)@AF cover (%)@AF half-width (pp)
+@v1.6@v1.7@v1.6@v1.7@v1.6@v1.7
+_
+UHGG S3 top hits (db search)@91.7@95.1@86.8@94.2@\(em@\(em
+UHGG S1 top hits (db search)@91.5@95.0@85.8@92.3@\(em@\(em
+real genomes, 5 sets (query)@94.4@94.6@94.2@94.3@2.60@1.98
+real genomes, fresh drafts (query)@\(em@94.8@\(em@95.7@\(em@2.11
+simulated, main (query)@99.8@99.8@100.0@98.3@8.58@6.56
+.TE

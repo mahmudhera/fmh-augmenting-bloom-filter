@@ -1,10 +1,8 @@
 reference	gtdb_species	gtdb_family	ncbi_species	checkm2_completeness	checkm2_contamination	genomes	host_genera
-GCA_048288485.1	Enterobacter flexneri_A	Enterobacteriaceae	Shigella flexneri	44.1	2.53	3345	Escherichia:2013;ECMA0423:941;G047199115:385;G047199095:6
-GCA_047199055.1	ECMA0423 sp047199055	Enterobacteriaceae	Escherichia coli	42.86	1.09	2910	Escherichia:2687;Enterobacter:152;G047199115:70;G047199095:1
-GCA_047199095.1	G047199095 sp047199095	Enterobacteriaceae	Escherichia coli	44.68	0.11	2327	Escherichia:1091;ECMA0423:809;G047199115:408;Enterobacter:19
+GCA_048288485.1	Enterobacter flexneri_A	Enterobacteriaceae	Shigella flexneri	44.1	2.53	3074	Escherichia:1763;ECMA0423:928;G047199115:377;G047199095:6
+GCA_047199055.1	ECMA0423 sp047199055	Enterobacteriaceae	Escherichia coli	42.86	1.09	2745	Escherichia:2533;Enterobacter:151;G047199115:60;G047199095:1
+GCA_047199095.1	G047199095 sp047199095	Enterobacteriaceae	Escherichia coli	44.68	0.11	2234	Escherichia:1043;ECMA0423:766;G047199115:408;Enterobacter:17
 GCF_003697165.2	Escherichia coli	Enterobacteriaceae	Escherichia coli	100	1.26	1569	ECMA0423:997;G047199115:409;Enterobacter:155;G047199095:8
-GCF_036503815.1	Escherichia coli_F	Enterobacteriaceae	Escherichia coli	100	0.49	69	ECMA0423:65;Enterobacter:3;G047199115:1
-GCA_047199115.1	G047199115 sp047199115	Enterobacteriaceae	Escherichia coli	64.37	0.08	49	Escherichia:43;G047199095:3;Enterobacter:2;ECMA0423:1
+GCF_036503815.1	Escherichia coli_F	Enterobacteriaceae	Escherichia coli	100	0.49	67	ECMA0423:63;Enterobacter:3;G047199115:1
+GCA_047199115.1	G047199115 sp047199115	Enterobacteriaceae	Escherichia coli	64.37	0.08	14	Escherichia:10;G047199095:3;Enterobacter:1
 GCA_048288465.1	Enterobacter flexneri_B	Enterobacteriaceae	Shigella flexneri	40.71	0.04	14	ECMA0423:12;Escherichia:2
-GCA_042434945.1	Escherichia hormaechei_A	Enterobacteriaceae	Enterobacter hormaechei	99.98	0.17	4	G047199115:4
-GCA_041890495.1	Escherichia boydii	Enterobacteriaceae	Enterobacter hormaechei	99.7	1.13	3	G047199115:3

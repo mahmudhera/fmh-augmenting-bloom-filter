@@ -6,6 +6,6 @@ l n n n n n.
 MAGs with@n@source genus also binned from the sample (%)@ratio@z
 @@observed@expected@@
 _
-core-anchored contamination@18,098@43.7@32.2@1.36@44.1
-shared sequence only@90,821@38.9@30.4@1.28@76.0
+core-anchored contamination@17,931@43.8@32.2@1.36@43.9
+shared sequence only@90,335@39.0@30.5@1.28@76.2
 .TE
