@@ -48,7 +48,9 @@
 // stretches inside an alignment were absorbed by the lowest identity levels (expected hit rates near the filters'
 // false-positive rates), which over-stated AF by ~5 pp on real contigs (UHGG v3 against GTDB R232, bench_real/
 // uhgg_af.py); windows with their own evidence of alignment keep divergent blocks. ANI and hits are unchanged;
-// --af-local 0 reproduces v1.6 exactly.
+// --af-local 0 reproduces v1.6 point estimates exactly. Intervals: the conformal tables were refitted for the new
+// AF, and database search now has its own table (src/ci_table_db.inc, fitted on UHGG contigs against GTDB R232),
+// as intervals fitted on pairwise data under-covered there (bench_real/calibration.py).
 //
 // Build: g++ -O3 -march=native -std=c++17 -pthread -o aif aif.cpp -lz
 #include <algorithm>
@@ -1085,6 +1087,7 @@ struct Params {
                                // AF floor when below the median (real divergent blocks keep their AF)
   int af_own_radius = 1;       // ... and that of the windows within +-af_own_radius (windows straddling a block edge)
   std::string ci_table;        // file with a calibration table (default: built in, from the real tuning set)
+  bool ci_db = false;          // built-in table of database search (set by "aif db search")
   double grid_step = 0.005;  // ANI spacing of aligned levels
   double floor_frac = 2.0;   // flag below_floor if this much aligned mass is on the 2 lowest levels (>1 = off)
   int bin = 32;              // probes per HMM step (main pass)
@@ -1191,10 +1194,14 @@ void prof_report() {
 // level mask value inside templates on M (local identity prior): constant 1 when the prior is off
 #define MKV(p, j) (M ? (p)[j] : 1.0f)
 
-// Built-in calibration table for the confidence intervals: conformal multipliers [level 90/95/99%]
-// [stratum][ANI, AF], fitted on the real tuning set by bench_real/calibration.py (see there).
+// Built-in calibration tables for the confidence intervals: conformal multipliers [level 90/95/99%]
+// [stratum][ANI, AF] fitted by bench_real/calibration.py (see there): pairwise query on the real tuning set,
+// database search (v1.7) on the UHGG tuning set (contigs against GTDB R232), whose errors differ.
 static const double CI_DEFAULT[3][24][2] = {
 #include "ci_table.inc"
+};
+static const double CI_DEFAULT_DB[3][24][2] = {
+#include "ci_table_db.inc"
 };
 
 struct Estimator {
@@ -2184,8 +2191,9 @@ struct Estimator {
     }
     for (int lv = 0; lv < CI_NLEVELS; ++lv)
       for (int st = 0; st < CI_NSTRATA; ++st) {
-        ci_tab[((size_t)lv * CI_NSTRATA + st) * 2] = CI_DEFAULT[lv][st][0];
-        ci_tab[((size_t)lv * CI_NSTRATA + st) * 2 + 1] = CI_DEFAULT[lv][st][1];
+        const double* q = P.ci_db ? CI_DEFAULT_DB[lv][st] : CI_DEFAULT[lv][st];
+        ci_tab[((size_t)lv * CI_NSTRATA + st) * 2] = q[0];
+        ci_tab[((size_t)lv * CI_NSTRATA + st) * 2 + 1] = q[1];
       }
   }
   // z quantile of the two-sided level (Acklam's rational approximation of the normal quantile)
@@ -3718,6 +3726,7 @@ int cmd_db_search(int argc, char** argv) {
   Db D;
   D.load(argv[3]);
   Params P;
+  P.ci_db = true;  // intervals from the database-search calibration table (a --ci-table file overrides it)
   // hit order: 3 = the model's log-likelihood ratio (default: how well a reference explains the
   // contig's probe hits; robust to AF over-estimates on divergent hits), 0 = ani*af, 1 = ani, 2 = af
   int threads = 1, nout = 1, sort_by = 3;

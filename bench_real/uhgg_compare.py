@@ -75,6 +75,9 @@ SMR = os.path.join(C, "sourmash", "gtdb_r232.k21.s64.rocksdb")
 CATDB = os.path.join(C, "cat_gtdb", "db")
 NPART, SEED, POOL_PARTS, N_MAG, N_ISO = 128, 20261125, 8, 1000, 300
 THREADS = os.environ.get("THREADS", "48")
+# the stage-2 strata were drawn from the screen run with aif v1.6 (kept as screen_v16 once the screen was rerun
+# with v1.7), so the sample stays reproducible
+SCREEN_DESIGN = next(d for d in (os.path.join(U, "screen_v16"), os.path.join(U, "screen")) if os.path.isdir(d))
 CPUS = os.environ.get("CPUS", "")  # e.g. 0-47 for the timed runs; empty while builds share the node
 
 
@@ -529,7 +532,7 @@ def stage2_cells():
     K = k2_genus(os.path.join(pd_, "kraken2.tsv"))
     F = {}
     for p in sorted({part_of(g) for g in X}):
-        for r in csv.DictReader(open(os.path.join(U, "screen", f"part{p:03d}.flagged.tsv")), delimiter="\t"):
+        for r in csv.DictReader(open(os.path.join(SCREEN_DESIGN, f"part{p:03d}.flagged.tsv")), delimiter="\t"):
             if r["genome"] in X:
                 F[r["contig"]] = r
     cells = {}

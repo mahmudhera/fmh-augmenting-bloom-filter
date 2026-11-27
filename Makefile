@@ -9,7 +9,7 @@ CXXFLAGS ?= -O3 -march=native -mprefer-vector-width=512 -std=c++17 -pthread -fno
 all: tables pdf
 
 aif: bin/aif
-bin/aif: src/aif.cpp src/ci_table.inc
+bin/aif: src/aif.cpp src/ci_table.inc src/ci_table_db.inc
 	mkdir -p bin
 	$(CXX) $(CXXFLAGS) -Wall -Wextra -o $@ $< -lz
 
@@ -26,6 +26,6 @@ pdf:
 
 # per-stage cycle counters (stderr) for profiling
 prof: bin/aif_prof
-bin/aif_prof: src/aif.cpp src/ci_table.inc
+bin/aif_prof: src/aif.cpp src/ci_table.inc src/ci_table_db.inc
 	mkdir -p bin
 	$(CXX) $(CXXFLAGS) -DAIF_PROF -Wall -Wextra -o $@ $< -lz
