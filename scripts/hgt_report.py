@@ -213,6 +213,8 @@ def full_atlas(G, N, A0):
     F["habitats"] = {k: {h: e["habitat_pairs_cross_order"].get(h) for h in hp} for k, e in cols}
     if "isolate" in E:
         heatmap(E["isolate"]["habitat_pairs_cross_order"], "fig_full_habitats.eps")
+    if os.path.exists(os.path.join(RES, FULL, "magcheck.json")):
+        provenance(F, E, eco_row)
     # gene classes, full atlas against the complete-genome atlas
     c0 = {t["class"]: t for t in A0["classes"]}
     rows = []
@@ -227,6 +229,69 @@ def full_atlas(G, N, A0):
     F["annotation_classes"] = AF["classes"]
     F["annotation_top_kos"] = AF["top_kos"][:25]
     N["full"] = F
+
+
+def provenance(F, E, eco_row):
+    """Section 7.5: MAG source samples, co-sample exchange, controls, and the gene content of shared DNA"""
+    PR = json.load(open(os.path.join(RES, "provenance.json")))
+    MC = json.load(open(os.path.join(RES, FULL, "magcheck.json")))
+
+    def load(tag, k):
+        return json.load(open(os.path.join(RES, tag, f"ecology_{k}.json")))
+    ks = load(FULL, "mag_known_xsample")
+    # co-sample pairs against all other pairs (known-source MAGs), strata above the genus
+    def sig(x):
+        return f"{x:,.0f}" if x >= 100 else f"{x:.1f}" if x >= 1 else f"{x:.2f}"
+    cs = ks["cosample"]
+    rows = ["pairs sharing a source sample@" + "@".join(f"{cs[d]['pairs']:,}" for d in DIST[1:]),
+            "\\h'0.8m'exchanging@" + "@".join(f"{cs[d]['exchanging']:,}" for d in DIST[1:]),
+            "exchanging per million pairs:@" + "@" * 5,
+            "\\h'0.8m'pairs sharing a sample@" + "@".join(sig(1e6 * cs[d]["rate"]) for d in DIST[1:]),
+            "\\h'0.8m'all other pairs@" + "@".join(sig(1e6 * cs[d]["rate_other_pairs"]) for d in DIST[1:]),
+            "\\h'0.8m'ratio@" + "@".join(f"{cs[d]['rate'] / cs[d]['rate_other_pairs']:.0f}" for d in DIST[1:])]
+    tbl("tab_full_cosample.tbl", ["c c s s s s s", "c c c c c c c"], "l n n n n n n",
+        ["MAGs with a known source@lowest common taxon", "@family@order@class@phylum@domain@none"], rows)
+    # ecology under provenance and content controls
+    M = FULL + "_mobile"
+    sets = [("MAGs", E["mag"]), ("\\h'0.8m'known source", load(FULL, "mag_known")),
+            ("\\h'1.6m'other samples", ks), ("\\h'1.6m'other projects", load(FULL, "mag_known_xstudy")),
+            ("\\h'1.6m'other projects, samples", load(FULL, "mag_known_xstudy_xsample")),
+            ("mobile gene: isolates", load(M, "isolate")),
+            ("\\h'1.6m'other projects", load(M, "isolate_xstudy")),
+            ("mobile gene: MAGs", load(M, "mag")),
+            ("\\h'1.6m'all controls", load(M, "mag_known_xstudy_xsample"))]
+    tbl("tab_full_prov.tbl", ["c c c c s s s s s c", "c c c c c c c c c c"], "l n n n n n n n n c",
+        ["subset@genomes@exchanging@same / different habitat, by lowest common taxon@MH odds ratio",
+         "@@pairs@genus@family@order@class@phylum@domain@between genera"], [eco_row(l, e) for l, e in sets])
+    # gene content of the shared regions by kind of pair (between genera)
+    sh, bg, ps = MC["shared"]["between genera"], MC["background"], MC["pairs"]
+    kinds = [("background, isolates", bg["isolate"], None), ("background, MAGs", bg["MAG"], None),
+             ("isolates", sh["isolates"], ps["isolates"]),
+             ("MAGs, other study, other habitat", sh["MAG, other study, different habitat"],
+              ps["MAG, other study, different habitat"]),
+             ("MAGs, other study, habitat unknown", sh["MAG, other study, habitat unknown"],
+              ps["MAG, other study, habitat unknown"]),
+             ("MAGs, other study, same habitat", sh["MAG, other study, same habitat"],
+              ps["MAG, other study, same habitat"]),
+             ("MAGs, same study", sh["MAG, same study"], ps["MAG, same study"])]
+    rows = []
+    for lab, v, p in kinds:
+        r = [lab, f"{v['genes']:,}", pct(v["mobile"]), pct(v["ribosome"], 2), pct(v["resistance"])]
+        r += ([f"{p['pairs']:,}", pct(p["with_mobile"] / p["pairs"]), pct(p["with_ribosome"] / p["pairs"])] if p
+              else ["\\(em"] * 3)
+        rows.append("@".join(r))
+    tbl("tab_full_content.tbl", ["c c c s s c c s", "c c c c c c c c"], "l n n n n n n n",
+        ["genome pair@genes@share of genes (%)@pairs@share of pairs (%)",
+         "@@mobile@ribosomal@resistance@@mobile gene@ribosomal gene"], rows)
+    F["provenance"] = {"sources": PR, "cosample": cs, "mag_pairs_provenance": MC["mag_pairs_provenance"],
+                       "content": {"background": bg, "between_genera": sh,
+                                   "same_habitat_between_families": MC["same_habitat_between_families"],
+                                   "pairs": ps},
+                       "ecology": {lab.replace("\\h'0.8m'", "").replace("\\h'1.6m'", "  "):
+                                   {"genomes": e["genomes"], "exchanging_pairs": e["exchanging_pairs"],
+                                    "mh": e["mh_odds_cross_genus"], "mh_ci": e["mh_ci"]["cross_genus"],
+                                    "ratios": {d: e["strata"][d].get("ratio") for d in DIST}}
+                                   for lab, e in sets}}
 
 
 def heatmap(M, name):

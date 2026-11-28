@@ -11,7 +11,7 @@ Seven detailed reports:
 3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening; comparisons with Kraken2, CheckM2 and GUNC; a v1.7 addendum (AF near the local identity, refitted intervals).
 4. **Viral clustering**: [`aif_viral_clustering_report.pdf`](aif_viral_clustering_report.pdf) (8 pages). vOTU clustering (95% ANI over 85% AF) of 2 x 10,000 phage genomes/contigs (INPHARED, Gut Phage Database) against BLAST/CheckV truth, vs skani and vclust.
 5. **Human gut catalogue**: [`aif_uhgg_contamination_report.pdf`](aif_uhgg_contamination_report.pdf). All 286,621 UHGG v3.0 genomes (276,463 MAGs, 10,158 isolates) screened contig by contig against GTDB R232: cross-genus shared sequence (mostly transferred DNA) and core-anchored contamination, checked against isolates, CheckM2, Kraken2 and recurrence in other strains. Also: a seven-tool benchmark on the screen's contigs against MUMmer (minimap2, LexicMap, sourmash, skani, Kraken2, CAT), with each tool's cost projected to the whole catalogue, and the v1.7 AF fix and interval tables that it led to.
-6. **Recent-HGT atlas** (biological application): [`aif_hgt_atlas_report.pdf`](aif_hgt_atlas_report.pdf) (16 pages). DNA shared at >= 99% identity over >= 1 kb between species, the criterion of Smillie et al. (2011, 2,235 genomes), across all 199,923 GTDB R232 representatives: validation against BLAST and MUMmer on the 10,296 complete genomes, a contamination control calibrated on complete genomes, what moves, and habitat versus phylogeny in isolates and MAGs.
+6. **Recent-HGT atlas** (biological application): [`aif_hgt_atlas_report.pdf`](aif_hgt_atlas_report.pdf) (17 pages). DNA shared at >= 99% identity over >= 1 kb between species, the criterion of Smillie et al. (2011, 2,235 genomes), across all 199,923 GTDB R232 representatives: validation against BLAST and MUMmer on the 10,296 complete genomes, a contamination control calibrated on complete genomes, what moves, habitat versus phylogeny in isolates and MAGs, and what MAGs share (sample provenance and gene content).
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -240,10 +240,17 @@ genome pair when it has a run of called windows of >= 1 kb.
   genes (3.8), integrases and transposases (3.6), antimicrobial resistance (1.9), and few ribosomal genes (0.36).
 - **Ecology.** At a fixed taxonomic distance, isolates from the same habitat share DNA more often (Mantel-Haenszel
   odds ratio 4.8, 95% CI 4.1-5.6, 14,881 isolates; 4.6 without same-BioProject pairs). Between orders, gut genomes
-  share 28x the expected exchange, soil 0.16x. In MAGs, the same-habitat excess grows with taxonomic distance (43x
-  between phyla, 80x between domains; 31x and 46x without same-BioProject pairs), and the soil, sediment and
-  extreme-habitat excesses between orders (12-19x) fall 3-4 fold without same-project pairs: genomes binned from the
-  same samples share contigs, so transfer studies from MAGs need sample provenance.
+  share 28x the expected exchange, soil 0.16x. Restricted to pairs whose shared DNA carries a mobile-element gene,
+  the odds ratio is 3.5 (3.0-4.3). In MAGs, the same-habitat excess grows with taxonomic distance (43x between phyla,
+  80x between domains).
+- **What MAGs share.** 59,700 of 71,605 habitat-labelled MAGs (83%) were traced to their source samples through their
+  BioSample records (`hgt_provenance.py`). MAG pairs from one sample exchange at rates that barely fall with distance
+  (7x other pairs within families, 382x between domains), but they are nearly all from one project as well: leaving
+  them out on top of same-project pairs leaves the odds ratio at 4.2. The rest is in the content (`hgt_magcheck.py`):
+  isolate pairs and MAG pairs from other studies and different habitats carry 7% mobile-element and 0.6-0.7%
+  ribosomal genes, while MAG pairs from one study or from other studies of the same habitat carry 3% and 1.8-2.1%
+  (background 4.0%), as fragments of co-occurring organisms would. With all controls and the mobile-gene filter, MAGs
+  give an odds ratio of 2.7 (2.1-3.6), still rising with distance: MAG-based transfer ecology is an upper bound.
 
 The main atlas (`results_hgt/all_flankcontig_reciprocal/`: pairs, blocks, ecology, annotation) is committed; the
 intermediate one-direction, reciprocal-only and sensitivity block/pair tables (180 MB) are not (`hgt_analyze.py`
@@ -350,7 +357,8 @@ bench_real/                    real genomes: select_datasets.py, select_tune.py,
                                viral clustering: viral_download.sh, viral_bench.py;
                                gut catalogue: uhgg_download.sh, uhgg_screen.py, uhgg_run.sh, uhgg_summary.py;
                                HGT atlas: hgt_atlas.py (windows, search), hgt_analyze.py (pairs, blocks, controls),
-                               hgt_flanks.py (flank placement), hgt_ecology.py, hgt_annotate.py, hgt_validate.py
+                               hgt_flanks.py (flank placement), hgt_ecology.py, hgt_annotate.py, hgt_validate.py,
+                               hgt_provenance.py (MAG source samples), hgt_magcheck.py (content of shared DNA)
 results/, results_real/,       committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
 results_viral/, results_uhgg/  (the full UHGG flagged-contig lists, 54-57 MB, are not committed; `uhgg_summary.py stats` rewrites them)
 results_hgt/                   atlas pairs, blocks, summaries, ecology, annotation, validation (intermediate full-run tables not committed)
@@ -419,7 +427,11 @@ HGT_NCAND=128 HGT_DELETE=1 $P bench_real/hgt_atlas.py search all && $P bench_rea
 $P bench_real/hgt_flanks.py extract all all && $P bench_real/hgt_flanks.py search all && $P bench_real/hgt_flanks.py calibrate all all
 HGT_FLANKS=1 HGT_FLANK_MODE=contig HGT_RECIPROCAL=1 $P bench_real/hgt_analyze.py all   # main atlas; FLANK_MODE=uniform: sensitivity
 for s in isolate mag; do $P bench_real/hgt_ecology.py $T all $s; HGT_ECO_XSTUDY=1 $P bench_real/hgt_ecology.py $T all $s; done
-$P bench_real/hgt_annotate.py $T && $P scripts/hgt_report.py && report_hgt/build.sh
+$P bench_real/hgt_annotate.py $T
+for s in fetch parse resolve resolve_samples sources; do $P bench_real/hgt_provenance.py $s; done   # NCBI E-utilities
+HGT_ECO_KNOWN=1 HGT_ECO_XSTUDY=1 HGT_ECO_XSAMPLE=1 $P bench_real/hgt_ecology.py $T all mag   # and: subsets
+$P bench_real/hgt_magcheck.py $T && $P bench_real/hgt_ecology.py ${T}_mobile all isolate      # and: mag
+$P scripts/hgt_report.py && report_hgt/build.sh
 ```
 
 The scripts expect skani at the path in `bench/run_skani.sh` (override with `SKANI=...`), plus numpy and matplotlib for the Python parts.

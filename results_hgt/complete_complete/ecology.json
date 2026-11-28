@@ -1117,5 +1117,7 @@
    "ratio": 0.7442288525676787
   }
  },
- "xstudy": false
+ "xstudy": false,
+ "xsample": false,
+ "known_source_only": false
 }

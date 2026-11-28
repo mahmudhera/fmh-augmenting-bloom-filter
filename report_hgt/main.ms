@@ -63,9 +63,12 @@ metagenome-assembled, so a shared block counts only if its contig extends beyond
 23% of all representatives share \(>= 1 kb at \(>= 99% with another genus and 7.5% with another phylum; reduced-genome
 symbionts (Patescibacteriota, Nanobdellota) share least. Among 14,881 habitat-labelled isolates the habitat effect is
 stronger than among complete genomes (odds ratio 4.8, 95% CI 4.1\(en5.6), with the same human-associated cluster (gut
-genomes 28 times the expected exchange between orders). Among metagenome-assembled genomes the same-habitat excess grows
-with taxonomic distance and falls when pairs from the same sequencing project are left out, the signature of genomes
-assembled from the same samples: studies of transfer from MAGs need to know which sample each genome came from.
+genomes 28 times the expected exchange between orders), and it survives a filter on the content of the shared DNA.
+Among metagenome-assembled genomes the same-habitat excess grows with taxonomic distance. Tracing 59,700 MAGs to
+their source samples shows why: MAGs from one sample share DNA at rates that barely fall with distance, and MAGs from
+other studies of the same habitat share DNA with three times the housekeeping genes of isolate transfers, as
+fragments of co-occurring organisms would. MAG pairs from different habitats look like transfer. Transfer ecology
+from MAGs needs a check of what is shared, not only of where the genomes came from.
 .ps \n(PS
 .vs \n(VSp
 .in 0
@@ -533,13 +536,9 @@ lowest common taxon, and the Mantel\(enHaenszel odds ratio over the strata above
 .ps \n(PS
 .vs \n(VSp
 .LP
-A same-habitat excess that is largest where transfer is rarest is what genomes assembled from the same samples
-would produce. They share contigs through cross-binning and contamination, and the reciprocal and flank tests cannot
-see a contig that both genomes received from the same assembly. Different projects often reassemble the same public
-metagenomes. Genuine sharing of mobile elements within a
-community would leave a similar pattern, and the sequences alone cannot separate the two. Studies of transfer from
-MAGs therefore need to know which sample each genome came from, which NCBI's records do not reliably give.
-Section 6 rests on isolates, and the larger isolate set confirms it. Isolates and MAGs are not pooled: gut genomes are 93% MAGs, whose lower sharing rates (Table 9) would pass for a habitat effect.
+A same-habitat excess that is largest where transfer is rarest is not what transfer produces; Section 7.5 traces it
+to its sources. Section 6 rests on isolates, and the larger isolate set confirms it. Isolates and MAGs are not
+pooled: gut genomes are 93% MAGs, whose lower sharing rates (Table 9) would pass for a habitat effect.
 .br
 .ne 2.6i
 .TC 14
@@ -558,6 +557,83 @@ Exchange between different orders for each pair of habitats among the 14,881 hab
 atlas: observed exchanging pairs (numbers) over the number expected from the pairs' taxonomic distances (colour,
 log scale). Blank: fewer than 2 expected.
 .FE
+.H2 "What MAGs share"
+.LP
+Two artifacts could make MAGs of one habitat share DNA. MAGs binned from the same sample can share a contig
+(cross-binning, contamination), and different projects reassemble the same public metagenomes, which BioProjects do
+not reveal. And a MAG contig can carry a fragment of another organism of its community, joined to it by chimeric
+assembly or binned with it, while that organism's representative comes from another study of the same habitat. The
+first needs a shared sample; the second only a shared habitat.
+.LP
+\f[B]Sample provenance.\f[R] Every MAG has its own BioSample, whose record names the source as the metagenome's
+BioSamples or as SRA runs (\f[CR]hgt_provenance.py\f[R]; SRA accessions are resolved through SRA run tables). Of the
+161,525 MAG and single-cell representatives, 147,569 records name a source, and 59,700 of the 71,605 habitat-labelled
+MAGs (83%) resolve to one or more of 27,503 source samples (9,173 MAGs to ten or more: co-assemblies). The 2.2
+million pairs of these MAGs with a common source sample exchange far more than other pairs, and their rate barely
+falls with distance: 43-fold from the family to between domains, against 2,500-fold for other pairs, so their excess
+grows from 7 to 382 times (Table 15). Almost all of them are also from one project, however. Across the atlas, 0.1 to
+1.2% of exchanging MAG pairs share a sample but not a project, against 19 to 57% that share a project. Leaving out
+co-sample pairs on top of same-project pairs changes nothing (odds ratio 4.2 either way, Table 16), and the rise with
+distance remains (8 times within phyla, 30 times between phyla).
+.br
+.ne 1.9i
+.TC 15
+Exchange of MAG pairs with a common source sample, against all other pairs of the same lowest common taxon, among
+the 59,700 habitat-labelled MAGs with a known source.
+.TCE
+.ps 8.5
+.vs 10.5p
+.so gen/tab_full_cosample.tbl
+.ps \n(PS
+.vs \n(VSp
+.LP
+\f[B]Gene content.\f[R] Transferred DNA is rich in mobile-element genes and poor in housekeeping genes; a fragment
+of another genome carries that genome's genes at random. Table 17 sorts the genes of the shared regions (Section
+7.3) by the kind of pair that shares them (\f[CR]hgt_magcheck.py\f[R]). Isolate pairs, and MAG pairs from other
+studies and different habitats, carry the same signature of transfer: 7% mobile-element genes and 0.6\(en0.7%
+ribosomal or translation genes, against 3.5\(en4.0% in background windows. MAG pairs from one study, and MAG pairs
+from other studies of the same habitat, carry half the mobile-element genes and about three times the ribosomal
+genes. With isolate transfers and background windows as the two references, the ribosomal genes say that 36\(en45%
+of their shared genes come from random fragments of genomes. The excess holds in each habitat: between families, gut MAG pairs
+carry 1.75% ribosomal genes against 0.61% for gut isolate pairs, marine MAG pairs 2.6% against 0.4%. The second
+artifact fits: organisms of different habitats cannot meet in one assembly, and their shared DNA looks like transfer.
+Genuine exchange within a community also needs co-occurrence, but it would carry mobile-element genes.
+.br
+.ne 2.4i
+.TC 16
+Exchange by habitat among MAGs under provenance and content controls, as in Table 13. \(lqKnown source\(rq:
+MAGs whose source samples are known; \(lqother samples\(rq and \(lqother projects\(rq leave out pairs with a common
+source sample or BioProject. Mobile gene: only exchanging pairs whose shared regions carry a mobile-element
+gene (no same-genus pairs: their regions were not annotated); \(lqall controls\(rq: known source, other projects and
+samples.
+.TCE
+.ps 7
+.vs 9p
+.so gen/tab_full_prov.tbl
+.ps \n(PS
+.vs \n(VSp
+.LP
+\f[B]A content filter.\f[R] Keeping only the pairs whose shared DNA carries a mobile-element gene keeps 59% of
+isolate pairs and 22\(en28% of the MAG pairs rich in fragments (Table 17). Among isolates the habitat effect
+survives (odds ratio 3.5, 3.0\(en4.3; between orders gut 21 times the expected exchange, soil 0.18). Among MAGs with
+all controls it is 2.7 (2.1\(en3.6) on 1,918 pairs, but it still grows with distance (22 times between phyla), because
+the filter enriches transfer without removing fragments. MAG-based measures of transfer ecology are therefore upper
+bounds until the junctions of shared blocks are checked in the source reads. Observed-over-expected ratios of MAGs
+and isolates (Table 14) also cannot be compared directly: gut genomes are 35% of the MAGs and 11% of the isolates, so
+gut pairs set much of the MAGs' expected rates and their ratio has little room to rise.
+.br
+.ne 2.2i
+.TC 17
+Gene content of the shared regions between genera by kind of genome pair, against background windows of the same
+genomes. \(lqMAGs\(rq: pairs with at least one MAG; study: BioProject or source sample. Mobile: transposases,
+integrases and recombinases, conjugation, phage. Resistance: antimicrobial and metal. Pairs: unordered pairs with
+annotated shared genes.
+.TCE
+.ps 8.5
+.vs 10.5p
+.so gen/tab_full_content.tbl
+.ps \n(PS
+.vs \n(VSp
 .H1 "Reproduction"
 .LP
 .EQ
@@ -585,6 +661,10 @@ HGT_FLANKS=1 HGT_FLANK_MODE=uniform HGT_RECIPROCAL=1 $P bench_real/hgt_analyze.p
 $P bench_real/hgt_ecology.py $T all isolate          # and: mag
 HGT_ECO_XSTUDY=1 $P bench_real/hgt_ecology.py $T all isolate   # and: mag
 $P bench_real/hgt_annotate.py $T
+$P bench_real/hgt_provenance.py fetch    # then: parse, resolve, resolve_samples, sources
+HGT_ECO_KNOWN=1 HGT_ECO_XSTUDY=1 HGT_ECO_XSAMPLE=1 $P bench_real/hgt_ecology.py $T all mag
+$P bench_real/hgt_magcheck.py $T
+$P bench_real/hgt_ecology.py ${T}_mobile all isolate   # and: mag
 /usr/bin/python3 -I scripts/hgt_report.py; report_hgt/build.sh
 .ps \n(PS
 .vs \n(VSp

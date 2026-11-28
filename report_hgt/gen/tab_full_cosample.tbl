@@ -1,0 +1,15 @@
+.TS
+center box tab(@);
+c c s s s s s
+c c c c c c c
+l n n n n n n.
+MAGs with a known source@lowest common taxon
+@family@order@class@phylum@domain@none
+_
+pairs sharing a source sample@78,429@78,058@254,007@147,852@1,351,374@182,936
+\h'0.8m'exchanging@260@77@109@55@178@14
+exchanging per million pairs:@@@@@@
+\h'0.8m'pairs sharing a sample@3,315@986@429@372@132@76.5
+\h'0.8m'all other pairs@510@91.3@19.2@6.5@1.2@0.20
+\h'0.8m'ratio@7@11@22@58@107@382
+.TE

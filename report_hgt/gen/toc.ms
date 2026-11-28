@@ -26,10 +26,11 @@
 \h'0.45i'7.2\h'|1.05i'Extent10
 \h'0.45i'7.3\h'|1.05i'What moves11
 \h'0.45i'7.4\h'|1.05i'Ecology: isolates and MAGs12
+\h'0.45i'7.5\h'|1.05i'What MAGs share13
 .sp 0.25v
-\f[B]8.	Reproduction\f[]13
+\f[B]8.	Reproduction\f[]15
 .sp 0.25v
-\f[B]	References\f[]14
+\f[B]	References\f[]15
 .lc
 .ps \n(PS
 .vs \n(VSp

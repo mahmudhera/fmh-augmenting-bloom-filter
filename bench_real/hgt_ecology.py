@@ -12,6 +12,11 @@ HGT_ECO_XSTUDY=1 leaves out pairs of genomes from the same NCBI BioProject (nume
 genomes assembled from the same samples cannot share contigs by cross-binning or contamination. RefSeq assemblies all
 carry the umbrella project PRJNA224116 and count as their own project (data/hgt/bioproject.tsv, from GTDB metadata).
 
+HGT_ECO_XSAMPLE=1 also leaves out pairs of MAGs whose source samples overlap (data/hgt/provenance/sources.tsv, from
+hgt_provenance.py): different projects reassemble the same public metagenomes, which BioProjects do not reveal.
+HGT_ECO_KNOWN=1 restricts the universe to MAGs with a known source sample. With XSAMPLE, results also report the
+exchange rate of co-sample pairs against all other pairs in each stratum ("cosample").
+
 Usage: /usr/bin/python3 -I bench_real/hgt_ecology.py TAG SET [PARTNERS]   e.g. complete_complete complete complete
        PARTNERS: complete | all | isolate | mag
 """
@@ -22,6 +27,8 @@ import json
 import os
 import random
 import sys
+
+import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HD = os.path.join(ROOT, "data", "hgt")
@@ -60,7 +67,15 @@ def main():
         if partners == "mag":
             return g["category"] != "isolate"
         return True
-    U = sorted(a for a in members if ok(G[a]) and G[a]["habitat"] in HABS)
+    xsample = os.environ.get("HGT_ECO_XSAMPLE") == "1"
+    known = os.environ.get("HGT_ECO_KNOWN") == "1"
+    SRC = {}
+    if xsample or known:
+        for l in open(os.path.join(HD, "provenance", "sources.tsv")):
+            a, s = l.rstrip("\n").split("\t")
+            SRC[a] = s.split(",")
+    U = sorted(a for a in members if ok(G[a]) and G[a]["habitat"] in HABS and (not known or a in SRC))
+    n = len(U)
     idx = {a: i for i, a in enumerate(U)}
     tax = [[x[3:] for x in G[a]["taxonomy"].split(";")] for a in U]
     hab = [G[a]["habitat"] for a in U]
@@ -70,12 +85,61 @@ def main():
         grp = [bpm[a] if bpm.get(a) not in (None, "", "none", "PRJNA224116") else "_" + a for a in U]
     else:
         grp = ["_" + a for a in U]
-    ex = set()
+    # integer codes: taxon prefix per rank (0 domain .. 5 genus), habitat, group
+    T = np.zeros((6, n), dtype=np.int64)
+    for r in range(6):
+        ids = {}
+        T[r] = [ids.setdefault(tuple(t[:r + 1]), len(ids)) for t in tax]
+    H = np.array([HABS.index(h) for h in hab], dtype=np.int64)
+    gid = {}
+    GID = np.array([gid.setdefault(g, len(gid)) for g in grp], dtype=np.int64)
+
+    def lca_v(I, J):
+        d = np.full(len(I), 6, dtype=np.int64)
+        for r in range(6):
+            d[T[r][I] == T[r][J]] = 5 - r
+        return d
+    # co-sample pairs (unordered, packed i * n + j with i < j)
+    cos = np.zeros(0, dtype=np.int64)
+    if xsample:
+        by = collections.defaultdict(set)
+        for a in U:
+            for s in SRC.get(a, ()):
+                by[s].add(idx[a])
+        chunks = []
+        for L in by.values():
+            if len(L) > 1:
+                L = np.array(sorted(L), dtype=np.int64)
+                ii, jj = np.triu_indices(len(L), 1)
+                chunks.append(L[ii] * n + L[jj])
+        if chunks:
+            cos = np.unique(np.concatenate(chunks))
+    CI_, CJ_ = cos // max(n, 1), cos % max(n, 1)
+    cos_d, cos_same = lca_v(CI_, CJ_), H[CI_] == H[CJ_]
+    # extra exclusions: co-sample pairs not already within one group
+    keep = GID[CI_] != GID[CJ_]
+    XI, XJ, Xd, Xs = CI_[keep], CJ_[keep], cos_d[keep], cos_same[keep]
+    xcode = Xd * 2 + Xs
+    xkey = np.unique(cos[keep])
+    ex_all = set()
     for r in csv.DictReader(gzip.open(os.path.join(ROOT, "results_hgt", tag, "pairs.tsv.gz"), "rt"), delimiter="\t"):
         if r["query"] in idx and r["partner"] in idx:
             i, j = idx[r["query"]], idx[r["partner"]]
-            if grp[i] != grp[j]:
-                ex.add((min(i, j), max(i, j)))
+            ex_all.add((min(i, j), max(i, j)))
+    ex_arr = np.array(sorted(ex_all), dtype=np.int64).reshape(-1, 2)
+    ex_key = ex_arr[:, 0] * n + ex_arr[:, 1]
+    ex_ok = GID[ex_arr[:, 0]] != GID[ex_arr[:, 1]]
+    ex_ok &= ~np.isin(ex_key, xkey)
+    ex = {(int(i), int(j)) for i, j in ex_arr[ex_ok]}
+    cosample = None
+    if xsample:
+        cex = np.isin(cos, ex_key)
+        cosample = {}
+        for d in range(7):
+            m = cos_d == d
+            cosample[DIST[d]] = {"pairs": int(m.sum()), "exchanging": int((cex & m).sum()),
+                                 "pairs_same_habitat": int((m & cos_same).sum()),
+                                 "exchanging_same_habitat": int((cex & m & cos_same).sum())}
 
     def lca(i, j):
         for d, r in enumerate(range(5, -1, -1)):
@@ -116,6 +180,12 @@ def main():
                 a_, s_ = share[r][0] - share[r + 1][0], share[r][1] - share[r + 1][1]
             den[(d, True)] = s_
             den[(d, False)] = a_ - s_
+        if len(XI):
+            wa = np.asarray(w, dtype=float)
+            sub = np.bincount(xcode, weights=wa[XI] * wa[XJ], minlength=14)
+            for d in range(7):
+                den[(d, True)] -= sub[2 * d + 1]
+                den[(d, False)] -= sub[2 * d]
         num = collections.Counter()
         for i, j, d, same, _, _ in exl:
             num[(d, same)] += w[i] * w[j]
@@ -136,6 +206,21 @@ def main():
     w1 = [1] * len(U)
     den, num = tables(w1)
     res = {"genomes": len(U), "habitats": dict(collections.Counter(hab)), "exchanging_pairs": len(ex), "strata": {}}
+    if xsample:
+        res["cosample_pairs"] = int(len(cos))
+        res["cosample_pairs_excluded_beyond_project"] = int(len(XI))
+        res["genomes_with_source"] = sum(1 for a in U if a in SRC)
+        # exchange rate of co-sample pairs against the pairs analysed (not co-sample, and not same-project if XSTUDY)
+        for d in range(7):
+            c = cosample[DIST[d]]
+            allp = den[(d, True)] + den[(d, False)]
+            alle = num[(d, True)] + num[(d, False)]
+            c["rate"] = c["exchanging"] / c["pairs"] if c["pairs"] else None
+            c["rate_same_habitat"] = (c["exchanging_same_habitat"] / c["pairs_same_habitat"]
+                                      if c["pairs_same_habitat"] else None)
+            c["rate_other_pairs"] = alle / allp if allp else None
+            c["rate_other_same_habitat"] = num[(d, True)] / den[(d, True)] if den[(d, True)] else None
+        res["cosample"] = cosample
     for d in range(7):
         s_, df_ = den[(d, True)], den[(d, False)]
         res["strata"][DIST[d]] = {"same_pairs": s_, "same_exchanging": num[(d, True)], "diff_pairs": df_,
@@ -191,6 +276,10 @@ def main():
                 tot -= n * (n - 1) / 2 if h1 == h2 else n * m
         return tot
 
+    xh = collections.Counter()
+    for a_, b_, d_ in zip(H[XI].tolist(), H[XJ].tolist(), Xd.tolist()):
+        xh[(min(a_, b_), max(a_, b_), d_)] += 1
+
     def habitat_matrix(dmin):
         """observed exchanging pairs of each habitat pair over those expected from the stratum rates (strata >= dmin)"""
         strata = list(range(dmin, 7))
@@ -205,9 +294,11 @@ def main():
                 allp = pairs_between(h1, h2, -1)
                 sh = {r: pairs_between(h1, h2, r) for r in range(6)}
                 e = 0.0
+                k1, k2 = sorted((HABS.index(h1), HABS.index(h2)))
                 for d in strata:
                     r = 5 - d
                     n_ = allp - sh[0] if d == 6 else sh[r] - sh[r + 1]
+                    n_ -= xh.get((k1, k2, d), 0)
                     e += n_ * rate[d]
                 o = obs[tuple(sorted((h1, h2)))]
                 mat[f"{h1}|{h2}"] = {"observed": o, "expected": e, "ratio": o / e if e else None}
@@ -215,8 +306,9 @@ def main():
     res["habitat_pairs_cross_genus"] = habitat_matrix(1)
     res["habitat_pairs_cross_family"] = habitat_matrix(2)
     res["habitat_pairs_cross_order"] = habitat_matrix(3)
-    name = "ecology" + ("" if partners in ("complete", "all") else "_" + partners) + ("_xstudy" if xstudy else "")
-    res["xstudy"] = xstudy
+    name = ("ecology" + ("" if partners in ("complete", "all") else "_" + partners) + ("_known" if known else "")
+            + ("_xstudy" if xstudy else "") + ("_xsample" if xsample else ""))
+    res["xstudy"], res["xsample"], res["known_source_only"] = xstudy, xsample, known
     out = os.path.join(ROOT, "results_hgt", tag, name + ".json")
     json.dump(res, open(out, "w"), indent=1)
     print(json.dumps({k: v for k, v in res.items() if not k.startswith("habitat_pairs")}, indent=1))

@@ -1,0 +1,68 @@
+{
+ "genomes": 161525,
+ "habitat_labelled": 71605,
+ "stats": {
+  "hab|record": 71605,
+  "hab|with_source": 59700,
+  "hab|with_unresolved_key": 1859,
+  "nohab|record": 89920,
+  "nohab|with_source": 87834,
+  "nohab|with_unresolved_key": 113
+ },
+ "sources_per_genome(10=10+)": {
+  "1": 108103,
+  "2": 19007,
+  "3": 2947,
+  "4": 1768,
+  "5": 1495,
+  "6": 1725,
+  "7": 911,
+  "8": 1560,
+  "9": 845,
+  "10": 9173
+ },
+ "source_samples": 27503,
+ "genomes_per_source_top": [
+  [
+   "SAMN29484383",
+   872
+  ],
+  [
+   "SAMN29484388",
+   795
+  ],
+  [
+   "SAMN29484387",
+   781
+  ],
+  [
+   "SAMN35570727",
+   780
+  ],
+  [
+   "SAMN35570726",
+   779
+  ],
+  [
+   "SAMN29484384",
+   775
+  ],
+  [
+   "SAMN29484385",
+   771
+  ],
+  [
+   "SAMN35570723",
+   766
+  ],
+  [
+   "SAMN35570729",
+   765
+  ],
+  [
+   "SAMN35570724",
+   762
+  ]
+ ],
+ "sources_with_2plus_genomes": 17278
+}

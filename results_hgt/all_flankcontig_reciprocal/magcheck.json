@@ -1,0 +1,966 @@
+{
+ "background": {
+  "isolate": {
+   "genes": 721447,
+   "mobile": 0.01987117556799044,
+   "ribosome": 0.034857723436371627,
+   "resistance": 0.014203399556724195,
+   "no_ko": 0.42991515662273183,
+   "classes": {
+    "transposase": 6125,
+    "integrase/recombinase": 1928,
+    "antimicrobial resistance": 6761,
+    "conjugation / T4SS": 4830,
+    "phage": 1453,
+    "defense (RM, CRISPR, TA)": 7780,
+    "metal resistance": 3486,
+    "toxins": 600,
+    "transporters": 62336,
+    "ribosome / translation": 25148,
+    "DNA replication / repair": 20156,
+    "other KEGG ortholog": 270683,
+    "no KEGG ortholog": 310161
+   }
+  },
+  "MAG": {
+   "genes": 815609,
+   "mobile": 0.012746303682279131,
+   "ribosome": 0.040367381919522716,
+   "resistance": 0.009278955970324016,
+   "no_ko": 0.4587590377251845,
+   "classes": {
+    "transposase": 5610,
+    "integrase/recombinase": 1706,
+    "antimicrobial resistance": 4839,
+    "conjugation / T4SS": 1813,
+    "phage": 1267,
+    "defense (RM, CRISPR, TA)": 7727,
+    "metal resistance": 2729,
+    "toxins": 607,
+    "transporters": 56195,
+    "ribosome / translation": 32924,
+    "DNA replication / repair": 22659,
+    "other KEGG ortholog": 303365,
+    "no KEGG ortholog": 374168
+   }
+  }
+ },
+ "shared": {
+  "between genera": {
+   "MAG, other study, different habitat": {
+    "genes": 100167,
+    "mobile": 0.0697435283077261,
+    "ribosome": 0.007148062735232163,
+    "resistance": 0.06945401180029351,
+    "no_ko": 0.550530613874829,
+    "classes": {
+     "transposase": 2356,
+     "integrase/recombinase": 1188,
+     "antimicrobial resistance": 2509,
+     "conjugation / T4SS": 3078,
+     "phage": 364,
+     "defense (RM, CRISPR, TA)": 1450,
+     "metal resistance": 4448,
+     "toxins": 16,
+     "transporters": 4519,
+     "ribosome / translation": 716,
+     "DNA replication / repair": 1990,
+     "other KEGG ortholog": 22388,
+     "no KEGG ortholog": 55145
+    }
+   },
+   "MAG, other study, habitat unknown": {
+    "genes": 638517,
+    "mobile": 0.060245850932708137,
+    "ribosome": 0.012817199855289679,
+    "resistance": 0.04681786076173383,
+    "no_ko": 0.5622027291364208,
+    "classes": {
+     "transposase": 19082,
+     "integrase/recombinase": 5954,
+     "antimicrobial resistance": 11495,
+     "conjugation / T4SS": 11795,
+     "phage": 1637,
+     "defense (RM, CRISPR, TA)": 9307,
+     "metal resistance": 18399,
+     "toxins": 200,
+     "transporters": 32829,
+     "ribosome / translation": 8184,
+     "DNA replication / repair": 13375,
+     "other KEGG ortholog": 147284,
+     "no KEGG ortholog": 358976
+    }
+   },
+   "MAG, other study, same habitat": {
+    "genes": 208510,
+    "mobile": 0.03149489233130306,
+    "ribosome": 0.018310872380221572,
+    "resistance": 0.02962927437532972,
+    "no_ko": 0.6113951369238886,
+    "classes": {
+     "transposase": 1838,
+     "integrase/recombinase": 1931,
+     "antimicrobial resistance": 3302,
+     "conjugation / T4SS": 2264,
+     "phage": 534,
+     "defense (RM, CRISPR, TA)": 3297,
+     "metal resistance": 2876,
+     "toxins": 50,
+     "transporters": 10634,
+     "ribosome / translation": 3818,
+     "DNA replication / repair": 4866,
+     "other KEGG ortholog": 45618,
+     "no KEGG ortholog": 127482
+    }
+   },
+   "MAG, same study": {
+    "genes": 308040,
+    "mobile": 0.033187248409297494,
+    "ribosome": 0.02126347227632775,
+    "resistance": 0.010563563173613816,
+    "no_ko": 0.566900402545124,
+    "classes": {
+     "transposase": 6973,
+     "integrase/recombinase": 1680,
+     "antimicrobial resistance": 1886,
+     "conjugation / T4SS": 1033,
+     "phage": 537,
+     "defense (RM, CRISPR, TA)": 3946,
+     "metal resistance": 1368,
+     "toxins": 201,
+     "transporters": 17170,
+     "ribosome / translation": 6550,
+     "DNA replication / repair": 6208,
+     "other KEGG ortholog": 85860,
+     "no KEGG ortholog": 174628
+    }
+   },
+   "isolates": {
+    "genes": 580911,
+    "mobile": 0.07146705777649244,
+    "ribosome": 0.005916568975281928,
+    "resistance": 0.05312517752289077,
+    "no_ko": 0.5796034160138128,
+    "classes": {
+     "transposase": 19137,
+     "integrase/recombinase": 6366,
+     "antimicrobial resistance": 12046,
+     "conjugation / T4SS": 14473,
+     "phage": 1540,
+     "defense (RM, CRISPR, TA)": 9050,
+     "metal resistance": 18815,
+     "toxins": 127,
+     "transporters": 29600,
+     "ribosome / translation": 3437,
+     "DNA replication / repair": 13484,
+     "other KEGG ortholog": 116138,
+     "no KEGG ortholog": 336698
+    }
+   }
+  },
+  "between families": {
+   "MAG, other study, different habitat": {
+    "genes": 58708,
+    "mobile": 0.0710465353955168,
+    "ribosome": 0.007494719629352047,
+    "resistance": 0.07801321796007359,
+    "no_ko": 0.5583395789330244,
+    "classes": {
+     "transposase": 1487,
+     "integrase/recombinase": 727,
+     "antimicrobial resistance": 1858,
+     "conjugation / T4SS": 1719,
+     "phage": 238,
+     "defense (RM, CRISPR, TA)": 987,
+     "metal resistance": 2722,
+     "toxins": 7,
+     "transporters": 2518,
+     "ribosome / translation": 440,
+     "DNA replication / repair": 1256,
+     "other KEGG ortholog": 11970,
+     "no KEGG ortholog": 32779
+    }
+   },
+   "MAG, other study, habitat unknown": {
+    "genes": 379160,
+    "mobile": 0.06468245595526954,
+    "ribosome": 0.013263529908218167,
+    "resistance": 0.04854415022681718,
+    "no_ko": 0.5665418293068889,
+    "classes": {
+     "transposase": 12837,
+     "integrase/recombinase": 3861,
+     "antimicrobial resistance": 8147,
+     "conjugation / T4SS": 6788,
+     "phage": 1039,
+     "defense (RM, CRISPR, TA)": 5891,
+     "metal resistance": 10259,
+     "toxins": 115,
+     "transporters": 18325,
+     "ribosome / translation": 5029,
+     "DNA replication / repair": 8202,
+     "other KEGG ortholog": 83857,
+     "no KEGG ortholog": 214810
+    }
+   },
+   "MAG, other study, same habitat": {
+    "genes": 106048,
+    "mobile": 0.032768180446590224,
+    "ribosome": 0.018406759203379603,
+    "resistance": 0.03565366626433313,
+    "no_ko": 0.6064046469523234,
+    "classes": {
+     "transposase": 992,
+     "integrase/recombinase": 955,
+     "antimicrobial resistance": 2291,
+     "conjugation / T4SS": 1267,
+     "phage": 261,
+     "defense (RM, CRISPR, TA)": 1848,
+     "metal resistance": 1490,
+     "toxins": 29,
+     "transporters": 5188,
+     "ribosome / translation": 1952,
+     "DNA replication / repair": 2567,
+     "other KEGG ortholog": 22900,
+     "no KEGG ortholog": 64308
+    }
+   },
+   "MAG, same study": {
+    "genes": 183154,
+    "mobile": 0.03616082640837765,
+    "ribosome": 0.02203610076766,
+    "resistance": 0.010040730751171146,
+    "no_ko": 0.558513600576564,
+    "classes": {
+     "transposase": 4792,
+     "integrase/recombinase": 906,
+     "antimicrobial resistance": 1140,
+     "conjugation / T4SS": 591,
+     "phage": 334,
+     "defense (RM, CRISPR, TA)": 2275,
+     "metal resistance": 699,
+     "toxins": 121,
+     "transporters": 10253,
+     "ribosome / translation": 4036,
+     "DNA replication / repair": 3733,
+     "other KEGG ortholog": 51980,
+     "no KEGG ortholog": 102294
+    }
+   },
+   "isolates": {
+    "genes": 262320,
+    "mobile": 0.06907212564806343,
+    "ribosome": 0.006259530344617261,
+    "resistance": 0.06098276913693199,
+    "no_ko": 0.6059812442817932,
+    "classes": {
+     "transposase": 8034,
+     "integrase/recombinase": 3307,
+     "antimicrobial resistance": 7839,
+     "conjugation / T4SS": 6038,
+     "phage": 740,
+     "defense (RM, CRISPR, TA)": 4042,
+     "metal resistance": 8158,
+     "toxins": 54,
+     "transporters": 11723,
+     "ribosome / translation": 1642,
+     "DNA replication / repair": 6611,
+     "other KEGG ortholog": 45171,
+     "no KEGG ortholog": 158961
+    }
+   }
+  },
+  "between phyla": {
+   "MAG, other study, different habitat": {
+    "genes": 11129,
+    "mobile": 0.05391319974840507,
+    "ribosome": 0.012939167939617217,
+    "resistance": 0.06882918501213046,
+    "no_ko": 0.5739958666546859,
+    "classes": {
+     "transposase": 252,
+     "integrase/recombinase": 138,
+     "antimicrobial resistance": 479,
+     "conjugation / T4SS": 173,
+     "phage": 37,
+     "defense (RM, CRISPR, TA)": 153,
+     "metal resistance": 287,
+     "toxins": 1,
+     "transporters": 466,
+     "ribosome / translation": 144,
+     "DNA replication / repair": 232,
+     "other KEGG ortholog": 2379,
+     "no KEGG ortholog": 6388
+    }
+   },
+   "MAG, other study, habitat unknown": {
+    "genes": 89394,
+    "mobile": 0.04300064881311945,
+    "ribosome": 0.018938631228046624,
+    "resistance": 0.04716200192406649,
+    "no_ko": 0.5705304606573148,
+    "classes": {
+     "transposase": 1757,
+     "integrase/recombinase": 972,
+     "antimicrobial resistance": 2825,
+     "conjugation / T4SS": 954,
+     "phage": 161,
+     "defense (RM, CRISPR, TA)": 1261,
+     "metal resistance": 1391,
+     "toxins": 31,
+     "transporters": 4329,
+     "ribosome / translation": 1693,
+     "DNA replication / repair": 2126,
+     "other KEGG ortholog": 20892,
+     "no KEGG ortholog": 51002
+    }
+   },
+   "MAG, other study, same habitat": {
+    "genes": 34811,
+    "mobile": 0.026284795036051824,
+    "ribosome": 0.023325960184998995,
+    "resistance": 0.0320013788744937,
+    "no_ko": 0.5977708195685272,
+    "classes": {
+     "transposase": 243,
+     "integrase/recombinase": 274,
+     "antimicrobial resistance": 826,
+     "conjugation / T4SS": 333,
+     "phage": 65,
+     "defense (RM, CRISPR, TA)": 521,
+     "metal resistance": 288,
+     "toxins": 11,
+     "transporters": 1726,
+     "ribosome / translation": 812,
+     "DNA replication / repair": 871,
+     "other KEGG ortholog": 8032,
+     "no KEGG ortholog": 20809
+    }
+   },
+   "MAG, same study": {
+    "genes": 68029,
+    "mobile": 0.01975628040982522,
+    "ribosome": 0.02400446868247365,
+    "resistance": 0.009466551029707919,
+    "no_ko": 0.5461494362698261,
+    "classes": {
+     "transposase": 886,
+     "integrase/recombinase": 196,
+     "antimicrobial resistance": 411,
+     "conjugation / T4SS": 147,
+     "phage": 115,
+     "defense (RM, CRISPR, TA)": 730,
+     "metal resistance": 233,
+     "toxins": 62,
+     "transporters": 4233,
+     "ribosome / translation": 1633,
+     "DNA replication / repair": 1380,
+     "other KEGG ortholog": 20849,
+     "no KEGG ortholog": 37154
+    }
+   },
+   "isolates": {
+    "genes": 49536,
+    "mobile": 0.062136627906976744,
+    "ribosome": 0.010497416020671835,
+    "resistance": 0.08288921188630491,
+    "no_ko": 0.6051558462532299,
+    "classes": {
+     "transposase": 1509,
+     "integrase/recombinase": 647,
+     "antimicrobial resistance": 3369,
+     "conjugation / T4SS": 795,
+     "phage": 127,
+     "defense (RM, CRISPR, TA)": 693,
+     "metal resistance": 737,
+     "toxins": 9,
+     "transporters": 2202,
+     "ribosome / translation": 520,
+     "DNA replication / repair": 1187,
+     "other KEGG ortholog": 7764,
+     "no KEGG ortholog": 29977
+    }
+   }
+  }
+ },
+ "same_habitat_between_families": {
+  "engineered": {
+   "MAGs": {
+    "genes": 20914,
+    "mobile": 0.051161901118867745,
+    "ribosome": 0.015731089222530362,
+    "resistance": 0.041455484364540496,
+    "no_ko": 0.5319403270536482,
+    "classes": {
+     "transposase": 358,
+     "integrase/recombinase": 146,
+     "antimicrobial resistance": 374,
+     "conjugation / T4SS": 499,
+     "phage": 67,
+     "defense (RM, CRISPR, TA)": 429,
+     "metal resistance": 493,
+     "toxins": 7,
+     "transporters": 1052,
+     "ribosome / translation": 329,
+     "DNA replication / repair": 457,
+     "other KEGG ortholog": 5578,
+     "no KEGG ortholog": 11125
+    }
+   },
+   "isolates": {
+    "genes": 3373,
+    "mobile": 0.0916098428698488,
+    "ribosome": 0.004447079750963534,
+    "resistance": 0.09279573080343907,
+    "no_ko": 0.5526237770530685,
+    "classes": {
+     "transposase": 139,
+     "integrase/recombinase": 65,
+     "antimicrobial resistance": 133,
+     "conjugation / T4SS": 82,
+     "phage": 23,
+     "defense (RM, CRISPR, TA)": 87,
+     "metal resistance": 180,
+     "toxins": 0,
+     "transporters": 88,
+     "ribosome / translation": 15,
+     "DNA replication / repair": 78,
+     "other KEGG ortholog": 619,
+     "no KEGG ortholog": 1864
+    }
+   }
+  },
+  "extreme": {
+   "MAGs": {
+    "genes": 1255,
+    "mobile": 0.02151394422310757,
+    "ribosome": 0.011155378486055778,
+    "resistance": 0.03824701195219123,
+    "no_ko": 0.5593625498007968,
+    "classes": {
+     "transposase": 14,
+     "integrase/recombinase": 10,
+     "antimicrobial resistance": 6,
+     "conjugation / T4SS": 2,
+     "phage": 1,
+     "defense (RM, CRISPR, TA)": 28,
+     "metal resistance": 42,
+     "toxins": 0,
+     "transporters": 70,
+     "ribosome / translation": 14,
+     "DNA replication / repair": 32,
+     "other KEGG ortholog": 334,
+     "no KEGG ortholog": 702
+    }
+   },
+   "isolates": {
+    "genes": 2842,
+    "mobile": 0.02920478536242083,
+    "ribosome": 0.007037297677691766,
+    "resistance": 0.014778325123152709,
+    "no_ko": 0.6639690358902182,
+    "classes": {
+     "transposase": 69,
+     "integrase/recombinase": 9,
+     "antimicrobial resistance": 4,
+     "conjugation / T4SS": 0,
+     "phage": 5,
+     "defense (RM, CRISPR, TA)": 28,
+     "metal resistance": 38,
+     "toxins": 0,
+     "transporters": 109,
+     "ribosome / translation": 20,
+     "DNA replication / repair": 90,
+     "other KEGG ortholog": 583,
+     "no KEGG ortholog": 1887
+    }
+   }
+  },
+  "food": {
+   "MAGs": {
+    "genes": 67,
+    "mobile": 0.1791044776119403,
+    "ribosome": 0.0,
+    "resistance": 0.04477611940298507,
+    "no_ko": 0.5223880597014925,
+    "classes": {
+     "transposase": 8,
+     "integrase/recombinase": 4,
+     "antimicrobial resistance": 0,
+     "conjugation / T4SS": 0,
+     "phage": 0,
+     "defense (RM, CRISPR, TA)": 0,
+     "metal resistance": 3,
+     "toxins": 0,
+     "transporters": 6,
+     "ribosome / translation": 0,
+     "DNA replication / repair": 0,
+     "other KEGG ortholog": 11,
+     "no KEGG ortholog": 35
+    }
+   },
+   "isolates": {
+    "genes": 1459,
+    "mobile": 0.08361891706648389,
+    "ribosome": 0.00411240575736806,
+    "resistance": 0.07676490747087046,
+    "no_ko": 0.5387251542152159,
+    "classes": {
+     "transposase": 62,
+     "integrase/recombinase": 13,
+     "antimicrobial resistance": 48,
+     "conjugation / T4SS": 34,
+     "phage": 13,
+     "defense (RM, CRISPR, TA)": 12,
+     "metal resistance": 64,
+     "toxins": 0,
+     "transporters": 96,
+     "ribosome / translation": 6,
+     "DNA replication / repair": 17,
+     "other KEGG ortholog": 308,
+     "no KEGG ortholog": 786
+    }
+   }
+  },
+  "freshwater": {
+   "MAGs": {
+    "genes": 2067,
+    "mobile": 0.04837929366231253,
+    "ribosome": 0.01983551040154814,
+    "resistance": 0.024189646831156264,
+    "no_ko": 0.47073052733430093,
+    "classes": {
+     "transposase": 18,
+     "integrase/recombinase": 11,
+     "antimicrobial resistance": 30,
+     "conjugation / T4SS": 56,
+     "phage": 15,
+     "defense (RM, CRISPR, TA)": 26,
+     "metal resistance": 20,
+     "toxins": 0,
+     "transporters": 131,
+     "ribosome / translation": 41,
+     "DNA replication / repair": 39,
+     "other KEGG ortholog": 707,
+     "no KEGG ortholog": 973
+    }
+   },
+   "isolates": {
+    "genes": 254,
+    "mobile": 0.1220472440944882,
+    "ribosome": 0.003937007874015748,
+    "resistance": 0.1220472440944882,
+    "no_ko": 0.547244094488189,
+    "classes": {
+     "transposase": 3,
+     "integrase/recombinase": 9,
+     "antimicrobial resistance": 8,
+     "conjugation / T4SS": 18,
+     "phage": 1,
+     "defense (RM, CRISPR, TA)": 7,
+     "metal resistance": 23,
+     "toxins": 1,
+     "transporters": 3,
+     "ribosome / translation": 1,
+     "DNA replication / repair": 2,
+     "other KEGG ortholog": 39,
+     "no KEGG ortholog": 139
+    }
+   }
+  },
+  "gut": {
+   "MAGs": {
+    "genes": 60713,
+    "mobile": 0.025134649910233394,
+    "ribosome": 0.017525077001630623,
+    "resistance": 0.027308813598405614,
+    "no_ko": 0.6840874277337637,
+    "classes": {
+     "transposase": 302,
+     "integrase/recombinase": 664,
+     "antimicrobial resistance": 1485,
+     "conjugation / T4SS": 430,
+     "phage": 130,
+     "defense (RM, CRISPR, TA)": 1137,
+     "metal resistance": 173,
+     "toxins": 15,
+     "transporters": 2682,
+     "ribosome / translation": 1064,
+     "DNA replication / repair": 1570,
+     "other KEGG ortholog": 9528,
+     "no KEGG ortholog": 41533
+    }
+   },
+   "isolates": {
+    "genes": 27555,
+    "mobile": 0.03277082199237888,
+    "ribosome": 0.006060606060606061,
+    "resistance": 0.036799129014697875,
+    "no_ko": 0.7123571039738704,
+    "classes": {
+     "transposase": 215,
+     "integrase/recombinase": 266,
+     "antimicrobial resistance": 979,
+     "conjugation / T4SS": 402,
+     "phage": 20,
+     "defense (RM, CRISPR, TA)": 499,
+     "metal resistance": 35,
+     "toxins": 0,
+     "transporters": 1195,
+     "ribosome / translation": 167,
+     "DNA replication / repair": 898,
+     "other KEGG ortholog": 3250,
+     "no KEGG ortholog": 19629
+    }
+   }
+  },
+  "host_other": {
+   "MAGs": {
+    "genes": 2363,
+    "mobile": 0.06390181972069403,
+    "ribosome": 0.011426153195090986,
+    "resistance": 0.09394837071519255,
+    "no_ko": 0.659754549301735,
+    "classes": {
+     "transposase": 63,
+     "integrase/recombinase": 27,
+     "antimicrobial resistance": 180,
+     "conjugation / T4SS": 56,
+     "phage": 5,
+     "defense (RM, CRISPR, TA)": 27,
+     "metal resistance": 42,
+     "toxins": 1,
+     "transporters": 71,
+     "ribosome / translation": 27,
+     "DNA replication / repair": 82,
+     "other KEGG ortholog": 223,
+     "no KEGG ortholog": 1559
+    }
+   },
+   "isolates": {
+    "genes": 5518,
+    "mobile": 0.07194635737586082,
+    "ribosome": 0.005255527364987314,
+    "resistance": 0.10239217107647698,
+    "no_ko": 0.624501631025734,
+    "classes": {
+     "transposase": 201,
+     "integrase/recombinase": 57,
+     "antimicrobial resistance": 371,
+     "conjugation / T4SS": 105,
+     "phage": 34,
+     "defense (RM, CRISPR, TA)": 108,
+     "metal resistance": 194,
+     "toxins": 2,
+     "transporters": 199,
+     "ribosome / translation": 29,
+     "DNA replication / repair": 110,
+     "other KEGG ortholog": 662,
+     "no KEGG ortholog": 3446
+    }
+   }
+  },
+  "marine": {
+   "MAGs": {
+    "genes": 14527,
+    "mobile": 0.03235354856474151,
+    "ribosome": 0.025814001514421422,
+    "resistance": 0.05438149652371446,
+    "no_ko": 0.4351208095270875,
+    "classes": {
+     "transposase": 192,
+     "integrase/recombinase": 52,
+     "antimicrobial resistance": 191,
+     "conjugation / T4SS": 187,
+     "phage": 39,
+     "defense (RM, CRISPR, TA)": 125,
+     "metal resistance": 599,
+     "toxins": 6,
+     "transporters": 957,
+     "ribosome / translation": 375,
+     "DNA replication / repair": 286,
+     "other KEGG ortholog": 5197,
+     "no KEGG ortholog": 6321
+    }
+   },
+   "isolates": {
+    "genes": 3697,
+    "mobile": 0.08358128212063835,
+    "ribosome": 0.0037868542061130646,
+    "resistance": 0.11279415742493915,
+    "no_ko": 0.46199621314579387,
+    "classes": {
+     "transposase": 145,
+     "integrase/recombinase": 37,
+     "antimicrobial resistance": 88,
+     "conjugation / T4SS": 117,
+     "phage": 10,
+     "defense (RM, CRISPR, TA)": 52,
+     "metal resistance": 329,
+     "toxins": 2,
+     "transporters": 283,
+     "ribosome / translation": 14,
+     "DNA replication / repair": 59,
+     "other KEGG ortholog": 853,
+     "no KEGG ortholog": 1708
+    }
+   }
+  },
+  "plant": {
+   "MAGs": {
+    "genes": 52,
+    "mobile": 0.0,
+    "ribosome": 0.0,
+    "resistance": 0.0,
+    "no_ko": 0.7115384615384616,
+    "classes": {
+     "transposase": 0,
+     "integrase/recombinase": 0,
+     "antimicrobial resistance": 0,
+     "conjugation / T4SS": 0,
+     "phage": 0,
+     "defense (RM, CRISPR, TA)": 0,
+     "metal resistance": 0,
+     "toxins": 0,
+     "transporters": 2,
+     "ribosome / translation": 0,
+     "DNA replication / repair": 0,
+     "other KEGG ortholog": 13,
+     "no KEGG ortholog": 37
+    }
+   },
+   "isolates": {
+    "genes": 380,
+    "mobile": 0.06315789473684211,
+    "ribosome": 0.042105263157894736,
+    "resistance": 0.1368421052631579,
+    "no_ko": 0.48947368421052634,
+    "classes": {
+     "transposase": 10,
+     "integrase/recombinase": 10,
+     "antimicrobial resistance": 3,
+     "conjugation / T4SS": 4,
+     "phage": 0,
+     "defense (RM, CRISPR, TA)": 2,
+     "metal resistance": 49,
+     "toxins": 0,
+     "transporters": 29,
+     "ribosome / translation": 16,
+     "DNA replication / repair": 10,
+     "other KEGG ortholog": 61,
+     "no KEGG ortholog": 186
+    }
+   }
+  },
+  "sediment": {
+   "MAGs": {
+    "genes": 531,
+    "mobile": 0.030131826741996232,
+    "ribosome": 0.022598870056497175,
+    "resistance": 0.05273069679849341,
+    "no_ko": 0.4369114877589454,
+    "classes": {
+     "transposase": 9,
+     "integrase/recombinase": 5,
+     "antimicrobial resistance": 3,
+     "conjugation / T4SS": 2,
+     "phage": 0,
+     "defense (RM, CRISPR, TA)": 3,
+     "metal resistance": 25,
+     "toxins": 0,
+     "transporters": 30,
+     "ribosome / translation": 12,
+     "DNA replication / repair": 15,
+     "other KEGG ortholog": 195,
+     "no KEGG ortholog": 232
+    }
+   },
+   "isolates": {
+    "genes": 159,
+    "mobile": 0.10062893081761007,
+    "ribosome": 0.0,
+    "resistance": 0.08176100628930817,
+    "no_ko": 0.5723270440251572,
+    "classes": {
+     "transposase": 2,
+     "integrase/recombinase": 8,
+     "antimicrobial resistance": 5,
+     "conjugation / T4SS": 5,
+     "phage": 1,
+     "defense (RM, CRISPR, TA)": 1,
+     "metal resistance": 8,
+     "toxins": 0,
+     "transporters": 6,
+     "ribosome / translation": 0,
+     "DNA replication / repair": 9,
+     "other KEGG ortholog": 23,
+     "no KEGG ortholog": 91
+    }
+   }
+  },
+  "soil": {
+   "MAGs": {
+    "genes": 685,
+    "mobile": 0.026277372262773723,
+    "ribosome": 0.008759124087591242,
+    "resistance": 0.09197080291970802,
+    "no_ko": 0.46131386861313867,
+    "classes": {
+     "transposase": 6,
+     "integrase/recombinase": 11,
+     "antimicrobial resistance": 7,
+     "conjugation / T4SS": 1,
+     "phage": 0,
+     "defense (RM, CRISPR, TA)": 7,
+     "metal resistance": 56,
+     "toxins": 0,
+     "transporters": 45,
+     "ribosome / translation": 6,
+     "DNA replication / repair": 9,
+     "other KEGG ortholog": 221,
+     "no KEGG ortholog": 316
+    }
+   },
+   "isolates": {
+    "genes": 3136,
+    "mobile": 0.07716836734693877,
+    "ribosome": 0.006058673469387755,
+    "resistance": 0.09311224489795919,
+    "no_ko": 0.5526147959183674,
+    "classes": {
+     "transposase": 76,
+     "integrase/recombinase": 38,
+     "antimicrobial resistance": 91,
+     "conjugation / T4SS": 118,
+     "phage": 10,
+     "defense (RM, CRISPR, TA)": 38,
+     "metal resistance": 201,
+     "toxins": 1,
+     "transporters": 119,
+     "ribosome / translation": 19,
+     "DNA replication / repair": 51,
+     "other KEGG ortholog": 641,
+     "no KEGG ortholog": 1733
+    }
+   }
+  },
+  "subsurface": {
+   "MAGs": {
+    "genes": 2874,
+    "mobile": 0.029575504523312455,
+    "ribosome": 0.029227557411273485,
+    "resistance": 0.018093249826026444,
+    "no_ko": 0.5132219902574808,
+    "classes": {
+     "transposase": 22,
+     "integrase/recombinase": 25,
+     "antimicrobial resistance": 15,
+     "conjugation / T4SS": 34,
+     "phage": 4,
+     "defense (RM, CRISPR, TA)": 66,
+     "metal resistance": 37,
+     "toxins": 0,
+     "transporters": 142,
+     "ribosome / translation": 84,
+     "DNA replication / repair": 77,
+     "other KEGG ortholog": 893,
+     "no KEGG ortholog": 1475
+    }
+   },
+   "isolates": {
+    "genes": 84,
+    "mobile": 0.09523809523809523,
+    "ribosome": 0.0,
+    "resistance": 0.011904761904761904,
+    "no_ko": 0.42857142857142855,
+    "classes": {
+     "transposase": 4,
+     "integrase/recombinase": 4,
+     "antimicrobial resistance": 1,
+     "conjugation / T4SS": 0,
+     "phage": 0,
+     "defense (RM, CRISPR, TA)": 0,
+     "metal resistance": 0,
+     "toxins": 0,
+     "transporters": 10,
+     "ribosome / translation": 0,
+     "DNA replication / repair": 0,
+     "other KEGG ortholog": 29,
+     "no KEGG ortholog": 36
+    }
+   }
+  }
+ },
+ "pairs": {
+  "isolates": {
+   "pairs": 110870,
+   "with_mobile": 64926,
+   "with_ribosome": 7949
+  },
+  "MAG, other study, habitat unknown": {
+   "pairs": 59629,
+   "with_mobile": 25827,
+   "with_ribosome": 5659
+  },
+  "MAG, other study, same habitat": {
+   "pairs": 18119,
+   "with_mobile": 5123,
+   "with_ribosome": 2186
+  },
+  "MAG, same study": {
+   "pairs": 11695,
+   "with_mobile": 2625,
+   "with_ribosome": 2403
+  },
+  "MAG, other study, different habitat": {
+   "pairs": 8370,
+   "with_mobile": 4226,
+   "with_ribosome": 705
+  }
+ },
+ "mobile_filter_rows": 205454,
+ "mag_pairs_provenance": {
+  "same genus": {
+   "pairs": 274135,
+   "cosample": 11205,
+   "same_project": 51060,
+   "cosample_other_project": 194
+  },
+  "same family": {
+   "pairs": 11672,
+   "cosample": 830,
+   "same_project": 4210,
+   "cosample_other_project": 81
+  },
+  "same order": {
+   "pairs": 5515,
+   "cosample": 533,
+   "same_project": 1495,
+   "cosample_other_project": 37
+  },
+  "same class": {
+   "pairs": 5745,
+   "cosample": 472,
+   "same_project": 1745,
+   "cosample_other_project": 49
+  },
+  "same phylum": {
+   "pairs": 1811,
+   "cosample": 228,
+   "same_project": 574,
+   "cosample_other_project": 20
+  },
+  "same domain": {
+   "pairs": 5536,
+   "cosample": 714,
+   "same_project": 2271,
+   "cosample_other_project": 66
+  },
+  "different domain": {
+   "pairs": 197,
+   "cosample": 40,
+   "same_project": 113,
+   "cosample_other_project": 2
+  }
+ }
+}
