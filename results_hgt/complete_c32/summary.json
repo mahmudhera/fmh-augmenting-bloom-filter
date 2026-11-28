@@ -1,0 +1,512 @@
+{
+ "set": "complete",
+ "ani_min": 0.99,
+ "bp_min": 500.0,
+ "pair_bp": 1000.0,
+ "genomes": 10296,
+ "windows": 8900695,
+ "windows_with_hits": 941824,
+ "windows_saturated": 9269,
+ "same_entity_pairs": 4,
+ "pairs_by_distance": {
+  "same genus": 80841,
+  "same family": 29867,
+  "same order": 13616,
+  "same class": 20599,
+  "same phylum": 6734,
+  "same domain": 11955,
+  "different domain": 178
+ },
+ "cross_genus_pairs": 82949,
+ "genomes_with_cross_genus": 4546,
+ "genomes_with_cross_family": 3590,
+ "genomes_with_cross_phylum": 2264,
+ "genus_pairs": 31608,
+ "genera_involved": 5562,
+ "cross_genus_blocks": 138416,
+ "cross_genus_block_bp": 639359591.074341,
+ "shared_window_frac_quantiles": {
+  "0.5": 0.0,
+  "0.9": 0.02095238095238095,
+  "0.99": 0.09698275862068965
+ },
+ "shared_window_frac_mean": 0.007430135657719781,
+ "blocks_extrachromosomal_share": 0.22551583631950065,
+ "blocks_embedded_share": 0.9620058374754363,
+ "block_span_quantiles": {
+  "0.1": 5000,
+  "0.5": 5000,
+  "0.9": 10000,
+  "0.99": 35000
+ },
+ "block_ani_bins": {
+  "99-99.5": 45745,
+  "99.5-99.9": 59406,
+  "100": 20660,
+  "99.9-99.95": 12605
+ },
+ "cross_genus_partner_category": {
+  "MAG": 24666,
+  "isolate": 58226,
+  "SAG": 57
+ },
+ "top_genera_by_partner_genera": [
+  [
+   "Streptococcus",
+   415
+  ],
+  [
+   "Aquipseudomonas",
+   403
+  ],
+  [
+   "Enterobacter",
+   383
+  ],
+  [
+   "Paracoccus",
+   348
+  ],
+  [
+   "Sphingobium",
+   325
+  ],
+  [
+   "Roseburia",
+   318
+  ],
+  [
+   "Faecalibacterium",
+   273
+  ],
+  [
+   "Acinetobacter",
+   270
+  ],
+  [
+   "Blautia_A",
+   269
+  ],
+  [
+   "Providencia",
+   264
+  ],
+  [
+   "Comamonas",
+   261
+  ],
+  [
+   "Bacteroides",
+   255
+  ],
+  [
+   "Cupriavidus",
+   251
+  ],
+  [
+   "Stenotrophomonas",
+   249
+  ],
+  [
+   "Oscillibacter",
+   249
+  ],
+  [
+   "Corynebacterium",
+   239
+  ],
+  [
+   "Sphingopyxis",
+   237
+  ],
+  [
+   "Alicycliphilus",
+   230
+  ],
+  [
+   "Acidovorax",
+   222
+  ],
+  [
+   "Proteus",
+   219
+  ],
+  [
+   "Vibrio",
+   214
+  ],
+  [
+   "Stutzerimonas",
+   206
+  ],
+  [
+   "Achromobacter",
+   205
+  ],
+  [
+   "Thauera",
+   200
+  ],
+  [
+   "Novosphingobium",
+   198
+  ]
+ ],
+ "cross_phylum_pairs_top": [
+  [
+   "Actinomycetota / Pseudomonadota",
+   2507
+  ],
+  [
+   "Actinomycetota / Bacillota",
+   1536
+  ],
+  [
+   "Bacillota / Bacillota_I",
+   1506
+  ],
+  [
+   "Bacillota / Pseudomonadota",
+   1132
+  ],
+  [
+   "Bacillota / Bacteroidota",
+   991
+  ],
+  [
+   "Bacteroidota / Pseudomonadota",
+   769
+  ],
+  [
+   "Bacillota / Fusobacteriota",
+   236
+  ],
+  [
+   "Desulfobacterota / Pseudomonadota",
+   213
+  ],
+  [
+   "Cyanobacteriota / Pseudomonadota",
+   186
+  ],
+  [
+   "Actinomycetota / Bacteroidota",
+   168
+  ],
+  [
+   "Chloroflexota / Pseudomonadota",
+   158
+  ],
+  [
+   "Bacillota / Spirochaetota",
+   158
+  ],
+  [
+   "Planctomycetota / Pseudomonadota",
+   126
+  ],
+  [
+   "Bacillota / Patescibacteriota",
+   125
+  ],
+  [
+   "Bacillota / Thermotogota",
+   109
+  ],
+  [
+   "Pseudomonadota / Verrucomicrobiota",
+   106
+  ],
+  [
+   "Bacillota / Synergistota",
+   94
+  ],
+  [
+   "Patescibacteriota / Pseudomonadota",
+   71
+  ],
+  [
+   "Chrysiogenota / Pseudomonadota",
+   71
+  ],
+  [
+   "Bacillota_I / Bacteroidota",
+   69
+  ]
+ ],
+ "ecology": {
+  "labelled_queries": 4014,
+  "labelled_all": 86486,
+  "by_distance": {
+   "same genus": {
+    "same_habitat_pairs": 113619,
+    "same_habitat_hgt": 8350,
+    "rate_same": 0.07349122945986147,
+    "diff_habitat_pairs": 177395,
+    "diff_habitat_hgt": 6790,
+    "rate_diff": 0.03827616336424364,
+    "ratio": 1.920026016205026
+   },
+   "same family": {
+    "same_habitat_pairs": 384155,
+    "same_habitat_hgt": 2478,
+    "rate_same": 0.006450521273964936,
+    "diff_habitat_pairs": 918948,
+    "diff_habitat_hgt": 3211,
+    "rate_diff": 0.0034942129478490623,
+    "ratio": 1.8460584315376922
+   },
+   "same order": {
+    "same_habitat_pairs": 603247,
+    "same_habitat_hgt": 1108,
+    "rate_same": 0.001836726912856591,
+    "diff_habitat_pairs": 2930175,
+    "diff_habitat_hgt": 1590,
+    "rate_diff": 0.0005426297064168522,
+    "ratio": 3.384862441433687
+   },
+   "same class": {
+    "same_habitat_pairs": 2790533,
+    "same_habitat_hgt": 1346,
+    "rate_same": 0.0004823451290488233,
+    "diff_habitat_pairs": 17617109,
+    "diff_habitat_hgt": 2193,
+    "rate_diff": 0.00012448126420742473,
+    "ratio": 3.8748411828874536
+   },
+   "same phylum": {
+    "same_habitat_pairs": 2882337,
+    "same_habitat_hgt": 253,
+    "rate_same": 8.777599565907803e-05,
+    "diff_habitat_pairs": 21714840,
+    "diff_habitat_hgt": 749,
+    "rate_diff": 3.449254058514822e-05,
+    "ratio": 2.5447819780741976
+   },
+   "same domain": {
+    "same_habitat_pairs": 25926613,
+    "same_habitat_hgt": 837,
+    "rate_same": 3.228343015726736e-05,
+    "diff_habitat_pairs": 232487601,
+    "diff_habitat_hgt": 1108,
+    "rate_diff": 4.765845555780844e-06,
+    "ratio": 6.773914466890019
+   },
+   "different domain": {
+    "same_habitat_pairs": 3914931,
+    "same_habitat_hgt": 14,
+    "rate_same": 3.5760528091044262e-06,
+    "diff_habitat_pairs": 34689287,
+    "diff_habitat_hgt": 8,
+    "rate_diff": 2.3061874981748687e-07,
+    "ratio": 15.506340277772457
+   }
+  },
+  "within_habitat": {
+   "gut": {
+    "query_genomes": 343,
+    "partners": 24730,
+    "cross_genus_pairs": 2833
+   },
+   "host_other": {
+    "query_genomes": 425,
+    "partners": 2280,
+    "cross_genus_pairs": 516
+   },
+   "food": {
+    "query_genomes": 84,
+    "partners": 601,
+    "cross_genus_pairs": 242
+   },
+   "engineered": {
+    "query_genomes": 164,
+    "partners": 8167,
+    "cross_genus_pairs": 669
+   },
+   "marine": {
+    "query_genomes": 750,
+    "partners": 17406,
+    "cross_genus_pairs": 1009
+   },
+   "plant": {
+    "query_genomes": 407,
+    "partners": 2217,
+    "cross_genus_pairs": 46
+   },
+   "extreme": {
+    "query_genomes": 244,
+    "partners": 6226,
+    "cross_genus_pairs": 179
+   },
+   "subsurface": {
+    "query_genomes": 85,
+    "partners": 6543,
+    "cross_genus_pairs": 21
+   },
+   "freshwater": {
+    "query_genomes": 412,
+    "partners": 9143,
+    "cross_genus_pairs": 103
+   },
+   "soil": {
+    "query_genomes": 851,
+    "partners": 6138,
+    "cross_genus_pairs": 353
+   },
+   "sediment": {
+    "query_genomes": 249,
+    "partners": 3035,
+    "cross_genus_pairs": 65
+   }
+  },
+  "habitat_matrix": {
+   "soil|soil": 353,
+   "soil|marine": 269,
+   "soil|freshwater": 174,
+   "marine|sediment": 164,
+   "marine|marine": 1009,
+   "marine|engineered": 235,
+   "engineered|soil": 255,
+   "engineered|engineered": 669,
+   "engineered|sediment": 80,
+   "engineered|food": 80,
+   "engineered|gut": 203,
+   "engineered|extreme": 41,
+   "engineered|freshwater": 156,
+   "engineered|subsurface": 115,
+   "marine|freshwater": 91,
+   "sediment|marine": 293,
+   "extreme|soil": 26,
+   "plant|gut": 55,
+   "plant|host_other": 64,
+   "plant|marine": 61,
+   "plant|soil": 87,
+   "plant|plant": 46,
+   "plant|engineered": 151,
+   "plant|subsurface": 38,
+   "plant|freshwater": 36,
+   "plant|sediment": 19,
+   "host_other|engineered": 252,
+   "food|freshwater": 9,
+   "food|engineered": 110,
+   "food|marine": 44,
+   "food|gut": 119,
+   "food|soil": 40,
+   "food|food": 242,
+   "marine|soil": 134,
+   "marine|extreme": 56,
+   "subsurface|engineered": 32,
+   "host_other|gut": 635,
+   "host_other|host_other": 516,
+   "host_other|food": 76,
+   "host_other|sediment": 31,
+   "host_other|freshwater": 51,
+   "gut|subsurface": 22,
+   "engineered|marine": 243,
+   "engineered|host_other": 254,
+   "engineered|plant": 89,
+   "freshwater|gut": 35,
+   "host_other|subsurface": 46,
+   "host_other|marine": 118,
+   "host_other|extreme": 29,
+   "extreme|engineered": 34,
+   "gut|plant": 21,
+   "marine|subsurface": 69,
+   "marine|host_other": 102,
+   "marine|food": 37,
+   "extreme|gut": 6,
+   "marine|plant": 39,
+   "freshwater|subsurface": 44,
+   "freshwater|freshwater": 103,
+   "sediment|engineered": 156,
+   "sediment|gut": 58,
+   "sediment|extreme": 26,
+   "soil|gut": 124,
+   "soil|host_other": 162,
+   "soil|subsurface": 123,
+   "soil|engineered": 518,
+   "food|extreme": 9,
+   "sediment|subsurface": 28,
+   "marine|gut": 90,
+   "freshwater|sediment": 20,
+   "freshwater|soil": 72,
+   "gut|gut": 2833,
+   "gut|host_other": 243,
+   "gut|food": 68,
+   "gut|engineered": 183,
+   "food|host_other": 71,
+   "soil|plant": 118,
+   "soil|extreme": 43,
+   "soil|sediment": 54,
+   "extreme|extreme": 179,
+   "soil|food": 41,
+   "extreme|freshwater": 6,
+   "extreme|sediment": 16,
+   "host_other|soil": 113,
+   "host_other|plant": 64,
+   "gut|soil": 52,
+   "gut|marine": 87,
+   "sediment|food": 15,
+   "freshwater|engineered": 186,
+   "plant|extreme": 15,
+   "subsurface|subsurface": 21,
+   "gut|extreme": 11,
+   "extreme|subsurface": 22,
+   "sediment|plant": 14,
+   "sediment|soil": 54,
+   "freshwater|host_other": 49,
+   "extreme|food": 4,
+   "plant|food": 28,
+   "freshwater|food": 10,
+   "freshwater|marine": 76,
+   "freshwater|plant": 30,
+   "food|plant": 11,
+   "subsurface|sediment": 12,
+   "subsurface|marine": 41,
+   "subsurface|plant": 6,
+   "subsurface|freshwater": 14,
+   "subsurface|soil": 12,
+   "freshwater|extreme": 19,
+   "sediment|freshwater": 32,
+   "subsurface|host_other": 10,
+   "subsurface|extreme": 20,
+   "sediment|sediment": 65,
+   "food|subsurface": 22,
+   "gut|freshwater": 16,
+   "gut|sediment": 22,
+   "extreme|marine": 25,
+   "sediment|host_other": 41,
+   "food|sediment": 18,
+   "subsurface|gut": 2,
+   "extreme|host_other": 4,
+   "extreme|plant": 1,
+   "subsurface|food": 2
+  },
+  "hq": {
+   "soil": 851,
+   "extreme": 244,
+   "marine": 750,
+   "food": 84,
+   "gut": 343,
+   "plant": 407,
+   "freshwater": 412,
+   "engineered": 164,
+   "host_other": 425,
+   "sediment": 249,
+   "subsurface": 85
+  },
+  "ha": {
+   "marine": 17406,
+   "gut": 24730,
+   "extreme": 6226,
+   "soil": 6138,
+   "freshwater": 9143,
+   "host_other": 2280,
+   "engineered": 8167,
+   "sediment": 3035,
+   "plant": 2217,
+   "subsurface": 6543,
+   "food": 601
+  }
+ }
+}

@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+l c c s c
+l c c c c
+l n c c c.
+method@time (s)@windows: recall / precision (%)@genome pairs (%)
+@300 genomes@cross-genus@all@cross-genus
+_
+minimap2 (asm5, every secondary)@390@87 / 59@88 / 40@\(em
+aif, 5 kb windows, 32 candidates@40@26 / 89@39 / 72@44 / 96
+aif, 5 kb, 128 candidates (atlas)@67@52 / 94@50 / 74@76 / 98
+aif, 5 kb, 256 candidates@114@56 / 93@52 / 73@84 / 96
+aif, 2 kb, 64 candidates@55@45 / 82@59 / 39@\(em
+aif, 1 kb, 64 candidates@60@53 / 47@74 / 22@\(em
+aif, 5 kb, 128, AF at $>=$ 99%@68@59 / 64@66 / 30@\(em
+.TE

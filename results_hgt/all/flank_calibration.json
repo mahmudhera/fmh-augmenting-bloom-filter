@@ -1,0 +1,47 @@
+{
+ "MAG or SAG": {
+  "blocks": 672338,
+  "unplaced": 71289,
+  "no flank": 306079,
+  "host lineage": 132227,
+  "neither": 76053,
+  "partner itself": 41108,
+  "partner lineage": 45582,
+  "partner_itself_flanks": {
+   "ani>=0.97|af<0.8": 7462,
+   "ani>=0.97|af>=0.8": 22035,
+   "ani<0.97|af<0.8": 7056,
+   "ani<0.97|af>=0.8": 8906
+  }
+ },
+ "complete": {
+  "blocks": 212660,
+  "host lineage": 110390,
+  "neither": 59882,
+  "partner itself": 5650,
+  "partner lineage": 29026,
+  "unplaced": 6173,
+  "no flank": 1539,
+  "partner_itself_flanks": {
+   "ani>=0.97|af>=0.8": 2987,
+   "ani<0.97|af>=0.8": 1749,
+   "ani>=0.97|af<0.8": 616,
+   "ani<0.97|af<0.8": 873
+  }
+ },
+ "draft isolate": {
+  "blocks": 664655,
+  "no flank": 201723,
+  "host lineage": 205118,
+  "partner itself": 14535,
+  "partner lineage": 74607,
+  "neither": 149543,
+  "unplaced": 19129,
+  "partner_itself_flanks": {
+   "ani>=0.97|af>=0.8": 8343,
+   "ani<0.97|af>=0.8": 4321,
+   "ani<0.97|af<0.8": 1806,
+   "ani>=0.97|af<0.8": 1465
+  }
+ }
+}

@@ -3,7 +3,7 @@
 **Start here:** [`aif_method_and_results.pdf`](aif_method_and_results.pdf) (15 pages): the method and every result so far,
 with pointers to the detailed reports below.
 
-Six detailed reports:
+Seven detailed reports:
 
 1. **Theory**: [`fmh_bloom_filter_theory.pdf`](fmh_bloom_filter_theory.pdf) (27 pages). Variance framework, 14 designs, 16 scenarios (before implementation).
    **Theory of the method as built (v1.7)**: [`aif_theory.pdf`](aif_theory.pdf) (23 pages). Exact blocked-filter FPR, the containment estimator and the cost of the two-tier hedge, AF identifiability and boundary resolution, absorption of unaligned stretches by low identity levels (the mechanism of the v1.6 AF bias), a parameter-free false-report bound and detection limits, power-mean bias on mosaics, conformal coverage, and screening recall at GTDB scale; each result checked by Monte Carlo and by aif on contigs simulated from a random reference.
@@ -11,6 +11,7 @@ Six detailed reports:
 3. **Real genomes**: [`aif_real_genomes_report.pdf`](aif_real_genomes_report.pdf). 240 real assemblies and MAGs from the skani paper's data sets, with MUMmer ground truth; the v1.2/v1.3 speed work; v1.4 calibrated confidence intervals; an analysis of the AF model; the database mode (v1.5) against 2,005 genomes and (v1.6) all 199,923 GTDB species representatives; a Pareto sweep of sketch sizes; identity maps; contamination screening; comparisons with Kraken2, CheckM2 and GUNC; a v1.7 addendum (AF near the local identity, refitted intervals).
 4. **Viral clustering**: [`aif_viral_clustering_report.pdf`](aif_viral_clustering_report.pdf) (8 pages). vOTU clustering (95% ANI over 85% AF) of 2 x 10,000 phage genomes/contigs (INPHARED, Gut Phage Database) against BLAST/CheckV truth, vs skani and vclust.
 5. **Human gut catalogue**: [`aif_uhgg_contamination_report.pdf`](aif_uhgg_contamination_report.pdf). All 286,621 UHGG v3.0 genomes (276,463 MAGs, 10,158 isolates) screened contig by contig against GTDB R232: cross-genus shared sequence (mostly transferred DNA) and core-anchored contamination, checked against isolates, CheckM2, Kraken2 and recurrence in other strains. Also: a seven-tool benchmark on the screen's contigs against MUMmer (minimap2, LexicMap, sourmash, skani, Kraken2, CAT), with each tool's cost projected to the whole catalogue, and the v1.7 AF fix and interval tables that it led to.
+6. **Recent-HGT atlas** (biological application): [`aif_hgt_atlas_report.pdf`](aif_hgt_atlas_report.pdf) (16 pages). DNA shared at >= 99% identity over >= 1 kb between species, the criterion of Smillie et al. (2011, 2,235 genomes), across all 199,923 GTDB R232 representatives: validation against BLAST and MUMmer on the 10,296 complete genomes, a contamination control calibrated on complete genomes, what moves, and habitat versus phylogeny in isolates and MAGs.
 
 ## Real genomes (skani paper data; 35,362 contigs >= 500 bp; MUMmer truth; no aif tuning on these data)
 
@@ -221,6 +222,33 @@ Stratified sample of the screen's contigs (S3: 10,005 contigs, 114 Mbp), scored 
 
 minimap2 is the most accurate tool. aif makes the screen's decisions nearly as well, at the cost of a sketch tool. The benchmark exposed aif v1.6's AF over-call (5.13 pp, bias +5.0), which v1.7 fixes (see "The `aif` tool" below).
 
+## Recent-HGT atlas (GTDB R232, all 199,923 species representatives; aif v1.7)
+
+Every genome is cut into 5 kb windows and each window searched against all representatives (`aif db search`);
+a window is called shared when it aligns to another species' representative at >= 99% ANI over >= 500 bp, and a
+genome pair when it has a run of called windows of >= 1 kb.
+
+- **Cost and validation.** 10,296 complete genomes: 39 min at 48 threads (minimap2: about 12 days estimated).
+  Against BLAST, cross-genus calls are 98% precise at the genome-pair level and recover 76% of BLAST's pairs.
+  All representatives (655 Gbp, 141 M windows): 8.0 h at 48 threads, 112 GB peak.
+- **Contamination control.** 80% of representatives are MAGs. A block counts only if its contig extends beyond it
+  (46% of MAG blocks and 0.7% of complete-genome blocks are whole contigs), and a pair only if found from both
+  genomes. A partner-lineage flank test barely separates MAGs from complete genomes, so it is a sensitivity analysis.
+- **Extent.** 23.2% of representatives share >= 1 kb at >= 99% with another genus, 7.5% with another phylum
+  (complete isolates 30.6%, MAGs 21.3%, a lower bound); reduced-genome lineages share least (Patescibacteriota 6.6%,
+  Nanobdellota 4.9%). Shared blocks carry metal resistance (odds ratio 5.4 against background windows), conjugation
+  genes (3.8), integrases and transposases (3.6), antimicrobial resistance (1.9), and few ribosomal genes (0.36).
+- **Ecology.** At a fixed taxonomic distance, isolates from the same habitat share DNA more often (Mantel-Haenszel
+  odds ratio 4.8, 95% CI 4.1-5.6, 14,881 isolates; 4.6 without same-BioProject pairs). Between orders, gut genomes
+  share 28x the expected exchange, soil 0.16x. In MAGs, the same-habitat excess grows with taxonomic distance (43x
+  between phyla, 80x between domains; 31x and 46x without same-BioProject pairs), and the soil, sediment and
+  extreme-habitat excesses between orders (12-19x) fall 3-4 fold without same-project pairs: genomes binned from the
+  same samples share contigs, so transfer studies from MAGs need sample provenance.
+
+The main atlas (`results_hgt/all_flankcontig_reciprocal/`: pairs, blocks, ecology, annotation) is committed; the
+intermediate one-direction, reciprocal-only and sensitivity block/pair tables (180 MB) are not (`hgt_analyze.py`
+rewrites them from the search hits).
+
 ## Headline benchmark result (held-out set, 2,800 contigs, 28 conditions, 4 bacterial references)
 
 | | skani 0.4.0 (default) | **aif v1.1** |
@@ -320,15 +348,19 @@ bench_real/                    real genomes: select_datasets.py, select_tune.py,
                                other tools: kraken2_gtdb.py (Kraken2), contam_tools.py (CheckM2, GUNC);
                                pareto_sourmash.py, pareto_minimap2.py, pareto_time.py; idmap.py;
                                viral clustering: viral_download.sh, viral_bench.py;
-                               gut catalogue: uhgg_download.sh, uhgg_screen.py, uhgg_run.sh, uhgg_summary.py
+                               gut catalogue: uhgg_download.sh, uhgg_screen.py, uhgg_run.sh, uhgg_summary.py;
+                               HGT atlas: hgt_atlas.py (windows, search), hgt_analyze.py (pairs, blocks, controls),
+                               hgt_flanks.py (flank placement), hgt_ecology.py, hgt_annotate.py, hgt_validate.py
 results/, results_real/,       committed summaries: evaluations (JSON), predictions, truth, timings, tuning tables
 results_viral/, results_uhgg/  (the full UHGG flagged-contig lists, 54-57 MB, are not committed; `uhgg_summary.py stats` rewrites them)
+results_hgt/                   atlas pairs, blocks, summaries, ecology, annotation, validation (intermediate full-run tables not committed)
 scripts/                       theory tables/figures, Monte Carlo check, report tables/figures (benchmark_report.py, real_report.py);
-                               theory of v1.7: theory_numbers.py, theory_sims.py, theory_hmm.py, theory_report.py (-> results_theory/)
+                               theory of v1.7: theory_numbers.py, theory_sims.py, theory_hmm.py, theory_report.py (-> results_theory/);
+                               HGT atlas: hgt_report.py
 report/, report_bench/,        groff sources of the three PDFs (custom macros; built with groff + ghostscript)
 report_real/, report_viral/,
 report_uhgg/, report_overview/,
-report_theory/
+report_theory/, report_hgt/
 data/  (git-ignored)           genomes, assemblies, generated contigs, raw run outputs; regenerate with the scripts
 ```
 
@@ -376,6 +408,18 @@ bench_real/uhgg_run.sh        # UHGG v3.0: download, prepare, search, per-genome
 /usr/bin/python3 -I bench_real/uhgg_summary.py stats && /usr/bin/python3 -I bench_real/uhgg_summary.py kraken
 /usr/bin/python3 scripts/uhgg_report.py && report_uhgg/build.sh
 /usr/bin/python3 scripts/overview_report.py && report_overview/build.sh   # method-and-results overview
+```
+
+HGT atlas (the full command list, including the pilot and validation, is in the report's Reproduction section):
+
+```
+P="/usr/bin/python3 -I"; T=all_flankcontig_reciprocal
+$P bench_real/hgt_atlas.py select && HGT_GZ=1 $P bench_real/hgt_atlas.py windows all 128
+HGT_NCAND=128 HGT_DELETE=1 $P bench_real/hgt_atlas.py search all && $P bench_real/hgt_analyze.py all
+$P bench_real/hgt_flanks.py extract all all && $P bench_real/hgt_flanks.py search all && $P bench_real/hgt_flanks.py calibrate all all
+HGT_FLANKS=1 HGT_FLANK_MODE=contig HGT_RECIPROCAL=1 $P bench_real/hgt_analyze.py all   # main atlas; FLANK_MODE=uniform: sensitivity
+for s in isolate mag; do $P bench_real/hgt_ecology.py $T all $s; HGT_ECO_XSTUDY=1 $P bench_real/hgt_ecology.py $T all $s; done
+$P bench_real/hgt_annotate.py $T && $P scripts/hgt_report.py && report_hgt/build.sh
 ```
 
 The scripts expect skani at the path in `bench/run_skani.sh` (override with `SKANI=...`), plus numpy and matplotlib for the Python parts.

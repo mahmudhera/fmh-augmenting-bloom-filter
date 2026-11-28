@@ -1,0 +1,17 @@
+.TS
+center box tab(@);
+l c
+l n.
+phyla@genome pairs
+_
+Actinomycetota / Pseudomonadota@1,500
+Bacillota / Bacillota_I@387
+Actinomycetota / Bacillota@312
+Bacteroidota / Pseudomonadota@250
+Bacillota / Pseudomonadota@188
+Chrysiogenota / Pseudomonadota@134
+Desulfobacterota / Pseudomonadota@131
+Bacillota / Fusobacteriota@84
+Bacillota / Thermotogota@52
+Bacillota / Patescibacteriota@36
+.TE

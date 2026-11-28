@@ -1,0 +1,15 @@
+.TS
+center box tab(@);
+c c s c s c
+c c c c c c
+l n n n n n.
+lowest common@same habitat@different habitat@ratio
+taxon@exchanging / pairs@rate (%)@exchanging / pairs@rate (%)@(95% CI)
+_
+same genus@2,554 / 13,779@18.535@1,883 / 17,926@10.504@1.76 (1.50\(en2.12)
+same family@351 / 18,575@1.890@573 / 55,607@1.030@1.83 (1.31\(en2.52)
+same order@126 / 31,559@0.399@283 / 156,173@0.181@2.20 (1.25\(en3.39)
+same class@217 / 107,386@0.202@605 / 679,401@0.089@2.27 (1.49\(en3.53)
+same phylum@40 / 93,828@0.043@196 / 574,101@0.034@1.25 (0.48\(en2.72)
+same domain@90 / 688,409@0.013@274 / 4,672,834@0.006@2.23 (1.18\(en3.73)
+.TE

@@ -27,3 +27,14 @@ results_uhgg/prespecified/flagged_contigs.tsv.gz
 report_theory/main.ps
 report_theory/build.log
 report_theory/build1.log
+report_hgt/main.ps
+report_hgt/build.log
+report_hgt/build1.log
+# HGT atlas: intermediate block/pair tables of the full run (29-57 MB each, 180 MB in all); regenerate from
+# data/hgt/all/hits with bench_real/hgt_analyze.py (see report_hgt Reproduction). The main atlas (all_flankcontig_reciprocal) is committed.
+results_hgt/all/blocks.tsv.gz
+results_hgt/all/pairs.tsv.gz
+results_hgt/all_reciprocal/blocks.tsv.gz
+results_hgt/all_reciprocal/pairs.tsv.gz
+results_hgt/all_flankuniform_reciprocal/blocks.tsv.gz
+results_hgt/all_flankuniform_reciprocal/pairs.tsv.gz

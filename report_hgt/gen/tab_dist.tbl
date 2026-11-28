@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+c c c c
+c c c c
+l n n n.
+lowest common taxon@complete partners@complete partners@any partner
+@(128 candidates)@(32 candidates)@(128 candidates)
+_
+same genus@36,264@24,803@120,015
+same family@7,726@6,290@37,846
+same order@4,007@2,723@20,687
+same class@7,633@4,220@36,754
+same phylum@2,540@1,098@14,735
+same domain@3,332@1,257@25,553
+different domain@19@9@223
+.TE

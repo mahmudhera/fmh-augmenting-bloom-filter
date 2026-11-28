@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+l c c c
+l n n n.
+closest relative of the flanks@complete isolates@draft isolates@MAGs and SAGs
+_
+none: the block is a whole contig@0.7@30.4@45.5
+nearer the host's lineage@51.9@30.9@19.7
+equally distant@28.2@22.5@11.3
+no relative at $>=$ 80%@2.9@2.9@10.6
+nearer the partner's lineage@13.6@11.2@6.8
+the partner genome itself@2.7@2.2@6.1
+blocks@212,660@664,655@672,338
+.TE

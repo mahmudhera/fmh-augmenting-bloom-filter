@@ -1,0 +1,103 @@
+{
+ "genomes": 60,
+ "windows": 52055,
+ "truth": 629,
+ "truth_cross_genus": 227,
+ "blast_wall_s": 0.25877904891967773,
+ "minimap2_summed": {
+  "calls": 1388,
+  "both": 553,
+  "recall": 0.8791732909379968,
+  "precision": 0.3984149855907781,
+  "recall_cross_genus": 0.8678414096916299,
+  "precision_cross_genus": 0.5880597014925373
+ },
+ "minimap2_single": {
+  "calls": 1372,
+  "both": 553,
+  "recall": 0.8791732909379968,
+  "precision": 0.4030612244897959,
+  "recall_cross_genus": 0.8678414096916299,
+  "precision_cross_genus": 0.5933734939759037
+ },
+ "w1000_c32": {
+  "calls": 1840,
+  "both": 403,
+  "recall": 0.6406995230524642,
+  "precision": 0.2190217391304348,
+  "recall_cross_genus": 0.3964757709251101,
+  "precision_cross_genus": 0.4918032786885246
+ },
+ "w1000_c64": {
+  "calls": 2127,
+  "both": 465,
+  "recall": 0.739268680445151,
+  "precision": 0.21861777150916784,
+  "recall_cross_genus": 0.5286343612334802,
+  "precision_cross_genus": 0.4743083003952569
+ },
+ "w2000_c32": {
+  "calls": 866,
+  "both": 332,
+  "recall": 0.5278219395866455,
+  "precision": 0.3833718244803695,
+  "recall_cross_genus": 0.36123348017621143,
+  "precision_cross_genus": 0.7884615384615384
+ },
+ "w2000_c64": {
+  "calls": 950,
+  "both": 368,
+  "recall": 0.5850556438791733,
+  "precision": 0.3873684210526316,
+  "recall_cross_genus": 0.45374449339207046,
+  "precision_cross_genus": 0.8174603174603174
+ },
+ "w2000_c64_m99": {
+  "calls": 1768,
+  "both": 430,
+  "recall": 0.6836248012718601,
+  "precision": 0.24321266968325791,
+  "recall_cross_genus": 0.4845814977973568,
+  "precision_cross_genus": 0.5699481865284974
+ },
+ "w5000_c128": {
+  "calls": 424,
+  "both": 315,
+  "recall": 0.5007949125596184,
+  "precision": 0.7429245283018868,
+  "recall_cross_genus": 0.5154185022026432,
+  "precision_cross_genus": 0.9435483870967742
+ },
+ "w5000_c128_m99": {
+  "calls": 1401,
+  "both": 416,
+  "recall": 0.6613672496025437,
+  "precision": 0.29693076374018557,
+  "recall_cross_genus": 0.5947136563876652,
+  "precision_cross_genus": 0.6398104265402843
+ },
+ "w5000_c256": {
+  "calls": 447,
+  "both": 327,
+  "recall": 0.519872813990461,
+  "precision": 0.7315436241610739,
+  "recall_cross_genus": 0.5594713656387665,
+  "precision_cross_genus": 0.9338235294117647
+ },
+ "w5000_c32": {
+  "calls": 336,
+  "both": 243,
+  "recall": 0.3863275039745628,
+  "precision": 0.7232142857142857,
+  "recall_cross_genus": 0.2555066079295154,
+  "precision_cross_genus": 0.8923076923076924
+ },
+ "w5000_c64_m99": {
+  "calls": 1189,
+  "both": 374,
+  "recall": 0.5945945945945946,
+  "precision": 0.31455004205214465,
+  "recall_cross_genus": 0.45374449339207046,
+  "precision_cross_genus": 0.6688311688311688
+ }
+}

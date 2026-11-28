@@ -1,0 +1,14 @@
+.TS
+center box tab(@);
+c c c s c s
+c c c c c c
+l n n n n n.
+genomes@number@main rule (%)@with partner test (%)
+@@other genus@other phylum@other genus@other phylum
+_
+complete isolates@10,296@30.6@10.7@23.0@6.7
+draft isolates@28,102@32.0@9.8@24.7@5.9
+MAGs@160,761@21.3@6.9@13.2@3.4
+SAGs@764@9.9@3.0@5.0@0.9
+all@199,923@23.2@7.5@15.3@3.9
+.TE

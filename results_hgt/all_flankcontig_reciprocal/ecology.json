@@ -1,0 +1,1123 @@
+{
+ "genomes": 86486,
+ "habitats": {
+  "extreme": 6226,
+  "sediment": 3035,
+  "marine": 17406,
+  "gut": 24730,
+  "soil": 6138,
+  "freshwater": 9143,
+  "host_other": 2280,
+  "food": 601,
+  "subsurface": 6543,
+  "plant": 2217,
+  "engineered": 8167
+ },
+ "exchanging_pairs": 301364,
+ "strata": {
+  "same genus": {
+   "same_pairs": 1971412.0,
+   "same_exchanging": 237077,
+   "diff_pairs": 596610.0,
+   "diff_exchanging": 10982,
+   "rate_same": 0.12025746013517215,
+   "rate_diff": 0.018407334774811015,
+   "ratio": 6.533127234679026,
+   "ratio_ci": [
+    5.7985763632143135,
+    7.250467944105314
+   ]
+  },
+  "same family": {
+   "same_pairs": 10712677.0,
+   "same_exchanging": 15069,
+   "diff_pairs": 5429523.0,
+   "diff_exchanging": 5935,
+   "rate_same": 0.0014066512039894417,
+   "rate_diff": 0.0010930978651347456,
+   "ratio": 1.286848368161477,
+   "ratio_ci": [
+    1.0872431355645753,
+    1.495220200064653
+   ]
+  },
+  "same order": {
+   "same_pairs": 19029319.0,
+   "same_exchanging": 5390,
+   "diff_pairs": 20199969.0,
+   "diff_exchanging": 3536,
+   "rate_same": 0.0002832471303886387,
+   "rate_diff": 0.0001750497735912367,
+   "ratio": 1.6180948114223586,
+   "ratio_ci": [
+    1.3554923389709694,
+    1.9597274001222407
+   ]
+  },
+  "same class": {
+   "same_pairs": 66696195.0,
+   "same_exchanging": 7131,
+   "diff_pairs": 127173926.0,
+   "diff_exchanging": 4522,
+   "rate_same": 0.00010691764350275154,
+   "rate_diff": 3.5557603214986064e-05,
+   "ratio": 3.0068855557083825,
+   "ratio_ci": [
+    2.528852207711818,
+    3.6082214889775903
+   ]
+  },
+  "same phylum": {
+   "same_pairs": 30805523.0,
+   "same_exchanging": 1854,
+   "diff_pairs": 151826191.0,
+   "diff_exchanging": 2418,
+   "rate_same": 6.0184013107000326e-05,
+   "rate_diff": 1.5926105924635887e-05,
+   "ratio": 3.7789534611786335,
+   "ratio_ci": [
+    3.0386280212901653,
+    4.934860844123524
+   ]
+  },
+  "same domain": {
+   "same_pairs": 422100828.0,
+   "same_exchanging": 5234,
+   "diff_pairs": 2490390257.0,
+   "diff_exchanging": 2060,
+   "rate_same": 1.239988091186592e-05,
+   "rate_diff": 8.271795933226702e-07,
+   "ratio": 14.990554665471437,
+   "ratio_ci": [
+    12.380236798749875,
+    18.474212411255255
+   ]
+  },
+  "different domain": {
+   "same_pairs": 50526282.0,
+   "same_exchanging": 141,
+   "diff_pairs": 342412143.0,
+   "diff_exchanging": 15,
+   "rate_same": 2.7906268662317167e-06,
+   "rate_diff": 4.3806857632382504e-08,
+   "ratio": 63.7029683719851,
+   "ratio_ci": [
+    26.141887241588176,
+    278.7761886246305
+   ]
+  }
+ },
+ "mh_odds_cross_genus": 2.3578924585525733,
+ "mh_odds_cross_family": 3.416317473721652,
+ "mh_odds_same_genus": 7.289484688928637,
+ "mh_ci": {
+  "cross_genus": [
+   2.10751655027189,
+   2.6343331482990355
+  ],
+  "cross_family": [
+   3.0352473090718175,
+   3.9466975077955104
+  ],
+  "same_genus": [
+   6.438693805834239,
+   8.145213258897757
+  ]
+ },
+ "habitat_pairs_cross_genus": {
+  "gut|gut": {
+   "observed": 24081,
+   "expected": 18774.005230048897,
+   "ratio": 1.2826778146123528
+  },
+  "gut|host_other": {
+   "observed": 3302,
+   "expected": 774.418799426395,
+   "ratio": 4.2638427714380915
+  },
+  "gut|food": {
+   "observed": 530,
+   "expected": 261.9336889163407,
+   "ratio": 2.0234128805373994
+  },
+  "gut|engineered": {
+   "observed": 1213,
+   "expected": 2396.3959688944387,
+   "ratio": 0.5061767820280592
+  },
+  "gut|marine": {
+   "observed": 330,
+   "expected": 2485.2993796241662,
+   "ratio": 0.13278078395927637
+  },
+  "gut|plant": {
+   "observed": 111,
+   "expected": 447.1208812451084,
+   "ratio": 0.24825501258383548
+  },
+  "gut|extreme": {
+   "observed": 39,
+   "expected": 866.6668919832174,
+   "ratio": 0.04499998830087445
+  },
+  "gut|subsurface": {
+   "observed": 60,
+   "expected": 782.8159652210221,
+   "ratio": 0.07664636730174436
+  },
+  "gut|freshwater": {
+   "observed": 166,
+   "expected": 1535.4903943222669,
+   "ratio": 0.10810878440777802
+  },
+  "gut|soil": {
+   "observed": 307,
+   "expected": 1079.1621441948512,
+   "ratio": 0.284479956651045
+  },
+  "gut|sediment": {
+   "observed": 121,
+   "expected": 551.6534523963553,
+   "ratio": 0.21934060137642933
+  },
+  "host_other|host_other": {
+   "observed": 1623,
+   "expected": 69.81926863961614,
+   "ratio": 23.24573189641081
+  },
+  "host_other|food": {
+   "observed": 504,
+   "expected": 37.166116778684504,
+   "ratio": 13.560738750330081
+  },
+  "host_other|engineered": {
+   "observed": 910,
+   "expected": 216.07097119514177,
+   "ratio": 4.2115791629322805
+  },
+  "host_other|marine": {
+   "observed": 436,
+   "expected": 476.0557962609614,
+   "ratio": 0.9158590304422974
+  },
+  "host_other|plant": {
+   "observed": 173,
+   "expected": 121.9206751562443,
+   "ratio": 1.4189553968455006
+  },
+  "host_other|extreme": {
+   "observed": 50,
+   "expected": 122.41579668122782,
+   "ratio": 0.40844401911789696
+  },
+  "host_other|subsurface": {
+   "observed": 142,
+   "expected": 122.35706660576166,
+   "ratio": 1.1605377927008376
+  },
+  "host_other|freshwater": {
+   "observed": 332,
+   "expected": 265.01604220608766,
+   "ratio": 1.252754351156685
+  },
+  "host_other|soil": {
+   "observed": 482,
+   "expected": 232.2216903702918,
+   "ratio": 2.0756028398183703
+  },
+  "host_other|sediment": {
+   "observed": 164,
+   "expected": 84.97684314467209,
+   "ratio": 1.9299375445236522
+  },
+  "food|food": {
+   "observed": 379,
+   "expected": 18.24270370982056,
+   "ratio": 20.77542923618135
+  },
+  "food|engineered": {
+   "observed": 306,
+   "expected": 49.15445604189308,
+   "ratio": 6.225274871096205
+  },
+  "food|marine": {
+   "observed": 169,
+   "expected": 92.45745075552443,
+   "ratio": 1.827867831299708
+  },
+  "food|plant": {
+   "observed": 63,
+   "expected": 25.923194172680525,
+   "ratio": 2.4302560703107075
+  },
+  "food|extreme": {
+   "observed": 27,
+   "expected": 29.5711006822158,
+   "ratio": 0.913053602236657
+  },
+  "food|subsurface": {
+   "observed": 37,
+   "expected": 23.98637077460664,
+   "ratio": 1.54254265256211
+  },
+  "food|freshwater": {
+   "observed": 53,
+   "expected": 51.48665916689869,
+   "ratio": 1.0293928729808566
+  },
+  "food|soil": {
+   "observed": 120,
+   "expected": 50.712120029367924,
+   "ratio": 2.3662982326612796
+  },
+  "food|sediment": {
+   "observed": 65,
+   "expected": 18.760584441913238,
+   "ratio": 3.4647108250413963
+  },
+  "engineered|engineered": {
+   "observed": 2491,
+   "expected": 440.4464412910577,
+   "ratio": 5.655625216764748
+  },
+  "engineered|marine": {
+   "observed": 980,
+   "expected": 1439.0812531050701,
+   "ratio": 0.680990039919899
+  },
+  "engineered|plant": {
+   "observed": 305,
+   "expected": 301.28497044485414,
+   "ratio": 1.0123306169227775
+  },
+  "engineered|extreme": {
+   "observed": 131,
+   "expected": 410.74542701531925,
+   "ratio": 0.318932339556185
+  },
+  "engineered|subsurface": {
+   "observed": 452,
+   "expected": 478.544887039814,
+   "ratio": 0.94452999549527
+  },
+  "engineered|freshwater": {
+   "observed": 755,
+   "expected": 1030.9425004150462,
+   "ratio": 0.7323395821746075
+  },
+  "engineered|soil": {
+   "observed": 1098,
+   "expected": 590.2708492090874,
+   "ratio": 1.8601630107114835
+  },
+  "engineered|sediment": {
+   "observed": 329,
+   "expected": 270.7459667537221,
+   "ratio": 1.215161222694288
+  },
+  "marine|marine": {
+   "observed": 3346,
+   "expected": 3012.240467746507,
+   "ratio": 1.1108010916881355
+  },
+  "marine|plant": {
+   "observed": 173,
+   "expected": 636.9574969070953,
+   "ratio": 0.2716036797432235
+  },
+  "marine|extreme": {
+   "observed": 166,
+   "expected": 878.4418889151567,
+   "ratio": 0.18897095197156852
+  },
+  "marine|subsurface": {
+   "observed": 318,
+   "expected": 875.6282982265066,
+   "ratio": 0.3631677969340138
+  },
+  "marine|freshwater": {
+   "observed": 365,
+   "expected": 2045.1643963455642,
+   "ratio": 0.17846976050052812
+  },
+  "marine|soil": {
+   "observed": 526,
+   "expected": 1083.5238367687525,
+   "ratio": 0.48545309493939615
+  },
+  "marine|sediment": {
+   "observed": 649,
+   "expected": 738.0490057363019,
+   "ratio": 0.8793454024811487
+  },
+  "plant|plant": {
+   "observed": 96,
+   "expected": 126.59007125519821,
+   "ratio": 0.7583533135586091
+  },
+  "plant|extreme": {
+   "observed": 21,
+   "expected": 170.87084821471205,
+   "ratio": 0.12289984054864597
+  },
+  "plant|subsurface": {
+   "observed": 88,
+   "expected": 176.92433086502757,
+   "ratio": 0.4973877791129454
+  },
+  "plant|freshwater": {
+   "observed": 128,
+   "expected": 435.8792501495445,
+   "ratio": 0.29365931036195203
+  },
+  "plant|soil": {
+   "observed": 266,
+   "expected": 368.5746643738178,
+   "ratio": 0.7216990903374085
+  },
+  "plant|sediment": {
+   "observed": 44,
+   "expected": 117.41465621314711,
+   "ratio": 0.37474027024467194
+  },
+  "extreme|extreme": {
+   "observed": 762,
+   "expected": 174.8673610963068,
+   "ratio": 4.357588490057528
+  },
+  "extreme|subsurface": {
+   "observed": 66,
+   "expected": 271.8607448366597,
+   "ratio": 0.2427713498675741
+  },
+  "extreme|freshwater": {
+   "observed": 35,
+   "expected": 553.7154742445979,
+   "ratio": 0.06320935864714361
+  },
+  "extreme|soil": {
+   "observed": 109,
+   "expected": 390.667660782245,
+   "ratio": 0.2790095289222205
+  },
+  "extreme|sediment": {
+   "observed": 120,
+   "expected": 176.8744712426127,
+   "ratio": 0.6784472578600678
+  },
+  "subsurface|subsurface": {
+   "observed": 483,
+   "expected": 212.0485786654775,
+   "ratio": 2.277779945707482
+  },
+  "subsurface|freshwater": {
+   "observed": 214,
+   "expected": 633.2028214482418,
+   "ratio": 0.3379643816345383
+  },
+  "subsurface|soil": {
+   "observed": 204,
+   "expected": 349.88275004746407,
+   "ratio": 0.5830524653539677
+  },
+  "subsurface|sediment": {
+   "observed": 99,
+   "expected": 163.3781159361381,
+   "ratio": 0.6059563083632175
+  },
+  "freshwater|freshwater": {
+   "observed": 617,
+   "expected": 783.6760625148058,
+   "ratio": 0.7873151031563417
+  },
+  "freshwater|soil": {
+   "observed": 394,
+   "expected": 845.8254647975314,
+   "ratio": 0.46581714124002327
+  },
+  "freshwater|sediment": {
+   "observed": 91,
+   "expected": 367.00919779150195,
+   "ratio": 0.2479501891167783
+  },
+  "soil|soil": {
+   "observed": 685,
+   "expected": 399.6520183199899,
+   "ratio": 1.7139910937508143
+  },
+  "soil|sediment": {
+   "observed": 148,
+   "expected": 226.65760156414646,
+   "ratio": 0.6529672906563183
+  },
+  "sediment|sediment": {
+   "observed": 256,
+   "expected": 64.0824666343128,
+   "ratio": 3.994852468162102
+  }
+ },
+ "habitat_pairs_cross_family": {
+  "gut|gut": {
+   "observed": 13221,
+   "expected": 7423.089551392949,
+   "ratio": 1.7810643275237152
+  },
+  "gut|host_other": {
+   "observed": 2902,
+   "expected": 500.4007991538176,
+   "ratio": 5.7993512498527355
+  },
+  "gut|food": {
+   "observed": 465,
+   "expected": 184.4116465677141,
+   "ratio": 2.521532715826908
+  },
+  "gut|engineered": {
+   "observed": 953,
+   "expected": 1719.6011362198344,
+   "ratio": 0.5541982846644085
+  },
+  "gut|marine": {
+   "observed": 224,
+   "expected": 2299.7047555952236,
+   "ratio": 0.09740380779532848
+  },
+  "gut|plant": {
+   "observed": 76,
+   "expected": 368.87798201204225,
+   "ratio": 0.20603018804608114
+  },
+  "gut|extreme": {
+   "observed": 26,
+   "expected": 784.3239565716873,
+   "ratio": 0.03314956757619273
+  },
+  "gut|subsurface": {
+   "observed": 46,
+   "expected": 716.5322638668077,
+   "ratio": 0.06419808614305564
+  },
+  "gut|freshwater": {
+   "observed": 136,
+   "expected": 1385.541752873146,
+   "ratio": 0.09815655119593611
+  },
+  "gut|soil": {
+   "observed": 230,
+   "expected": 920.106503947549,
+   "ratio": 0.24997106205991046
+  },
+  "gut|sediment": {
+   "observed": 93,
+   "expected": 469.62410274141354,
+   "ratio": 0.19803072171363414
+  },
+  "host_other|host_other": {
+   "observed": 1402,
+   "expected": 32.60015253400476,
+   "ratio": 43.00593374640175
+  },
+  "host_other|food": {
+   "observed": 469,
+   "expected": 24.944079386011875,
+   "ratio": 18.802056902649433
+  },
+  "host_other|engineered": {
+   "observed": 664,
+   "expected": 163.82576248753065,
+   "ratio": 4.0530865836839265
+  },
+  "host_other|marine": {
+   "observed": 295,
+   "expected": 353.9134934769543,
+   "ratio": 0.8335370236998592
+  },
+  "host_other|plant": {
+   "observed": 90,
+   "expected": 79.97695373041634,
+   "ratio": 1.1253241815557142
+  },
+  "host_other|extreme": {
+   "observed": 42,
+   "expected": 100.28002534894348,
+   "ratio": 0.41882717773408
+  },
+  "host_other|subsurface": {
+   "observed": 83,
+   "expected": 101.38195292856771,
+   "ratio": 0.8186861428727914
+  },
+  "host_other|freshwater": {
+   "observed": 193,
+   "expected": 203.6872560431111,
+   "ratio": 0.9475310520121637
+  },
+  "host_other|soil": {
+   "observed": 298,
+   "expected": 164.06558277653136,
+   "ratio": 1.8163468227574369
+  },
+  "host_other|sediment": {
+   "observed": 136,
+   "expected": 65.0452804084899,
+   "ratio": 2.0908511600827673
+  },
+  "food|food": {
+   "observed": 76,
+   "expected": 3.266056164876254,
+   "ratio": 23.26965494877812
+  },
+  "food|engineered": {
+   "observed": 246,
+   "expected": 37.1249941345942,
+   "ratio": 6.626263673150851
+  },
+  "food|marine": {
+   "observed": 153,
+   "expected": 75.67735981376927,
+   "ratio": 2.021740721088979
+  },
+  "food|plant": {
+   "observed": 37,
+   "expected": 16.585885503478057,
+   "ratio": 2.2308124575104
+  },
+  "food|extreme": {
+   "observed": 21,
+   "expected": 22.231112080909906,
+   "ratio": 0.944622109931825
+  },
+  "food|subsurface": {
+   "observed": 32,
+   "expected": 20.339147223913425,
+   "ratio": 1.5733206337371173
+  },
+  "food|freshwater": {
+   "observed": 48,
+   "expected": 39.064239174580415,
+   "ratio": 1.2287452927339795
+  },
+  "food|soil": {
+   "observed": 97,
+   "expected": 35.110903342670944,
+   "ratio": 2.7626745758521705
+  },
+  "food|sediment": {
+   "observed": 56,
+   "expected": 14.639729292057584,
+   "ratio": 3.8252073438530987
+  },
+  "engineered|engineered": {
+   "observed": 1765,
+   "expected": 280.7688342734269,
+   "ratio": 6.286310247244727
+  },
+  "engineered|marine": {
+   "observed": 620,
+   "expected": 1082.1256755505856,
+   "ratio": 0.5729463906163617
+  },
+  "engineered|plant": {
+   "observed": 178,
+   "expected": 198.97013554007046,
+   "ratio": 0.8946066178064833
+  },
+  "engineered|extreme": {
+   "observed": 82,
+   "expected": 304.37349506056717,
+   "ratio": 0.2694058494931789
+  },
+  "engineered|subsurface": {
+   "observed": 251,
+   "expected": 352.38322159148606,
+   "ratio": 0.7122927103804662
+  },
+  "engineered|freshwater": {
+   "observed": 411,
+   "expected": 682.3509446171994,
+   "ratio": 0.6023293486177733
+  },
+  "engineered|soil": {
+   "observed": 658,
+   "expected": 407.91357523156256,
+   "ratio": 1.6130867908146216
+  },
+  "engineered|sediment": {
+   "observed": 232,
+   "expected": 191.87199245034338,
+   "ratio": 1.2091394738606354
+  },
+  "marine|marine": {
+   "observed": 1534,
+   "expected": 1385.3302376663441,
+   "ratio": 1.107317200109699
+  },
+  "marine|plant": {
+   "observed": 87,
+   "expected": 488.326956584215,
+   "ratio": 0.17815932302520004
+  },
+  "marine|extreme": {
+   "observed": 122,
+   "expected": 650.55872924671,
+   "ratio": 0.18753110905339063
+  },
+  "marine|subsurface": {
+   "observed": 193,
+   "expected": 702.2596151473723,
+   "ratio": 0.2748271377665624
+  },
+  "marine|freshwater": {
+   "observed": 134,
+   "expected": 1407.039501845434,
+   "ratio": 0.09523542148194797
+  },
+  "marine|soil": {
+   "observed": 245,
+   "expected": 872.8267379842001,
+   "ratio": 0.2806971754392279
+  },
+  "marine|sediment": {
+   "observed": 238,
+   "expected": 439.6545923354024,
+   "ratio": 0.5413340475662205
+  },
+  "plant|plant": {
+   "observed": 32,
+   "expected": 55.71838908052562,
+   "ratio": 0.574316675842024
+  },
+  "plant|extreme": {
+   "observed": 20,
+   "expected": 116.66345145342797,
+   "ratio": 0.17143329595373746
+  },
+  "plant|subsurface": {
+   "observed": 46,
+   "expected": 124.34862098657233,
+   "ratio": 0.3699277051489559
+  },
+  "plant|freshwater": {
+   "observed": 54,
+   "expected": 261.8807931858097,
+   "ratio": 0.20620068903520508
+  },
+  "plant|soil": {
+   "observed": 129,
+   "expected": 197.7146673473902,
+   "ratio": 0.6524553880129864
+  },
+  "plant|sediment": {
+   "observed": 26,
+   "expected": 82.02110366145031,
+   "ratio": 0.3169915892294915
+  },
+  "extreme|extreme": {
+   "observed": 500,
+   "expected": 105.1966733337961,
+   "ratio": 4.753002011893156
+  },
+  "extreme|subsurface": {
+   "observed": 49,
+   "expected": 211.66789380024582,
+   "ratio": 0.23149472090576967
+  },
+  "extreme|freshwater": {
+   "observed": 15,
+   "expected": 386.19171738369926,
+   "ratio": 0.0388408122826125
+  },
+  "extreme|soil": {
+   "observed": 78,
+   "expected": 258.4060367161326,
+   "ratio": 0.3018505333359744
+  },
+  "extreme|sediment": {
+   "observed": 61,
+   "expected": 116.9665798771235,
+   "ratio": 0.5215164884198727
+  },
+  "subsurface|subsurface": {
+   "observed": 369,
+   "expected": 158.80666170248608,
+   "ratio": 2.3235801070568276
+  },
+  "subsurface|freshwater": {
+   "observed": 90,
+   "expected": 445.8034528367763,
+   "ratio": 0.2018826893944046
+  },
+  "subsurface|soil": {
+   "observed": 114,
+   "expected": 257.4751431537322,
+   "ratio": 0.4427611869777012
+  },
+  "subsurface|sediment": {
+   "observed": 60,
+   "expected": 123.3484386926397,
+   "ratio": 0.4864269109194671
+  },
+  "freshwater|freshwater": {
+   "observed": 349,
+   "expected": 445.09192602783384,
+   "ratio": 0.7841076856068948
+  },
+  "freshwater|soil": {
+   "observed": 132,
+   "expected": 532.6001366514299,
+   "ratio": 0.24784071748443778
+  },
+  "freshwater|sediment": {
+   "observed": 41,
+   "expected": 242.9385377823335,
+   "ratio": 0.1687669662222752
+  },
+  "soil|soil": {
+   "observed": 343,
+   "expected": 207.92620721617507,
+   "ratio": 1.6496237034872303
+  },
+  "soil|sediment": {
+   "observed": 74,
+   "expected": 158.81117616983835,
+   "ratio": 0.46596216831025644
+  },
+  "sediment|sediment": {
+   "observed": 159,
+   "expected": 38.693731022066636,
+   "ratio": 4.109192776197363
+  }
+ },
+ "habitat_pairs_cross_order": {
+  "gut|gut": {
+   "observed": 9288,
+   "expected": 3739.7243864172297,
+   "ratio": 2.4836054854026792
+  },
+  "gut|host_other": {
+   "observed": 2148,
+   "expected": 377.41385006618697,
+   "ratio": 5.691365061518823
+  },
+  "gut|food": {
+   "observed": 368,
+   "expected": 144.4659908117391,
+   "ratio": 2.5473123323506592
+  },
+  "gut|engineered": {
+   "observed": 753,
+   "expected": 1236.691676175594,
+   "ratio": 0.6088825650776709
+  },
+  "gut|marine": {
+   "observed": 176,
+   "expected": 1937.124646570558,
+   "ratio": 0.09085631134350929
+  },
+  "gut|plant": {
+   "observed": 49,
+   "expected": 309.9250392515211,
+   "ratio": 0.158102746774951
+  },
+  "gut|extreme": {
+   "observed": 17,
+   "expected": 632.1648629373598,
+   "ratio": 0.02689171922812879
+  },
+  "gut|subsurface": {
+   "observed": 36,
+   "expected": 570.2394539131833,
+   "ratio": 0.06313137358868343
+  },
+  "gut|freshwater": {
+   "observed": 104,
+   "expected": 1077.350708008911,
+   "ratio": 0.09653309662942162
+  },
+  "gut|soil": {
+   "observed": 178,
+   "expected": 807.7219604401572,
+   "ratio": 0.22037286184840302
+  },
+  "gut|sediment": {
+   "observed": 73,
+   "expected": 363.4730829217319,
+   "ratio": 0.2008401816530645
+  },
+  "host_other|host_other": {
+   "observed": 1200,
+   "expected": 21.406158342726044,
+   "ratio": 56.05863419242473
+  },
+  "host_other|food": {
+   "observed": 284,
+   "expected": 10.950733394109095,
+   "ratio": 25.934336064904723
+  },
+  "host_other|engineered": {
+   "observed": 496,
+   "expected": 120.9838254123536,
+   "ratio": 4.099721581041639
+  },
+  "host_other|marine": {
+   "observed": 235,
+   "expected": 279.40791366627815,
+   "ratio": 0.8410642236879572
+  },
+  "host_other|plant": {
+   "observed": 61,
+   "expected": 52.651020718325974,
+   "ratio": 1.1585720308508292
+  },
+  "host_other|extreme": {
+   "observed": 22,
+   "expected": 76.92046643979377,
+   "ratio": 0.28600970610623594
+  },
+  "host_other|subsurface": {
+   "observed": 54,
+   "expected": 77.20054091823502,
+   "ratio": 0.6994769642507133
+  },
+  "host_other|freshwater": {
+   "observed": 161,
+   "expected": 147.77052806171105,
+   "ratio": 1.0895271344822166
+  },
+  "host_other|soil": {
+   "observed": 211,
+   "expected": 116.02494701480147,
+   "ratio": 1.8185744137688116
+  },
+  "host_other|sediment": {
+   "observed": 118,
+   "expected": 49.10264994321099,
+   "ratio": 2.403128958141186
+  },
+  "food|food": {
+   "observed": 45,
+   "expected": 1.7274707080104545,
+   "ratio": 26.049645757424713
+  },
+  "food|engineered": {
+   "observed": 213,
+   "expected": 31.14812889044294,
+   "ratio": 6.8382919805290125
+  },
+  "food|marine": {
+   "observed": 86,
+   "expected": 59.67466035106172,
+   "ratio": 1.4411477081573354
+  },
+  "food|plant": {
+   "observed": 28,
+   "expected": 11.724619859299144,
+   "ratio": 2.3881371281980086
+  },
+  "food|extreme": {
+   "observed": 8,
+   "expected": 18.426059641518194,
+   "ratio": 0.4341677035481933
+  },
+  "food|subsurface": {
+   "observed": 20,
+   "expected": 17.514084072117246,
+   "ratio": 1.1419381063632315
+  },
+  "food|freshwater": {
+   "observed": 38,
+   "expected": 32.537196522162155,
+   "ratio": 1.1678941046477975
+  },
+  "food|soil": {
+   "observed": 73,
+   "expected": 27.24118207727352,
+   "ratio": 2.679766237490173
+  },
+  "food|sediment": {
+   "observed": 41,
+   "expected": 11.42490025921865,
+   "ratio": 3.588652773306924
+  },
+  "engineered|engineered": {
+   "observed": 1353,
+   "expected": 195.18120703940718,
+   "ratio": 6.932019842088734
+  },
+  "engineered|marine": {
+   "observed": 515,
+   "expected": 942.5917654780906,
+   "ratio": 0.5463659018268504
+  },
+  "engineered|plant": {
+   "observed": 93,
+   "expected": 137.32250665626304,
+   "ratio": 0.67723785608423
+  },
+  "engineered|extreme": {
+   "observed": 50,
+   "expected": 235.26820913235963,
+   "ratio": 0.21252340120407207
+  },
+  "engineered|subsurface": {
+   "observed": 151,
+   "expected": 255.9686126391135,
+   "ratio": 0.5899160777688504
+  },
+  "engineered|freshwater": {
+   "observed": 272,
+   "expected": 456.3727414950831,
+   "ratio": 0.5960040450902576
+  },
+  "engineered|soil": {
+   "observed": 400,
+   "expected": 293.6700782810189,
+   "ratio": 1.3620727121447893
+  },
+  "engineered|sediment": {
+   "observed": 170,
+   "expected": 151.8223536192741,
+   "ratio": 1.1197297100683217
+  },
+  "marine|marine": {
+   "observed": 1188,
+   "expected": 1159.740890288946,
+   "ratio": 1.0243667442854527
+  },
+  "marine|plant": {
+   "observed": 60,
+   "expected": 394.9274017414148,
+   "ratio": 0.15192665724240118
+  },
+  "marine|extreme": {
+   "observed": 74,
+   "expected": 563.6058975256755,
+   "ratio": 0.1312974195707895
+  },
+  "marine|subsurface": {
+   "observed": 147,
+   "expected": 617.7873599792438,
+   "ratio": 0.23794594956578402
+  },
+  "marine|freshwater": {
+   "observed": 116,
+   "expected": 1218.2374096433018,
+   "ratio": 0.09521953527429816
+  },
+  "marine|soil": {
+   "observed": 195,
+   "expected": 741.9905456984774,
+   "ratio": 0.26280658308986343
+  },
+  "marine|sediment": {
+   "observed": 166,
+   "expected": 374.4157930485023,
+   "ratio": 0.44335736654809366
+  },
+  "plant|plant": {
+   "observed": 21,
+   "expected": 31.091692873344904,
+   "ratio": 0.6754215695345244
+  },
+  "plant|extreme": {
+   "observed": 17,
+   "expected": 89.28450300042519,
+   "ratio": 0.19040258307669633
+  },
+  "plant|subsurface": {
+   "observed": 24,
+   "expected": 89.14136247094491,
+   "ratio": 0.2692352835399241
+  },
+  "plant|freshwater": {
+   "observed": 32,
+   "expected": 184.43683825091514,
+   "ratio": 0.1735011308124136
+  },
+  "plant|soil": {
+   "observed": 67,
+   "expected": 132.03945769280764,
+   "ratio": 0.5074240773987182
+  },
+  "plant|sediment": {
+   "observed": 18,
+   "expected": 60.304340818341885,
+   "ratio": 0.29848597556554674
+  },
+  "extreme|extreme": {
+   "observed": 310,
+   "expected": 77.30145005062053,
+   "ratio": 4.01027406079702
+  },
+  "extreme|subsurface": {
+   "observed": 33,
+   "expected": 165.69713557491173,
+   "ratio": 0.19915854239423886
+  },
+  "extreme|freshwater": {
+   "observed": 7,
+   "expected": 286.6344077022184,
+   "ratio": 0.024421352817042916
+  },
+  "extreme|soil": {
+   "observed": 21,
+   "expected": 199.7743720782222,
+   "ratio": 0.10511858844325334
+  },
+  "extreme|sediment": {
+   "observed": 34,
+   "expected": 92.6752689055861,
+   "ratio": 0.36687241808424487
+  },
+  "subsurface|subsurface": {
+   "observed": 319,
+   "expected": 115.00362066845048,
+   "ratio": 2.773825712145712
+  },
+  "subsurface|freshwater": {
+   "observed": 52,
+   "expected": 304.0447145186095,
+   "ratio": 0.1710274756209165
+  },
+  "subsurface|soil": {
+   "observed": 53,
+   "expected": 190.65498200270645,
+   "ratio": 0.27798906403215645
+  },
+  "subsurface|sediment": {
+   "observed": 41,
+   "expected": 99.53585942788222,
+   "ratio": 0.4119118500172912
+  },
+  "freshwater|freshwater": {
+   "observed": 272,
+   "expected": 286.8918025384654,
+   "ratio": 0.9480926174721609
+  },
+  "freshwater|soil": {
+   "observed": 77,
+   "expected": 380.97552057376873,
+   "ratio": 0.20211272336877192
+  },
+  "freshwater|sediment": {
+   "observed": 30,
+   "expected": 189.45938241249863,
+   "ratio": 0.15834528550654087
+  },
+  "soil|soil": {
+   "observed": 230,
+   "expected": 148.00601707660383,
+   "ratio": 1.5539908751206943
+  },
+  "soil|sediment": {
+   "observed": 49,
+   "expected": 122.41664481867032,
+   "ratio": 0.4002723655151737
+  },
+  "sediment|sediment": {
+   "observed": 134,
+   "expected": 30.595110471013047,
+   "ratio": 4.379784806691795
+  }
+ }
+}

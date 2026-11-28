@@ -1,0 +1,25 @@
+.TS
+center box tab(@);
+l l c c
+l l n n.
+KEGG@function@shared@background
+_
+K07497@putative transposase@1703@396
+K07483@transposase@843@208
+K18320@transposase, IS6 family@586@21
+K21528@Enterobacteriaceae phage serine recombinase (EC 3.1.22.- 6.5.1.-)@578@82
+K07484@transposase@570@183
+K07482@transposase, IS30 family@520@89
+K07481@transposase, IS5 family@511@54
+K08365@MerR family transcriptional regulator, mercuric resistance operon regula@396@28
+K03205@type IV secretion system protein VirD4 (EC 7.4.2.8)@372@128
+K03497@ParB family transcriptional regulator, chromosome partitioning protein@366@223
+K03496@chromosome partitioning protein@349@264
+K07493@putative transposase@330@63
+K04763@integrase/recombinase XerD@318@114
+K07480@insertion element IS1 protein InsB@318@57
+K07486@transposase@298@82
+K01534@Zn2+/Cd2+-exporting ATPase (EC 7.2.2.12 7.2.2.21)@297@63
+K17686@P-type Cu+ transporter (EC 7.2.2.8)@290@68
+K00520@mercuric reductase (EC 1.16.1.1)@285@10
+.TE

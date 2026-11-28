@@ -1,0 +1,22 @@
+.TS
+center box tab(@);
+c c s c c
+c c c c c
+l n n n n.
+gene class@full atlas, genes (%)@odds ratio@odds ratio
+@shared@background@full atlas@complete genomes
+_
+transposase@2.7@0.8@3.57@4.60
+integrase/recombinase@0.8@0.2@3.59@4.10
+antimicrobial resistance@1.4@0.8@1.87@2.62
+conjugation / T4SS@1.6@0.4@3.79@1.88
+phage@0.2@0.2@1.35@1.43
+defense (RM, CRISPR, TA)@1.5@1.0@1.49@1.34
+metal resistance@2.1@0.4@5.36@6.40
+toxins@0.0@0.1@0.47@0.38
+transporters@5.3@7.7@0.67@0.59
+ribosome / translation@1.4@3.8@0.36@0.21
+DNA replication / repair@2.2@2.8@0.78@0.79
+other KEGG ortholog@23.6@37.3@0.52@0.43
+no KEGG ortholog@57.1@44.5@1.66@1.64
+.TE

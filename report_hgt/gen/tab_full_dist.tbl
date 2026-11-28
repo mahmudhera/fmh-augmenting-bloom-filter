@@ -1,0 +1,16 @@
+.TS
+center box tab(@);
+c c c c
+c c c c
+l n n n.
+lowest common taxon@one direction@both directions@both directions,
+@@(main rule)@partner test
+_
+same genus@1,631,212@953,312@953,312
+same family@309,758@146,818@108,156
+same order@154,391@71,594@46,106
+same class@261,802@101,076@59,302
+same phylum@111,662@46,750@25,146
+same domain@263,926@50,336@22,624
+different domain@6,772@802@262
+.TE

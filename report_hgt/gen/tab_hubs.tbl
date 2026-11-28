@@ -1,0 +1,19 @@
+.TS
+center box tab(@);
+l c
+l n.
+genus@partner genera
+_
+Enterobacter@155
+Aquipseudomonas@137
+Providencia@132
+Proteus@115
+Paracoccus@114
+Streptococcus@111
+Acinetobacter@110
+Vibrio@107
+Corynebacterium@105
+Klebsiella@105
+Diaphorobacter_A@96
+Stenotrophomonas@96
+.TE

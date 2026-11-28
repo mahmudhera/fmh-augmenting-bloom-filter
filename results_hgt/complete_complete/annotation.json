@@ -1,0 +1,453 @@
+{
+ "regions": 9492,
+ "region_bp": 101207411,
+ "genomes": 2281,
+ "genes_shared": 111632,
+ "genes_background": 114610,
+ "classes": [
+  {
+   "class": "transposase",
+   "shared": 6809,
+   "shared_share": 0.06099505518131002,
+   "background": 1597,
+   "background_share": 0.013934211674373963,
+   "odds_ratio": 4.595640266696758
+  },
+  {
+   "class": "integrase/recombinase",
+   "shared": 1322,
+   "shared_share": 0.011842482442310448,
+   "background": 334,
+   "background_share": 0.00291423086990664,
+   "odds_ratio": 4.095808435123227
+  },
+  {
+   "class": "antimicrobial resistance",
+   "shared": 3147,
+   "shared_share": 0.028190841335817687,
+   "background": 1253,
+   "background_share": 0.010932728383212634,
+   "odds_ratio": 2.6237349769107814
+  },
+  {
+   "class": "conjugation / T4SS",
+   "shared": 2474,
+   "shared_share": 0.022162104056184607,
+   "background": 1368,
+   "background_share": 0.011936131227641568,
+   "odds_ratio": 1.8758346151593754
+  },
+  {
+   "class": "phage",
+   "shared": 320,
+   "shared_share": 0.0028665615594094885,
+   "background": 230,
+   "background_share": 0.0020068056888578657,
+   "odds_ratio": 1.4287793277071423
+  },
+  {
+   "class": "defense (RM, CRISPR, TA)",
+   "shared": 1765,
+   "shared_share": 0.015810878601117958,
+   "background": 1353,
+   "background_share": 0.011805252595759532,
+   "odds_ratio": 1.3446436038089977
+  },
+  {
+   "class": "metal resistance",
+   "shared": 3562,
+   "shared_share": 0.03190841335817687,
+   "background": 587,
+   "background_share": 0.005121717127650293,
+   "odds_ratio": 6.397852288503161
+  },
+  {
+   "class": "toxins",
+   "shared": 33,
+   "shared_share": 0.0002956141608141035,
+   "background": 91,
+   "background_share": 0.0007939970334176773,
+   "odds_ratio": 0.3756997510883534
+  },
+  {
+   "class": "transporters",
+   "shared": 6032,
+   "shared_share": 0.05403468539486885,
+   "background": 10191,
+   "background_share": 0.0889189425006544,
+   "odds_ratio": 0.5852950572602019
+  },
+  {
+   "class": "ribosome / translation",
+   "shared": 801,
+   "shared_share": 0.007175361903396875,
+   "background": 3751,
+   "background_share": 0.03272838321263415,
+   "odds_ratio": 0.21370184927627472
+  },
+  {
+   "class": "DNA replication / repair",
+   "shared": 2535,
+   "shared_share": 0.02270854235344704,
+   "background": 3269,
+   "background_share": 0.028522816508158102,
+   "odds_ratio": 0.7914519296971758
+  },
+  {
+   "class": "other KEGG ortholog",
+   "shared": 23079,
+   "shared_share": 0.20674179446753618,
+   "background": 43257,
+   "background_share": 0.37742779862141174,
+   "odds_ratio": 0.4299070125421352
+  },
+  {
+   "class": "no KEGG ortholog",
+   "shared": 59753,
+   "shared_share": 0.5352676651856099,
+   "background": 47329,
+   "background_share": 0.41295698455632146,
+   "odds_ratio": 1.63731151292361
+  }
+ ],
+ "by_distance": {
+  "same family": {
+   "genes": 52476,
+   "transposase": 0.06614452321061057,
+   "integrase/recombinase": 0.009718728561628172,
+   "antimicrobial resistance": 0.0127677414437076,
+   "conjugation / T4SS": 0.022410244683283786,
+   "phage": 0.0031252382041314125,
+   "defense (RM, CRISPR, TA)": 0.01633127524963793,
+   "metal resistance": 0.02946108697309246,
+   "toxins": 0.0003620702797469319,
+   "transporters": 0.06496303071880478,
+   "ribosome / translation": 0.009794953883680159,
+   "DNA replication / repair": 0.02069517493711411,
+   "other KEGG ortholog": 0.2471987194145895,
+   "no KEGG ortholog": 0.49702721243997255
+  },
+  "same order": {
+   "genes": 15270,
+   "transposase": 0.05625409299279633,
+   "integrase/recombinase": 0.007203667321545514,
+   "antimicrobial resistance": 0.012966601178781925,
+   "conjugation / T4SS": 0.010674525212835625,
+   "phage": 0.0024885396201702686,
+   "defense (RM, CRISPR, TA)": 0.014865749836280287,
+   "metal resistance": 0.022396856581532416,
+   "toxins": 0.0005893909626719057,
+   "transporters": 0.044597249508840864,
+   "ribosome / translation": 0.0041912246234446626,
+   "DNA replication / repair": 0.025605762933857235,
+   "other KEGG ortholog": 0.16777996070726917,
+   "no KEGG ortholog": 0.6303863785199738
+  },
+  "same class": {
+   "genes": 18463,
+   "transposase": 0.0551373016302876,
+   "integrase/recombinase": 0.013053133293614256,
+   "antimicrobial resistance": 0.030439256892162703,
+   "conjugation / T4SS": 0.026431240860098574,
+   "phage": 0.002383144667713806,
+   "defense (RM, CRISPR, TA)": 0.01570708985538645,
+   "metal resistance": 0.05080431132535341,
+   "toxins": 5.416237881167741e-05,
+   "transporters": 0.04652548339923089,
+   "ribosome / translation": 0.00460380219899258,
+   "DNA replication / repair": 0.02821859936088393,
+   "other KEGG ortholog": 0.15674592428099443,
+   "no KEGG ortholog": 0.5698965498564696
+  },
+  "same phylum": {
+   "genes": 6512,
+   "transposase": 0.045454545454545456,
+   "integrase/recombinase": 0.023495085995085995,
+   "antimicrobial resistance": 0.027487714987714986,
+   "conjugation / T4SS": 0.032555282555282554,
+   "phage": 0.003992628992628993,
+   "defense (RM, CRISPR, TA)": 0.015663390663390665,
+   "metal resistance": 0.056203931203931204,
+   "toxins": 0.00015356265356265356,
+   "transporters": 0.03409090909090909,
+   "ribosome / translation": 0.002457002457002457,
+   "DNA replication / repair": 0.022113022113022112,
+   "other KEGG ortholog": 0.18074324324324326,
+   "no KEGG ortholog": 0.5555896805896806
+  },
+  "same domain": {
+   "genes": 18804,
+   "transposase": 0.061369921293341845,
+   "integrase/recombinase": 0.01590087215486067,
+   "antimicrobial resistance": 0.08179110827483514,
+   "conjugation / T4SS": 0.023133375877472877,
+   "phage": 0.0025526483726866626,
+   "defense (RM, CRISPR, TA)": 0.01520952988725803,
+   "metal resistance": 0.0194639438417358,
+   "toxins": 0.0001595405232929164,
+   "transporters": 0.04573495001063604,
+   "ribosome / translation": 0.006487981280578601,
+   "DNA replication / repair": 0.020846628376941078,
+   "other KEGG ortholog": 0.18363114231014677,
+   "no KEGG ortholog": 0.5237183577962136
+  },
+  "different domain": {
+   "genes": 107,
+   "transposase": 0.102803738317757,
+   "integrase/recombinase": 0.08411214953271028,
+   "antimicrobial resistance": 0.0,
+   "conjugation / T4SS": 0.0,
+   "phage": 0.0,
+   "defense (RM, CRISPR, TA)": 0.028037383177570093,
+   "metal resistance": 0.037383177570093455,
+   "toxins": 0.0,
+   "transporters": 0.009345794392523364,
+   "ribosome / translation": 0.0,
+   "DNA replication / repair": 0.009345794392523364,
+   "other KEGG ortholog": 0.19626168224299065,
+   "no KEGG ortholog": 0.5327102803738317
+  }
+ },
+ "top_kos": [
+  {
+   "ko": "K07497",
+   "name": "K07497; putative transposase",
+   "shared": 1703,
+   "background": 396
+  },
+  {
+   "ko": "K07483",
+   "name": "K07483; transposase",
+   "shared": 843,
+   "background": 208
+  },
+  {
+   "ko": "K18320",
+   "name": "IS15, IS26; transposase, IS6 family",
+   "shared": 586,
+   "background": 21
+  },
+  {
+   "ko": "K21528",
+   "name": "gin; Enterobacteriaceae phage serine recombinase [EC:3.1.22.- 6.5.1.-]",
+   "shared": 578,
+   "background": 82
+  },
+  {
+   "ko": "K07484",
+   "name": "K07484; transposase",
+   "shared": 570,
+   "background": 183
+  },
+  {
+   "ko": "K07482",
+   "name": "K07482; transposase, IS30 family",
+   "shared": 520,
+   "background": 89
+  },
+  {
+   "ko": "K07481",
+   "name": "K07481; transposase, IS5 family",
+   "shared": 511,
+   "background": 54
+  },
+  {
+   "ko": "K08365",
+   "name": "merR; MerR family transcriptional regulator, mercuric resistance operon regulatory protein",
+   "shared": 396,
+   "background": 28
+  },
+  {
+   "ko": "K03205",
+   "name": "virD4, lvhD4; type IV secretion system protein VirD4 [EC:7.4.2.8]",
+   "shared": 372,
+   "background": 128
+  },
+  {
+   "ko": "K03497",
+   "name": "parB, spo0J; ParB family transcriptional regulator, chromosome partitioning protein",
+   "shared": 366,
+   "background": 223
+  },
+  {
+   "ko": "K03496",
+   "name": "parA, soj; chromosome partitioning protein",
+   "shared": 349,
+   "background": 264
+  },
+  {
+   "ko": "K07493",
+   "name": "K07493; putative transposase",
+   "shared": 330,
+   "background": 63
+  },
+  {
+   "ko": "K04763",
+   "name": "xerD; integrase/recombinase XerD",
+   "shared": 318,
+   "background": 114
+  },
+  {
+   "ko": "K07480",
+   "name": "insB; insertion element IS1 protein InsB",
+   "shared": 318,
+   "background": 57
+  },
+  {
+   "ko": "K07486",
+   "name": "K07486; transposase",
+   "shared": 298,
+   "background": 82
+  },
+  {
+   "ko": "K01534",
+   "name": "zntA; Zn2+/Cd2+-exporting ATPase [EC:7.2.2.12 7.2.2.21]",
+   "shared": 297,
+   "background": 63
+  },
+  {
+   "ko": "K17686",
+   "name": "copA, ctpA, ATP7; P-type Cu+ transporter [EC:7.2.2.8]",
+   "shared": 290,
+   "background": 68
+  },
+  {
+   "ko": "K00520",
+   "name": "merA; mercuric reductase [EC:1.16.1.1]",
+   "shared": 285,
+   "background": 10
+  },
+  {
+   "ko": "K07492",
+   "name": "K07492; putative transposase",
+   "shared": 283,
+   "background": 125
+  },
+  {
+   "ko": "K16264",
+   "name": "czcD, zitB; cobalt-zinc-cadmium efflux system protein",
+   "shared": 275,
+   "background": 46
+  },
+  {
+   "ko": "K00986",
+   "name": "ltrA; RNA-directed DNA polymerase [EC:2.7.7.49]",
+   "shared": 275,
+   "background": 54
+  },
+  {
+   "ko": "K03088",
+   "name": "rpoE; RNA polymerase sigma-70 factor, ECF subfamily",
+   "shared": 245,
+   "background": 224
+  },
+  {
+   "ko": "K07485",
+   "name": "K07485; transposase",
+   "shared": 245,
+   "background": 31
+  },
+  {
+   "ko": "K06919",
+   "name": "K06919; putative DNA primase/helicase",
+   "shared": 240,
+   "background": 84
+  },
+  {
+   "ko": "K18220",
+   "name": "tetM, tetO; ribosomal protection tetracycline resistance protein",
+   "shared": 225,
+   "background": 4
+  },
+  {
+   "ko": "K02014",
+   "name": "TC.FEV.OM; iron complex outermembrane recepter protein",
+   "shared": 222,
+   "background": 311
+  },
+  {
+   "ko": "K03169",
+   "name": "topB; DNA topoisomerase III [EC:5.6.2.1]",
+   "shared": 214,
+   "background": 72
+  },
+  {
+   "ko": "K05349",
+   "name": "bglX; beta-glucosidase [EC:3.2.1.21]",
+   "shared": 212,
+   "background": 77
+  },
+  {
+   "ko": "K03111",
+   "name": "ssb; single-strand DNA-binding protein",
+   "shared": 209,
+   "background": 89
+  },
+  {
+   "ko": "K08363",
+   "name": "merT; mercuric ion transport protein",
+   "shared": 202,
+   "background": 7
+  },
+  {
+   "ko": "K03892",
+   "name": "arsR; ArsR family transcriptional regulator, arsenate/arsenite/antimonite-responsive transcriptional repressor",
+   "shared": 187,
+   "background": 46
+  },
+  {
+   "ko": "K08364",
+   "name": "merP; periplasmic mercuric ion binding protein",
+   "shared": 183,
+   "background": 4
+  },
+  {
+   "ko": "K07495",
+   "name": "K07495; putative transposase",
+   "shared": 181,
+   "background": 51
+  },
+  {
+   "ko": "K06147",
+   "name": "ABCB-BAC; ATP-binding cassette, subfamily B, bacterial",
+   "shared": 174,
+   "background": 129
+  },
+  {
+   "ko": "K15726",
+   "name": "czcA, cusA, cnrA; heavy metal efflux system protein",
+   "shared": 164,
+   "background": 35
+  },
+  {
+   "ko": "K03101",
+   "name": "lspA; signal peptidase II [EC:3.4.23.36]",
+   "shared": 161,
+   "background": 43
+  },
+  {
+   "ko": "K02004",
+   "name": "ABC.CD.P; putative ABC transport system permease protein",
+   "shared": 157,
+   "background": 127
+  },
+  {
+   "ko": "K18974",
+   "name": "sul1; dihydropteroate synthase type 1 [EC:2.5.1.15]",
+   "shared": 157,
+   "background": 1
+  },
+  {
+   "ko": "K14060",
+   "name": "pinR; putative DNA-invertase from lambdoid prophage Rac",
+   "shared": 149,
+   "background": 40
+  },
+  {
+   "ko": "K21757",
+   "name": "benM; LysR family transcriptional regulator, benzoate and cis,cis-muconate-responsive activator of ben and cat genes",
+   "shared": 141,
+   "background": 42
+  }
+ ]
+}

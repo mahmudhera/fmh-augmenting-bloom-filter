@@ -1,0 +1,22 @@
+.TS
+center box tab(@);
+c c c c c c
+c c c c c c
+l n n n n n.
+habitats@complete@isolates@isolates,@MAGs@MAGs,
+@genomes@@other projects@@other projects
+_
+gut@14.18@27.84@27.50@2.09@2.37
+host, other sites@5.52@12.92@13.04@\(em@\(em
+engineered@20.41@13.25@13.37@12.78@14.20
+gut \(em host, other sites@4.41@7.22@7.27@2.14@3.21
+food \(em engineered@20.42@6.42@6.46@5.13@7.72
+gut \(em food@8.66@3.76@3.78@0.21@0.31
+gut \(em engineered@7.67@3.68@3.71@0.43@0.64
+marine@1.13@0.76@0.76@2.38@2.19
+freshwater@0.06@0.11@0.11@3.02@1.30
+soil@0.16@0.16@0.17@13.33@3.50
+plant@0.20@0.05@0.05@\(em@\(em
+sediment@0.74@0.27@0.27@18.65@4.90
+extreme@\(em@0.58@0.59@11.54@3.16
+.TE
